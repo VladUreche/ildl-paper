@@ -107,3 +107,17 @@ sympy-plots-for-*.tex/
 
 # xindy
 *.xdy
+
+# other crap
+out
+*.aux
+*~
+*.tmp
+*.pdf
+tmp
+~
+
+# Texlipse
+.project
+.texlipse
+.settings
