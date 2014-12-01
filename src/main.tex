@@ -1,27 +1,17 @@
 \documentclass[runningheads,a4paper]{style/llncs}
 
-\usepackage{amssymb}
-\setcounter{tocdepth}{3}
-\usepackage{graphicx}
 
-\usepackage{url}
-\newcommand{\keywords}[1]{\par\addvspace\baselineskip
-\noindent\keywordname\enspace\ignorespaces#1}
+\input{tweaks.tex}
 
 \begin{document}
 
-\mainmatter  % start of an individual contribution
+\mainmatter
 
 \title{Evolving the Data Representation over\\Separate Compilations}
 \maketitle
 
-
-\begin{abstract}
-TBD
-\keywords{data representation, jvm, bytecode, backwards compatibility, transformation, optimization}
-\end{abstract}
-
-\section{Introduction}
+\input{abstract.tex}
+\input{intro.tex}
 
 \bibliographystyle{style/splncs03}
 \bibliography{main}
