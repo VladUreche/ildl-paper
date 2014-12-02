@@ -1,5 +1,41 @@
 \section{Introduction}
 
+% - Before Java8 lambdas
+Programming languages running on the Java Virtual Machine (JVM) \cite{java-spec} offered first-class support for functions even before the underlying JVM platform supported them \cite{scala-odersky, xtend, kotlin, ceylon}. One of these languages is Scala, which we will use for our running example:
+
 \begin{lstlisting-nobreak}
 List(1, 2, 3).map((x: Int) => x + 1)
 \end{lstlisting-nobreak}
+
+To implement first-class function support, Scala relies on an object-oriented approach, defining an anonymous class extending the |Function1[Int, Int]| interface and implementing the |apply| method:
+
+\begin{lstlisting-nobreak}
+List(1, 2, 3).map(
+  new `Function1[Int, Int]`{
+    def `apply`(x: Int): Int = x + 1
+  })
+\end{lstlisting-nobreak}
+
+% - After Java8 lambdas
+Recently the JVM platform added support for first-class lambdas through method handles \cite{mhs} and the |invokedynamic| instruction \cite{forax-bytecodes-meet-combinators}. This new support makes representing functions as anonymous classes wasteful in terms of bytecode size and precludes very useful optimizations that the JVM platform is capable of, thus ruining performance. Instead, the functions should be encoded using the native Java 8 mechanisms.
+
+% - Tension1: backwards compatibility
+However, this leads to an important question: How should code compiled by previous versions of the Scala compiler, encoding functions as anonymous classes, be used from code compiled by the new versions of the Scala compiler, which use Java 8 lambdas? Ideally, all the code should use the Java 8 representation, which is markedly better. But some libraries, such as |List| in our case, were already compiled with the earlier encoding, using anonymous classes? These would no longer be binary compatible, thus making it impossible to use them from code compiled using the new version of the compiler.
+
+% - Bad solution, currently used in practice: binary incompatibility
+The easy way out of the binary compatibility conundrum is to simply give up by declaring code compiled with the old and new versions of the compiler binary incompatible. In doing so, the responsibility is moved to programmers, who now need to make sure all their dependencies are compiled with the new version of the compiler, even if those dependencies are out of their control. This delays their work, in turn leading to slower adoption of the new version, and maybe even preventing it altogether, if the benefits do not overweight the adoption effort necessary.
+
+% - Better solution: incremental data representation transformation
+A better answer to the binary compatibility problem is to allow old and new bytecode to interoperate. Since old bytecode    
+
+% - Tension2: current DRT tecnhiques abund, but neither of them work incrementally -- they assume all repres are kwnown from day 1
+
+
+% - Tension3: although we used the example of function representation
+
+% - In this context, our paper makes the following contributions:
+%    - define the problem
+%    - incrementalizes existing DRT techniqes and explains the pitfalls
+%    - show concrete numbers for a incremental DRT transformation based on function specialization, with 15x speedups
+
+
