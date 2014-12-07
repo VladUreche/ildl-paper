@@ -1,32 +1,64 @@
+
+
+% - Although Scala and Java use the same mechanism for Functions, they are not compatible
+% - However, a deeper question is interoperating between languages
+% - Tension1: backwards compatibility
+% - Generality of the problem
+% - Bad solution, currently used in practice: binary incompatibility
+% - Tension2: current DRT tecnhiques abund, but neither of them work incrementally -- they assume all repres are kwnown from day 1
+% - Tension3: although we used the example of function representation
+% - In this context, our paper makes the following contributions:
+%    - define the problem
+%    - incrementalizes existing DRT techniqes and explains the pitfalls
+%    - show concrete numbers for a incremental DRT transformation based on function specialization, with 15x speedups
+
+
 \section{Introduction}
 
-% - Before Java8 lambdas
-Programming languages running on the Java Virtual Machine (JVM) \cite{java-spec} offered first-class support for functions even before the underlying JVM platform supported them \cite{scala-odersky, xtend, kotlin, ceylon}. One of these languages is Scala, which we will use for our running example:
+Following the release of Java 8, both the language and the execution platform added mechanisms to support first-class functions. This also benefited the alternative languages targeting the Java Virtual Machine (JVM) execution platform, which used these mechanisms to improve their functions implementation, that, lacking platform support, was done in a clumsy and inefficient way. The following code snippet shows a method |foo| that accepts a function, written both in Java and Scala, one such alternative JVM language:
 
 \begin{lstlisting-nobreak}
-List(1, 2, 3).map((x: Int) => x + 1)
+// Java:
+Integer foo(Function<Integer, Integer> f) { ... }
+foo(`(Integer x) -> x + 1`);
 \end{lstlisting-nobreak}
-
-To implement first-class function support, Scala relies on an object-oriented approach, defining an anonymous class extending the |Function1[Int, Int]| interface and implementing the |apply| method:
 
 \begin{lstlisting-nobreak}
-List(1, 2, 3).map(
-  new `Function1[Int, Int]`{
-    def `apply`(x: Int): Int = x + 1
-  })
+// Scala:
+def foo(f: Function1[Int, Int]): Int = { ... }
+foo(`(x: Int) => x + 1`)
 \end{lstlisting-nobreak}
 
-% - After Java8 lambdas
-Recently the JVM platform added support for first-class lambdas through method handles \cite{mhs} and the |invokedynamic| instruction \cite{forax-bytecodes-meet-combinators}. This new support makes representing functions as anonymous classes wasteful in terms of bytecode size and precludes very useful optimizations that the JVM platform is capable of, thus ruining performance. Instead, the functions should be encoded using the native Java 8 mechanisms.
+Given the similarity of the syntax and knowing the implementations use the same underlying mechanisms, namely |MethodHandles| and the |invokeDynamic| instruction, it may be tempting to assume that the two languages can pass functions back and forth. However, this is not the case:
+
+\begin{lstlisting-nobreak}
+scala> val f = (x: Int) => x + 1
+f: Function1[Int, Int] = <function1>
+
+scala> import JavaExample.foo
+import JavaExample.foo
+
+scala> foo(f)
+<console>:10: error: type mismatch;
+ found   : scala.Function1[Int, Int]
+ required: java.util.function.Function[Integer,Integer]
+              foo(f)
+                  ^
+\end{lstlisting-nobreak}
+
+Ideally, languages would expose a |Function| that abstracts over Java's |Function| and Scala's |Function1|, and uses the correct one depending on the context. Even more, since Scala benefits from function specialization \cite{iuli-thesis}, which allows calling functions without boxing their arguments and their return value, it should be favored over the Java representation when a choice can be made. \vlad{Other similar problems here.}
 
 % - Tension1: backwards compatibility
-However, this leads to an important question: How should code compiled by previous versions of the Scala compiler, encoding functions as anonymous classes, be used from code compiled by the new versions of the Scala compiler, which use Java 8 lambdas? Ideally, all the code should use the Java 8 representation, which is markedly better. But some libraries, such as |List| in our case, were already compiled with the earlier encoding, using anonymous classes? These would no longer be binary compatible, thus making it impossible to use them from code compiled using the new version of the compiler.
+However, this raises to an important question: How should code compiled by previous versions of the Scala compiler, encoding functions as anonymous classes, be used from code compiled by the new versions of the Scala compiler, which use the Java 8 function encoding? Ideally, all the code should use the Java 8 representation, which is markedly better. But some libraries, such as |List| in our case, were already compiled with the earlier encoding, using anonymous classes. These would no longer be binary compatible, thus making it impossible to use them from code compiled using the new version of the compiler.
+
+% - Generality
+And this question is not limited to functions: the same problem pops up when trying to align the basic data containers across JVM languages. It would definitely be useful if developers could rely on a standard |Tuple|, |List| or |Stream| across all JVM languages. Finally, another example where this problem occurs is when using specialization techniques, such as specialization, miniboxing or the future Valhalla project \cite{}: how to bridge the gap between the otherwise incompatible
 
 % - Bad solution, currently used in practice: binary incompatibility
 The easy way out of the binary compatibility conundrum is to simply give up by declaring code compiled with the old and new versions of the compiler binary incompatible. In doing so, the responsibility is moved to programmers, who now need to make sure all their dependencies are compiled with the new version of the compiler, even if those dependencies are out of their control. This delays their work, in turn leading to slower adoption of the new version, and maybe even preventing it altogether, if the benefits do not overweight the adoption effort necessary.
 
 % - Better solution: incremental data representation transformation
-A better answer to the binary compatibility problem is to allow old and new bytecode to interoperate. Since old bytecode    
+A better answer to the binary compatibility problem is to allow old and new bytecode to interoperate. Since old bytecode
 
 % - Tension2: current DRT tecnhiques abund, but neither of them work incrementally -- they assume all repres are kwnown from day 1
 
