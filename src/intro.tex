@@ -1,3 +1,45 @@
+% Objects = encapsulated data + API. Extension methods = ad-hoc additions of the API
+
+\begin{lstlisting-nobreak}
+scala> (0f, 1f) * (0f, 1f)
+res0: (Float, Float) = (-1.0, 0.0)
+\end{lstlisting-nobreak}
+
+% But how about allowing programmers to transform the encapsulated data in an ad-hoc way? In many cases, we end up with generic nested containers, which is an inefficient pattern, that produces extra objects ... For example, in the case of the tuple, the locations are ...
+How about?
+
+% Such types of transformations have typically been limited to dynamic language virtual machines, which are able to perform shape analysis and can bail out of transformations if necessary. But this is an expensive process, thus negating the benefits. Furthermore, good benchmark results are dependent on steady state, which essentially means the current set of assumptions is no longer being violated. What if, instead, we could use the programmer's domain-specific knowledge in the compiler?
+
+% Arguably, the best solution would be to define a Complex value class, whose parameters can be completely unboxed and inlined, and replace all the uses of the tuple by this Complex class. Yet, unless the transformation occurs in isolation, or on a very small scale, reasoning about the complex interactions between overriding, generics, variance and top/bottom types is beyond.
+
+% A more accessible solution would be to specialize tuple classes. Specialization duplicates and adapts classes, creating variants that can store unboxed values. But so far, retrofitting specialization has not been explored at all => all or nothing -- either a class is specialized from the beginning, or it is forever generic.
+
+In this paper, we define the problem of ad-hoc data transformations and we offer a working solution. We also discuss the pitfalls we were able to retrofit specialization for functions by essentially performing ad-hoc object transformations in a compiler plugin, allowing show the pitfalls of retrofitting specialization to an existing library, essentially by performing
+
+
+ * we state the problem of ad-hoc data transformations and the pitfalls that occur
+ * in doing so, we build up our solution
+ * we evaluate it, with surprisingly good results :)
+
+
+Related work:
+shape analysis, begone tagging
+
+
+
+
+
+
+
+
+
+
+
+
+We can regard objects as encapsulating data and exposing an API. Extension methods in strongly typed object-oriented programming languages are mechanisms that allow the programmer to tweak an object's API. However, very little attention has been given to the problem of tweaking the data in an object while maintaining the API, particualrly for two reasons:
+
+1. It's a very hard problem, usually because it requires compiler support (such as, for example, unboxing primitive types, specialization and value classes)
+2. It is seen as a low-level transformation, to be done by virtual machine interpreters and
 
 
 % - Although Scala and Java use the same mechanism for Functions, they are not compatible
@@ -47,6 +89,8 @@ scala> foo(f)
 \end{lstlisting-nobreak}
 
 Ideally, languages would expose a |Function| that abstracts over Java's |Function| and Scala's |Function1|, and uses the correct one depending on the context. Even more, since Scala benefits from function specialization \cite{iuli-thesis}, which allows calling functions without boxing their arguments and their return value, it should be favored over the Java representation when a choice can be made. \vlad{Other similar problems here.}
+
+%% WE NEED A TRANSITION HERE!
 
 % - Tension1: backwards compatibility
 However, this raises to an important question: How should code compiled by previous versions of the Scala compiler, encoding functions as anonymous classes, be used from code compiled by the new versions of the Scala compiler, which use the Java 8 function encoding? Ideally, all the code should use the Java 8 representation, which is markedly better. But some libraries, such as |List| in our case, were already compiled with the earlier encoding, using anonymous classes. These would no longer be binary compatible, thus making it impossible to use them from code compiled using the new version of the compiler.
