@@ -1,26 +1,32 @@
+\section{Introduction}
+\label{sec:intro}
+
 % Objects = encapsulated data + API. Extension methods = ad-hoc additions of the API
+We can think of objects as encapsulating code and data and exposing an interface. In this context, extension methods, type classes and implicit conversions are different mechanisms that allow programmers to evolve the object interface in an ad-hoc way, by adding new code. For example, in Scala, we can use an implicit conversion to add the multiplication operator to pairs of floating-point numbers, with the semantics of complex multiplication:
 
 \begin{lstlisting-nobreak}
 scala> (0f, 1f) * (0f, 1f)
 res0: (Float, Float) = (-1.0, 0.0)
 \end{lstlisting-nobreak}
 
-% But how about allowing programmers to transform the encapsulated data in an ad-hoc way? In many cases, we end up with generic nested containers, which is an inefficient pattern, that produces extra objects ... For example, in the case of the tuple, the locations are ...
-How about?
+% But how about allowing programmers to transform the encapsulated data in an ad-hoc way? In many cases, we end up with generic nested containers, which is an inefficient pattern, that produces extra objects ... For example, in the case of the tuple, the locations are ... How about?
+Therefore programmers can easily evolve the object code and its interface. However, evolving the encapsulated data is impossible, since the code hardcodes the object layout. So programs end up with nested generic containers, leading to indirection, overhead and heap waste. For example, out tuple, being generic, requires the floating-point numbers to be boxed. This leads to a total of 3 heap objects per tuple. What if, instead of boxing, the two 32-bit floating-point numbers would be concatenated together into a 64-bit value, that would represent the tuple?
 
 % Such types of transformations have typically been limited to dynamic language virtual machines, which are able to perform shape analysis and can bail out of transformations if necessary. But this is an expensive process, thus negating the benefits. Furthermore, good benchmark results are dependent on steady state, which essentially means the current set of assumptions is no longer being violated. What if, instead, we could use the programmer's domain-specific knowledge in the compiler?
+Typically, ad-hoc transformations to the object layout are only performed at run-time by dynamic language virtual machines. These profile the execution and make optimistic assumptions about the shape of objects. In case the assumptions prove too optimistic, the virtual machine can change the object layout, making it more general, at the expense of recompiling the code that relied on the old object layout. As expected, this comes with important overheads, making dynamic languages several times slower than compiled statically typed languages. So a natural question to ask is whether we can use the programmer's domain knowledge to transform a statically-typed program at compile-time?
 
 % Arguably, the best solution would be to define a Complex value class, whose parameters can be completely unboxed and inlined, and replace all the uses of the tuple by this Complex class. Yet, unless the transformation occurs in isolation, or on a very small scale, reasoning about the complex interactions between overriding, generics, variance and top/bottom types is beyond.
+The answer is yes, we can use a language's static types and the programmer's domain knowledge to change object layout at compile-time. Transformations such as specialization and value classes fundamentally transform object layouts to avoid boxing and respectively to inline the object's fields. However, neither of these transformations are ad-hoc and both are all-or-nothing: if a class was defined as a value class or as a specialized class, it is transformed once and then its clients benefit from the transformation.
 
-% A more accessible solution would be to specialize tuple classes. Specialization duplicates and adapts classes, creating variants that can store unboxed values. But so far, retrofitting specialization has not been explored at all => all or nothing -- either a class is specialized from the beginning, or it is forever generic.
+However, if a library class was not marked for transformation at its definition site, its suboptimal layout becomes burnt into the bytecode, just like our boxing |Tuple|. And there is a good reason for this: both value and specialization transformations impose restrictions on the classes, modify the class hierarchy, duplicate and adapt methods and perform many operations to make sure they don't break inheritance, overriding, variance, subtyping and a host of other language features. In a nutshell, they are not orthogonal to the rest of the language features, so retrofitting them is a difficult problem.
 
-In this paper, we define the problem of ad-hoc data transformations and we offer a working solution. We also discuss the pitfalls we were able to retrofit specialization for functions by essentially performing ad-hoc object transformations in a compiler plugin, allowing show the pitfalls of retrofitting specialization to an existing library, essentially by performing
+In the interest of flexibility, we would still like to have ad-hoc overriding of object layout, such as retrofitting specialized versions of a library class. For example, although the |Tuple| class in the library is not declared as specialized, we should be able to create a specialized alternative version |SpecTuple|, and automatically substitute that for |Tuple| in a correct and safe manner. This is exactly what we do in this paper. In this context, we make the following contributions:
 
-
- * we state the problem of ad-hoc data transformations and the pitfalls that occur
- * in doing so, we build up our solution
- * we evaluate it, with surprisingly good results :)
-
+\begin{itermize}
+\item we present the problem of ad-hoc retrofitting of specialization and explain how this interacts with other language features;
+\item we construct a solution that is capable of retrofitting specialized variants of function objects, allowing unboxed calls to functions;
+\item we describe the pitfalls and optimizations in our implementation of specialization injection and benchmark the result of the transformation, for speedups between 2 and 14x.
+\end{itermize}
 
 Related work:
 shape analysis, begone tagging
@@ -55,7 +61,7 @@ We can regard objects as encapsulating data and exposing an API. Extension metho
 %    - show concrete numbers for a incremental DRT transformation based on function specialization, with 15x speedups
 
 
-\section{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Following the release of Java 8, both the language and the execution platform added mechanisms to support first-class functions. This also benefited the alternative languages targeting the Java Virtual Machine (JVM) execution platform, which used these mechanisms to improve their functions implementation, that, lacking platform support, was done in a clumsy and inefficient way. The following code snippet shows a method |foo| that accepts a function, written both in Java and Scala, one such alternative JVM language:
 
