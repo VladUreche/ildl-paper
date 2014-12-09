@@ -2,122 +2,45 @@
 \label{sec:intro}
 
 % Objects = encapsulated data + API. Extension methods = ad-hoc additions of the API
-We can think of objects as encapsulating code and data and exposing an interface. In this context, extension methods, type classes and implicit conversions are different mechanisms that allow programmers to evolve the object interface in an ad-hoc way, by adding new code. For example, in Scala, we can use an implicit conversion to add the multiplication operator to pairs of floating-point numbers, with the semantics of complex multiplication:
+We can think of an object as encapsulating code and data and exposing an interface. In this context, extension methods, type classes and implicit conversions are different mechanisms that allow programmers to evolve the object interface in an ad-hoc way, by adding new code. For example, in Scala, we can use an implicit conversion to add the multiplication operator to pairs of floating-point numbers, with the semantics of complex multiplication:
 
 \begin{lstlisting-nobreak}
 scala> (0f, 1f) * (0f, 1f)
 res0: (Float, Float) = (-1.0, 0.0)
 \end{lstlisting-nobreak}
 
-% But how about allowing programmers to transform the encapsulated data in an ad-hoc way? In many cases, we end up with generic nested containers, which is an inefficient pattern, that produces extra objects ... For example, in the case of the tuple, the locations are ... How about?
-Therefore programmers can easily evolve the object code and its interface. However, evolving the encapsulated data is impossible, since the code hardcodes the object layout. So programs end up with nested generic containers, leading to indirection, overhead and heap waste. For example, out tuple, being generic, requires the floating-point numbers to be boxed. This leads to a total of 3 heap objects per tuple. What if, instead of boxing, the two 32-bit floating-point numbers would be concatenated together into a 64-bit value, that would represent the tuple?
+% Interface okay, what about the object layout?
+Unlike the interface, evolving the encapsulated data is impossible because the code contains hard references the object layout. For example, the methods encapsulated by the pair, such as |swap| and |toString|, rely on the existence of two generic fields, erased to |Object|. This leads to inefficiencies, as the floating-point numbers need to be boxed, producing as much as 3 heap objects for each ``complex number'': the two boxed floats and the pair container. What if, instead of the pair, we concatenated the two 32-bit floating-point numbers into a 64-bit long integer value, that would represent the ``complex number''? We could pass that by value, sidestepping the need to allocate memory and later collect it. And, surprisingly, we could also add the desired functionality, such as arithmetic operations without a problem.
 
-% Such types of transformations have typically been limited to dynamic language virtual machines, which are able to perform shape analysis and can bail out of transformations if necessary. But this is an expensive process, thus negating the benefits. Furthermore, good benchmark results are dependent on steady state, which essentially means the current set of assumptions is no longer being violated. What if, instead, we could use the programmer's domain-specific knowledge in the compiler?
-Typically, ad-hoc transformations to the object layout are only performed at run-time by dynamic language virtual machines. These profile the execution and make optimistic assumptions about the shape of objects. In case the assumptions prove too optimistic, the virtual machine can change the object layout, making it more general, at the expense of recompiling the code that relied on the old object layout. As expected, this comes with important overheads, making dynamic languages several times slower than compiled statically typed languages. So a natural question to ask is whether we can use the programmer's domain knowledge to transform a statically-typed program at compile-time?
+% Object layout transformations in dynamic language vms => slow (due to profiling and recompilation)
+Ad-hoc object layout transformations are common in dynamic language virtual machines, such as V8 and Truffle, based on run-time value profiling. Observing the type of values at run-time and making optimistic assumptions about the shape of objects, a virtual machine can change the object layout and recompile all code that relies on the old object layout. However, if the assumptions prove too optimistic, the virtual machine needs to revert to the more general (and usually less efficient) object layout, again recompiling all code that contains hard references to the optimized object layout. As expected, this comes with important overheads, both for profiling and for the recompilation, making dynamic languages several times slower than compiled, statically typed languages.
 
-% Arguably, the best solution would be to define a Complex value class, whose parameters can be completely unboxed and inlined, and replace all the uses of the tuple by this Complex class. Yet, unless the transformation occurs in isolation, or on a very small scale, reasoning about the complex interactions between overriding, generics, variance and top/bottom types is beyond.
-The answer is yes, we can use a language's static types and the programmer's domain knowledge to change object layout at compile-time. Transformations such as specialization and value classes fundamentally transform object layouts to avoid boxing and respectively to inline the object's fields. However, neither of these transformations are ad-hoc and both are all-or-nothing: if a class was defined as a value class or as a specialized class, it is transformed once and then its clients benefit from the transformation.
+% Object layout transformations in statically typed languages => primitive unboxing, value classes and specialization
+Since transforming the object layout at run-time is expensive, a natural question to ask is whether we can leverage the statically-typed nature of a compiled language to optimized the object layout? The answer is yes. Transformations such as class specialization and value class inlining transform the object layout in order to avoid the creation of heap objects. However, both of these transformations are all-or-nothing: if a class was declared to be a value class or a specialized class during its definition, it will be transformed transitively in all the code that references it, including through separate compilation. On the other hand, if a library class was not marked for transformation at its definition site, its suboptimal layout becomes burnt into the bytecode, just like our boxing pair. And there is a good reason for this: both value and specialization transformations impose restrictions on the classes, modify the class hierarchy, duplicate and adapt methods and perform many operations to make sure they maintain the object inheritance, method overriding, type parameter variance, subtyping relations and a host of other language features. In a nutshell, they are not orthogonal to the rest of the language features, so retrofitting them is impossible in their current implementations.
 
-However, if a library class was not marked for transformation at its definition site, its suboptimal layout becomes burnt into the bytecode, just like our boxing |Tuple|. And there is a good reason for this: both value and specialization transformations impose restrictions on the classes, modify the class hierarchy, duplicate and adapt methods and perform many operations to make sure they don't break inheritance, overriding, variance, subtyping and a host of other language features. In a nutshell, they are not orthogonal to the rest of the language features, so retrofitting them is a difficult problem.
+% Object layout transformations in statically typed languages => not ad-hoc
+Therefore, although transformations in statically typed languages can optimize the object layout, they do not meet the ad-hoc criteria: they cannot be retrofitted later and have a global, all-or-nothing nature. In our case, the pair is neither specialized nor marked as a value class, so the object representation will not be optimized at all. Even worse, specialization and value class inlining are mutually exclusive, making it impossible to represent our ``complex numbers'' as a long integer value even if we had complete control over the Scala library.
 
-In the interest of flexibility, we would still like to have ad-hoc overriding of object layout, such as retrofitting specialized versions of a library class. For example, although the |Tuple| class in the library is not declared as specialized, we should be able to create a specialized alternative version |SpecTuple|, and automatically substitute that for |Tuple| in a correct and safe manner. This is exactly what we do in this paper. In this context, we make the following contributions:
+% secret ingredient => the domain-specific information provided by the programmer
+So, are our ``complex numbers'', efficiently reusing code from the library, hopelessly predestined to be inefficient at run-time? In this paper we explain and show how the object layout can be safely and correctly transformed in limited scopes. Interestingly, the paper does not rely on either specialization nor value class transformation, but incrementalizes and improves the Late Data Layout transformation, which underpins and generalized the static language object layout transformations. The secret ingredient of the transformation, which we call Incremental Late Data Layout, is the programmer's intimate knowledge of the small scope of the program, providing the correct transformations for the
 
-\begin{itermize}
-\item we present the problem of ad-hoc retrofitting of specialization and explain how this interacts with other language features;
-\item we construct a solution that is capable of retrofitting specialized variants of function objects, allowing unboxed calls to functions;
-\item we describe the pitfalls and optimizations in our implementation of specialization injection and benchmark the result of the transformation, for speedups between 2 and 14x.
-\end{itermize}
+The paper makes the following contributions over the state of the art:
+
+\begin{itemize}
+\item it explores the problem of ad-hoc object data layout transformations, which is a novelty in itself, and presents the limitations and pitfalls of this transformation when operating on an object-oriented language;
+\item it describes a solution for ad-hoc object layout transformations, capable of handling the entire Scala language;
+\item it evaluates the performance gains from this transformation in two very different scenarios, with significant speed-ups.
+\end{itemize}
+
+The incremental Late Data Layout transformation is implemented (and open-sourced) and we were able to test it in two different scenarios:
+
+\begin{itemize}
+\item transforming a random limited scope in the program, given user-specified input and output semantics;
+\item retrofitting miniboxing specialization on the library-defined object-oriented function encoding, the |Function| interface, making it possible for miniboxed code to efficiently call methods.
+\end{itemize}
+
+The following sections... need to be written first :)
+
 
 Related work:
 shape analysis, begone tagging
-
-
-
-
-
-
-
-
-
-
-
-
-We can regard objects as encapsulating data and exposing an API. Extension methods in strongly typed object-oriented programming languages are mechanisms that allow the programmer to tweak an object's API. However, very little attention has been given to the problem of tweaking the data in an object while maintaining the API, particualrly for two reasons:
-
-1. It's a very hard problem, usually because it requires compiler support (such as, for example, unboxing primitive types, specialization and value classes)
-2. It is seen as a low-level transformation, to be done by virtual machine interpreters and
-
-
-% - Although Scala and Java use the same mechanism for Functions, they are not compatible
-% - However, a deeper question is interoperating between languages
-% - Tension1: backwards compatibility
-% - Generality of the problem
-% - Bad solution, currently used in practice: binary incompatibility
-% - Tension2: current DRT tecnhiques abund, but neither of them work incrementally -- they assume all repres are kwnown from day 1
-% - Tension3: although we used the example of function representation
-% - In this context, our paper makes the following contributions:
-%    - define the problem
-%    - incrementalizes existing DRT techniqes and explains the pitfalls
-%    - show concrete numbers for a incremental DRT transformation based on function specialization, with 15x speedups
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Following the release of Java 8, both the language and the execution platform added mechanisms to support first-class functions. This also benefited the alternative languages targeting the Java Virtual Machine (JVM) execution platform, which used these mechanisms to improve their functions implementation, that, lacking platform support, was done in a clumsy and inefficient way. The following code snippet shows a method |foo| that accepts a function, written both in Java and Scala, one such alternative JVM language:
-
-\begin{lstlisting-nobreak}
-// Java:
-Integer foo(Function<Integer, Integer> f) { ... }
-foo(`(Integer x) -> x + 1`);
-\end{lstlisting-nobreak}
-
-\begin{lstlisting-nobreak}
-// Scala:
-def foo(f: Function1[Int, Int]): Int = { ... }
-foo(`(x: Int) => x + 1`)
-\end{lstlisting-nobreak}
-
-Given the similarity of the syntax and knowing the implementations use the same underlying mechanisms, namely |MethodHandles| and the |invokeDynamic| instruction, it may be tempting to assume that the two languages can pass functions back and forth. However, this is not the case:
-
-\begin{lstlisting-nobreak}
-scala> val f = (x: Int) => x + 1
-f: Function1[Int, Int] = <function1>
-
-scala> import JavaExample.foo
-import JavaExample.foo
-
-scala> foo(f)
-<console>:10: error: type mismatch;
- found   : scala.Function1[Int, Int]
- required: java.util.function.Function[Integer,Integer]
-              foo(f)
-                  ^
-\end{lstlisting-nobreak}
-
-Ideally, languages would expose a |Function| that abstracts over Java's |Function| and Scala's |Function1|, and uses the correct one depending on the context. Even more, since Scala benefits from function specialization \cite{iuli-thesis}, which allows calling functions without boxing their arguments and their return value, it should be favored over the Java representation when a choice can be made. \vlad{Other similar problems here.}
-
-%% WE NEED A TRANSITION HERE!
-
-% - Tension1: backwards compatibility
-However, this raises to an important question: How should code compiled by previous versions of the Scala compiler, encoding functions as anonymous classes, be used from code compiled by the new versions of the Scala compiler, which use the Java 8 function encoding? Ideally, all the code should use the Java 8 representation, which is markedly better. But some libraries, such as |List| in our case, were already compiled with the earlier encoding, using anonymous classes. These would no longer be binary compatible, thus making it impossible to use them from code compiled using the new version of the compiler.
-
-% - Generality
-And this question is not limited to functions: the same problem pops up when trying to align the basic data containers across JVM languages. It would definitely be useful if developers could rely on a standard |Tuple|, |List| or |Stream| across all JVM languages. Finally, another example where this problem occurs is when using specialization techniques, such as specialization, miniboxing or the future Valhalla project \cite{}: how to bridge the gap between the otherwise incompatible
-
-% - Bad solution, currently used in practice: binary incompatibility
-The easy way out of the binary compatibility conundrum is to simply give up by declaring code compiled with the old and new versions of the compiler binary incompatible. In doing so, the responsibility is moved to programmers, who now need to make sure all their dependencies are compiled with the new version of the compiler, even if those dependencies are out of their control. This delays their work, in turn leading to slower adoption of the new version, and maybe even preventing it altogether, if the benefits do not overweight the adoption effort necessary.
-
-% - Better solution: incremental data representation transformation
-A better answer to the binary compatibility problem is to allow old and new bytecode to interoperate. Since old bytecode
-
-% - Tension2: current DRT tecnhiques abund, but neither of them work incrementally -- they assume all repres are kwnown from day 1
-
-
-% - Tension3: although we used the example of function representation
-
-% - In this context, our paper makes the following contributions:
-%    - define the problem
-%    - incrementalizes existing DRT techniqes and explains the pitfalls
-%    - show concrete numbers for a incremental DRT transformation based on function specialization, with 15x speedups
-
-
