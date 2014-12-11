@@ -2,5 +2,56 @@
 \label{sec:ildl}
 \begin{itemize}
   \item theory of ldl - data representation transformation - coercions, optimality
-  \item injection + signatures, persistance
+  \item injection + signatures, persistence
 \end{itemize}
+
+% Executive summary + vision
+
+\subsection{Data Representation Transformations}
+
+% DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
+
+% From the language perspective: Expose this difference vs transform in the compiler
+
+% DRTs- two steps: decide on the representation of each value and introduce coercions
+
+% Choosing the representation -- simple, but mind the generics!
+%  -- for our case, we need to select the values
+
+%% TODO: Find compelling example :)
+
+% Introducing coercions -- optimality question
+
+\subsection {Late Data Layout}
+
+% In this context, Late data laout was chosen for
+%  - selectivity
+%  - optimality
+%  - availability (in Scala)
+
+% What does it do? Starting from a high-level concept, such as scala.Int, it transforms all references to low-level reprs
+
+% How does LDL work? -- injects representation information in the types and uses them to introduce coercions
+
+% 3 phases: Inject, Coerce, Commit.
+
+% Inject
+
+% Coerce
+
+% Commit
+
+\subsection{Incremental Late Data Layout}
+
+% Global vs local/ad-hoc -- relationship between LDL and iLDL
+
+% An important question in DRTs: how to modify signatures
+%  -- keeping track of transformed methods (do I have a transformed version?)
+%  -- overriding
+%  -- clashes
+
+% Persisting the transformation decisions = persisting annotations
+
+% Overriding - introduce an additional phase in LDL: bridge
+
+% Clashes - reported during erasure
