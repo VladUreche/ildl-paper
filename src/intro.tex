@@ -22,25 +22,30 @@ Since transforming the object layout at run-time is expensive, a natural questio
 Therefore, although transformations in statically typed languages can optimize the object layout, they do not meet the ad-hoc criteria: they cannot be retrofitted later and have a global, all-or-nothing nature. In our case, the pair is neither specialized nor marked as a value class, so the object representation will not be optimized at all. Even worse, specialization and value class inlining are mutually exclusive, making it impossible to represent our ``complex numbers'' as a long integer value even if we had complete control over the Scala library.
 
 % secret ingredient => the domain-specific information provided by the programmer
-So, are our ``complex numbers'', efficiently reusing code from the library, hopelessly predestined to be inefficient at run-time? In this paper we explain and show how the object layout can be safely and correctly transformed in limited scopes. Interestingly, the paper does not rely on either specialization nor value class transformation, but incrementalizes and improves the Late Data Layout transformation, which underpins and generalized the static language object layout transformations. The secret ingredient of the transformation, which we call Incremental Late Data Layout, is the programmer's intimate knowledge of the small scope of the program, providing the correct transformations for the
+So, are our ``complex numbers'', efficiently reusing code from the library, hopelessly predestined to be inefficient at run-time? In this paper we explain and show how the object layout can be safely and correctly transformed in limited scopes. Interestingly, the paper does not rely on either specialization nor value class transformation, but incrementalizes and improves the Late Data Layout transformation, which underpins and generalized the static language object layout transformations. The secret ingredient of the transformation, which we call Incremental Late Data Layout, is the programmer's intimate knowledge of the small scope of the program that will be transformed, allowing a correct and complete specification of the alternative representation.
 
-The paper makes the following contributions over the state of the art:
+% The paper makes the following contributions over the state of the art:
+%
+% \begin{itemize}
+% \item it explores the problem of ad-hoc object data layout transformations, which is a novelty in itself, and presents the limitations and pitfalls of this transformation when operating on an object-oriented language;
+% \item it describes a solution for ad-hoc object layout transformations, capable of handling the entire Scala language;
+% \item it evaluates the performance gains from this transformation in two very different scenarios, resulting in significant increases in both cases.
+% \end{itemize}
 
+% The incremental Late Data Layout transformation is implemented (and open-sourced) and we were able to test it in two different scenarios:
+%
+% \begin{itemize}
+% \item transforming a random limited scope in the program, given user-specified input and output semantics;
+% \item retrofitting miniboxing specialization on the library-defined object-oriented function encoding, the |Function| interface, making it possible for miniboxed code to efficiently call methods.
+% \end{itemize}
+
+The main insights we expect our readers to gain are:
 \begin{itemize}
-\item it explores the problem of ad-hoc object data layout transformations, which is a novelty in itself, and presents the limitations and pitfalls of this transformation when operating on an object-oriented language;
-\item it describes a solution for ad-hoc object layout transformations, capable of handling the entire Scala language;
-\item it evaluates the performance gains from this transformation in two very different scenarios, with significant speed-ups.
+  \item An understanding of the additional mechanisms necessary for ad-hoc data representation transformations (\S\ref{sec:ildl}) and the pitfalls to avoid (\S\ref{sec:pitfalls});
+  \item A suggestion on how the ad-hoc data representation transformation can be exposed in the API (\S\ref{sec:impl});
+  \item The confidence that ad-hoc data representation transformation can be successfully applied to improve the performance of user code (\S\ref{sec:benchmarks}.
 \end{itemize}
 
-The incremental Late Data Layout transformation is implemented (and open-sourced) and we were able to test it in two different scenarios:
+% After the main sections of the paper (\S\ref{sec:ildl}--\S\ref{sec:benchmarks}) we review the related work (\S\ref{sec:related}) and conclude (\S\ref{sec:concls}).
 
-\begin{itemize}
-\item transforming a random limited scope in the program, given user-specified input and output semantics;
-\item retrofitting miniboxing specialization on the library-defined object-oriented function encoding, the |Function| interface, making it possible for miniboxed code to efficiently call methods.
-\end{itemize}
-
-The following sections... need to be written first :)
-
-
-Related work:
-shape analysis, begone tagging
+The following section will describe the additional mechanisms necessary for ad-hoc data representation transformations.

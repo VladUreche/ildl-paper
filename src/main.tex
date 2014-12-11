@@ -1,48 +1,22 @@
 \documentclass[runningheads,a4paper]{style/llncs}
 
-
 \input{tweaks.tex}
 
 \begin{document}
 
 \mainmatter
-
 \title{Evolving the Data Representation over\\Separate Compilations}
 \maketitle
 
 \input{abstract.tex}
-
-\vlad{Feel free to make changes directly on the paper.} If you want to start a discussion, you can use |\yannis{text}| , |\aggelos{text}| or |\dima{text}|. The comment above was made using |\vlad{...}|. And you can change your color in the |tweaks.tex| file. Another two things:
-
-\vspace{0.5em}
-
-\noindent Code: use |\begin{lstlisting-nobreak}|. Inside the code you can highlight using backquotes |`|:
-
-\begin{lstlisting-nobreak}
-  def `foo`: Int = `3`
-\end{lstlisting-nobreak}
-
-\noindent By the way, don't try to highlight starting from the first character, it looks ugly:
-
-\begin{lstlisting-nobreak}
-  `def foo`: Int = `3`
-\end{lstlisting-nobreak}
-
-\noindent Verbatim: use straight bars, like \verb=|=, e.g: \verb=|verbatim text|=.
-
-\end{lstlisting-nobreak}
-
+\input{info.tex}
 \input{intro.tex}
-
-The rest of the paper, outline:
-\begin{itemize}
-  \item theory of ldl - data representation transformation - coercions, optimality
-  \item theory of ildl - pitfalls - injection + signatures, persistance, generics, overriding + bridges
-  \item implementation - lexical scope transformation, persistance questions
-  \item benchmarks - presentation of the tools: ildl plugin + numbers on FFT, miniboxing plugin extension + streams + numbers
-  \item related work
-  \item conclusion
-\end{itemize}
+\input{ildl.tex}
+\input{pitfalls.tex}
+\input{impl.tex}
+\input{bench.tex}
+\input{related.tex}
+\input{concls.tex}
 
 \bibliographystyle{style/splncs03}
 \bibliography{main}
