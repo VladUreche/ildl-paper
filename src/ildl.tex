@@ -16,8 +16,6 @@
 % Choosing the representation -- simple, but mind the generics!
 %  -- for our case, we need to select the values
 
-%% TODO: Find compelling example :)
-
 % Introducing coercions -- optimality question
 
 \subsection {Late Data Layout}
@@ -43,6 +41,9 @@
 
 % Global vs local/ad-hoc -- relationship between LDL and iLDL
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Persisting the Data Representation information}
+
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
 
@@ -53,4 +54,39 @@
 %      -- using the same encoding
 %      -- using different encodings
 
+\subsubsection{Tracking the transformer}
+
+\subsubsection{Two Types, One Representation}
+
+\subsubsection{One Types, One Representation, Compatibility}
+
+\subsubsection{One Type, Two Representations}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Generics}
+
+% 2 Aspects \ldots
+\subsubsection{Transformations Involving Generics}
+
+% Generics
+%  -- Nesting datastructures
+
+% \begin{lstlisting-nobreak}
+% List[(Int, Int)]
+% \end{lstlisting-nobreak}
+
+\subsubsection{Overriding and Subtyping}
 % Overriding - introduce an additional phase in LDL: bridge
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Semantics and Operators}
+% Semantics changes
+\subsubsection{Methods and Operators of the Object}
+% Operators
+%  -- transformation tracker
+
+Transformation tracker needs to contain methods :)
+
+\subsubsection{Semantics of the Transformed Type}
+%  -- Liskov substitution principle
+
