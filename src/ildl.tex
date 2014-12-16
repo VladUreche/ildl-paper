@@ -21,9 +21,22 @@ Furthermore, what makes things even more complicated is the fact that coercions 
 \subsection {Late Data Layout}
 
 % In this context, Late data laout was chosen for its ability to selectivity pick values to be transformed and the optimality in introducing coercions
-Late Data
+Late Data Layout (LDL) is a compiler transformation that allows selectively picking the representation for each value of a high-level type and automatically introduces the necessary coercions in a consistent and optimal way. The LDL mechanism is the underlying transformation used to unbox primitive types in Scala, to implement value class inlining and to specialize classes using the miniboxed encoding. This makes LDL a flexible and reliable mechanism for translating generics, and thus a natural choice for our starting point in ad-hoc data representation trnasformations.
 
-What does it do? Starting from a high-level type (or concept), such as |scala.Int|, it transforms all references to low-level representations
+% What does it do? Starting from a high-level type (or concept), such as |scala.Int|, it transforms all references to low-level representations
+The LDL mechanism starts from high-level types (called high-level concepts in the LDL terminology), such as the integer type exposed by Scala, |Int|, which can represent either a boxed or unboxed value in the low-level bytecode. By the time it has finished transforming the code, all values use either the unboxed |int| or boxed |java.lang.Integer| representation, and the necessary coercions between these two representations have been introduced consistently and optimally. For example, the following high-level code:
+
+\begin{lstlisting-nobreak}
+val i: Int = 3
+val a: Any = i
+\end{lstlisting-nobreak}
+
+Is translated to:
+
+\begin{lstlisting-nobreak}
+val i: `int` = 3
+val a: Any = `box`(i)
+\end{lstlisting-nobreak}
 
 How does LDL work? -- injects representation information in the types and uses them to introduce coercions
 
@@ -37,7 +50,7 @@ How does LDL work? -- injects representation information in the types and uses t
 
 \subsection{Incremental Late Data Layout}
 
-Global vs local/ad-hoc -- relationship between LDL and iLDL
+Global vs local/ad-hoc -- relationship between LDL and iLDL + separate compilation
 
 Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
 
