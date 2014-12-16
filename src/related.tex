@@ -5,6 +5,8 @@
 
 \begin{itemize}
   \item dynamic language vms: shape analysis, begone tagging, hidden classes
-  \item ldl, haskell transformations, unboxed objects and polymorphism
-  \item til, napier88, etc...
+  \item inlining + escape analysis + allocation sinking in virtual machines can also change the representation
+  \item ldl \cite{ldl}, haskell transformations \cite{spj-unboxed-values} \cite{thiemann-unboxed-objects-cps} \cite{shao-flexible-representation-analysis}, unboxed objects and polymorphism \cite{leroy-unboxed-objects}
+  \item til \cite{tarditi-til, harper-intensional-type-analysis}, napier88 \cite{morrison-napier88}, etc...
+  \item value classes\cite{sip-value-classes}, specialization \cite{iuli-thesis, miniboxing} -- global data representation transformations -- could also be implemented in the virtual machine \cite{goetz-specialization}, \cite{rose-value-classes-vm, rose-value-classes-tearing}
 \end{itemize}
