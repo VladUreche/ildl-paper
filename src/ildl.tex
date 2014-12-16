@@ -7,29 +7,25 @@
 
 \subsection{Data Representation Transformations}
 
-% DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
+DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
 
-% From the language perspective: Expose this difference vs transform in the compiler
+From the language perspective: Expose this difference vs transform in the compiler
 
-% DRTs- two steps: decide on the representation of each value and introduce coercions
+DRTs- two steps: decide on the representation of each value and introduce coercions
 
-% Choosing the representation -- simple, but mind the generics!
-%  -- for our case, we need to select the values
+Choosing the representation -- simple, but mind the generics -- for our case, we need to select the values
 
-% Introducing coercions -- optimality question
+Introducing coercions -- optimality question
 
 \subsection {Late Data Layout}
 
-% In this context, Late data laout was chosen for
-%  - selectivity
-%  - optimality
-%  - availability (in Scala)
+In this context, Late data laout was chosen for its ability to selectivity pick values to be transformed and the optimality in introducing coercions
 
-% What does it do? Starting from a high-level concept, such as scala.Int, it transforms all references to low-level reprs
+What does it do? Starting from a high-level type (or concept), such as |scala.Int|, it transforms all references to low-level representations
 
-% How does LDL work? -- injects representation information in the types and uses them to introduce coercions
+How does LDL work? -- injects representation information in the types and uses them to introduce coercions
 
-% 3 phases: Inject, Coerce, Commit.
+3 phases: Inject, Coerce, Commit.
 
 % Inject
 
@@ -39,7 +35,11 @@
 
 \subsection{Incremental Late Data Layout}
 
-% Global vs local/ad-hoc -- relationship between LDL and iLDL
+Global vs local/ad-hoc -- relationship between LDL and iLDL
+
+Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
+
+Injection -- before storing signatures, bridge, coerce and commit come later.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Persisting the Data Representation information}
@@ -47,6 +47,7 @@
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
+High-level signatures keep the high-level type, annotated with the transformation description object.
 
 % Persisting the transformation decisions = persisting annotations
 %  -- Usage across compilations
@@ -54,8 +55,10 @@
 %  -- interoperating between ``islands'' of modified code
 %      -- using the same encoding
 %      -- using different encodings
+We need this in order to save the decisions made during injection.
 
 \subsubsection{Tracking the Transformed Values}
+This allows inserting coercions.
 
 \subsubsection{Two Types, One Representation}
 
