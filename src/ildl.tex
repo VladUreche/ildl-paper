@@ -43,6 +43,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Persisting the Data Representation information}
+\label{sec:ildl:signatures}
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
@@ -54,39 +55,65 @@
 %      -- using the same encoding
 %      -- using different encodings
 
-\subsubsection{Tracking the transformer}
+\subsubsection{Tracking the Transformed Values}
 
 \subsubsection{Two Types, One Representation}
 
-\subsubsection{One Types, One Representation, Compatibility}
+What if we have two types that erase to the same representation? Could a method where the first type, say (Int, Int) was converted to long be called by code that was encoding |(Float, Float)| as a long integer, thus compromising the semantics of the language?
+
+The answer is no, since the type system protects us from doing this. The annotations, before the coerce phase, only bear the final representation, but the type exposed is the high-level type, not the representation. Therefore, the error message would make it very clear that the code attempted to call a method accepting a pair of integers but passed a pair of floating-point numbers.
+
+\subsubsection{One Type, One Representation, Compatibility}
+
+Another question we may ask ourselves is what we have the |ildl| marker method called from two different locations with the same transformation description object? Would they need to convert to the high-level (and inefficient type)? The answer is no, since the method signature will have the high-level type annotated with the representation, which will match the arguments for the call.
 
 \subsubsection{One Type, Two Representations}
 
+Finally, a third question one may ask is what if we had a single type, such as |GaussianInteger|, which could be represented as either |(Int, Int)| or |Long|, and attempted to call between parts of the code using the two representations. The answer is that, keeping the high-level signature would allow the ildl transformation to know that it needs to convert from one representation to another: it would first decode the first representation to expose the high-level type, which it would then re-encode with the second representation.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Handling Generics}
+\subsection{Handling Generics and The Object Model}
+\label{sec:ildl:generics}
 
 % 2 Aspects \ldots
-\subsubsection{Transformations Involving Generics}
+\subsubsection{Generics}
 
 % Generics
 %  -- Nesting datastructures
+Can we transform |List[(Int, Int)]| into |List[Long]|. In the general case, no, for two reasons:
+\begin{itemize}
+  \item since it could break aliasing (for mutable data structures)
+  \item since there is no method available to transform from one representation to the other
+\end{itemize}
 
-% \begin{lstlisting-nobreak}
-% List[(Int, Int)]
-% \end{lstlisting-nobreak}
+Solution: we could either add methods for transforming data structures in the transformation description object or, if there is no such method available, the correctness-preserving approach is not to transform the representation inside generics.
 
-\subsubsection{Overriding and Subtyping}
+
+\subsubsection{The Object Model: Subtyping and Overriding}
 % Overriding - introduce an additional phase in LDL: bridge
+We add bridges, therefore the ILDL transformation has four phases instead of three: inject, bridge, coerce and commit.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Preserving the Semantics}
+\label{sec:ildl:semantics}
+
 % Semantics changes
 \subsubsection{Methods and Operators of the Object}
 % Operators
 %  -- transformation tracker
+We can always decode the representation to expose the high-level type and make the call based on that. Yet, this is inefficient. The solution is to short-circuit the calls to the operators and perform them directly on the encoded value, much like extension methods work for value classes.
 
-Transformation tracker needs to contain methods :)
+Short-cutting methods are located in the transformation description object, which needs to contain:
+\begin{itemize}
+  \item transformations between the high-level type and the representation (and back);
+  \item (optional) transformations between generic containers with the high-level type (|List[(Int, Int)]|) and the generic container with the improved representation (|List[Long]|);
+  \item (optional) operators and methods on the encoded representation, such as |+|, |-|, |*|, |/|, |%| and |norm|.
+\end{itemize}
+
+Operators need not required their arguments to use the high-level type: for example, when defining the |+| operator, we need to force the second operator to use the high-level type |(Int, Int)|. Instead, we accept a value of type |@encoded Long|, which allows it to accept the optimized representation for the other value as well. Interestingly, this does not prevent it from accepting the high-level type |(Int, Int)|: based on annotations, the ildl transformation knows the |(Int, Int)| value must be converted to a |Long| value.
 
 \subsubsection{Semantics of the Transformed Type}
 %  -- Liskov substitution principle
+reviewers may argue that data containers are generic and flexible in order to ease evolution of the data structures. Therefore transforming non-final containers might lose their semantics, since we fix the semantics of operators, which otherwise would have been dynamically dispatched to the most specific implementation. But that can be argued against using the Liskov principle -- if a subclass of the container modifies the behavior of an operator, even the original program's semantics may now be incorrect, therefore our transformation won't make correctness worse. Therefore, according to the Liskov principle, as long as the updated (static) operators are semantically equivalent to the data container's, the transformation will not affect the program semantics.
 
