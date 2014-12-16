@@ -1,6 +1,16 @@
 \begin{abstract}
-TBD
-Up to 14x faster.
+We present ``incremental late data layout'': an automated approach
+that allows programmers to safely change object
+representations---e.g., specialize a general data structure to yield
+an optimized, packed form for efficiency. The approach allows changes
+of data representations at fine granularities (e.g., in the body of a
+single client method only) and without access to the original
+definition being specialized. Our technique leverages the type system
+in order to infer when values should be packed/unpacked and guarantees
+correctness in the interaction with features such as generics,
+inheritance and overriding. We have implemented the technique in Scala
+and demonstrate significant benefit, of up to 14x, from data
+specialization.
 
 \keywords{data representation, jvm, bytecode, backwards compatibility, transformation, optimization}
 \end{abstract}

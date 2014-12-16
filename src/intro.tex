@@ -2,7 +2,12 @@
 \label{sec:intro}
 
 % Objects = encapsulated data + API. Extension methods = ad-hoc additions of the API
-We can think of an object as encapsulating code and data and exposing an interface. In this context, extension methods, type classes and implicit conversions are different mechanisms that allow programmers to evolve the object interface in an ad-hoc way, by adding new code. For example, in Scala, we can use an implicit conversion to add the multiplication operator to pairs of integers, with the semantics of complex number multiplication:
+An object encapsulates code and data and exposes an interface. Modern
+language facilities, such as extension methods, type classes and
+implicit conversions, allow programmers to evolve the object interface
+in an ad-hoc way, by adding new code. For example, in Scala, we can
+use an implicit conversion to add the multiplication operator to pairs
+of integers, with the semantics of complex number multiplication:
 
 \begin{lstlisting-nobreak}
 scala> (0, 1) * (0, 1)
@@ -10,7 +15,21 @@ res0: (Int, Int) = (-1, 0)
 \end{lstlisting-nobreak}
 
 % Interface okay, what about the object layout?
-Unlike the interface, evolving an object's encapsulated data is impossible. The reason is that the encapsulated code relies on certain fields being present in the object, so it contains hard references the object layout. For example, the methods encapsulated by the pair, such as |swap| and |toString|, rely on the existence of two generic fields, erased to |Object|. This leads to inefficiencies, as the integers need to be boxed, producing as many as 3 heap objects for each ``complex number'': the two boxed integers and the pair container. What if, instead of the pair, we concatenated the two 32-bit integers into a 64-bit long integer value, that would represent the ``complex number''? We could pass it by value, completely sidestepping the need to allocate memory and to collect it later. And, surprisingly, we could also add the desired functionality, such as arithmetic operations without any overhead.
+Unlike evolving the interface, no general mechanism is available in
+modern languages for evolving an object's encapsulated data. The
+reason is that the encapsulated code relies on certain fields being
+present in the object, so it contains hard references the object
+layout. For example, the methods encapsulated by the pair, such as
+|swap| and |toString|, rely on the existence of two generic fields,
+erased to |Object|. This leads to inefficiencies, as the integers need
+to be boxed, producing as many as 3 heap objects for each ``complex
+number'': the two boxed integers and the pair container. What if,
+instead of the pair, we concatenated the two 32-bit integers into a
+64-bit long integer value, that would represent the ``complex
+number''? We could pass it by value, completely sidestepping the need
+to allocate memory and to collect it later. And, surprisingly, we
+could also add the desired functionality, such as arithmetic
+operations without any overhead.
 
 % Object layout transformations in dynamic language vms => slow (due to profiling and recompilation)
 Ad-hoc object layout transformations are common in dynamic language virtual machines, such as V8 and Truffle. These virtual machines profile values at run-time and make optimistic assumptions about the shape of objects. This allows them to optimize the object layout, but forces the recompilation of all the code that references the old object layout. However, in practice, the effort pays off. Still, if later in the execution, the assumptions prove too optimistic, the virtual machine needs to revert to the more general (and less efficient) object layout, again recompiling all code that contains hard references to the optimized object layout. As expected, this comes with important overheads, both for profiling and for the recompilation. This makes dynamic languages several times slower than compiled, statically typed languages.
