@@ -4,9 +4,11 @@
 \vlad{this is the dropping ground for different related work we're aware of}
 
 \begin{itemize}
-  \item dynamic language vms: shape analysis, begone tagging, hidden classes
+  \item dynamic language vms V8, Truffle, PyPy: shape analysis, begone tagging, hidden classes
+  \item transforming the storage strategy - OOPSLA 13
   \item inlining + escape analysis + allocation sinking in virtual machines can also change the representation
   \item ldl \cite{ldl}, haskell transformations \cite{spj-unboxed-values} \cite{thiemann-unboxed-objects-cps} \cite{shao-flexible-representation-analysis}, unboxed objects and polymorphism \cite{leroy-unboxed-objects}
   \item til \cite{tarditi-til, harper-intensional-type-analysis}, napier88 \cite{morrison-napier88}, etc...
   \item value classes\cite{sip-value-classes}, specialization \cite{iuli-thesis, miniboxing} -- global data representation transformations -- could also be implemented in the virtual machine \cite{goetz-specialization}, \cite{rose-value-classes-vm, rose-value-classes-tearing}
+  \item relation to partial evaluation -- in the best case they can unpack objects, inline them, but can't propose an alternative representation that has nothing to do with the original program
 \end{itemize}
