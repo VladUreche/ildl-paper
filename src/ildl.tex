@@ -1,25 +1,27 @@
 \section{Incremental Late Data Layout}
 \label{sec:ildl}
-\begin{itemize}
-  \item theory of ldl - data representation transformation - coercions, optimality
-  \item injection + signatures, persistence
-\end{itemize}
 
-\subsection{Data Representation Transformations}
+This section will present the Incremental Late Data Layout (ILDL) transformation, by extending the global, all-or-nothing Late Data Layout (LDL) mechanism with the necessary extensions for ad-hoc programmer-driven transformations.
 
-DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
+% \subsection{Data Representation Transformations}
 
-From the language perspective: Expose this difference vs transform in the compiler
+% DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
+Data can usually be represented in several ways, some which are more efficient while others are more flexible. For example, the integers can use either the primitive (unboxed) value encoding, which is more efficient, or the object-based (boxed) encoding, which provides a more flexible interface offering |toString|, |hashCode| and overloaded operators which can handle all other primitive types, and, more importantly, allow the integer to be stored in erased generics. However, the extra flexibility comes at a heavy price: objects are allocated on the heap and need to be later garbage-collected, reading the value requires an indirect access and cache locality may be broken. There's clearly a tension between the two representations.
 
-DRTs- two steps: decide on the representation of each value and introduce coercions
+% From the language perspective: Expose this difference vs transform in the compiler
+From a language perspective, there are two approaches to exposing this tension: either expose the two different data types in the language, as Java and C do, or hide the difference and expose a high-level type, such as Scala does. Although the second aproach is more popular for programmers, as it does not burden them with yet another decision, it requires significant machinery in the compiler, in order to correctly lower the code using the best representation for each case.
 
-Choosing the representation -- simple, but mind the generics -- for our case, we need to select the values
+% DRTs- two steps: decide on the representation of each value and introduce coercions
+% Choosing the representation -- simple, but mind the generics -- for our case, we need to select the values
+When lowering the code, the compiler needs to choose the data representation of each value bearing the high-level type and then introduce coercions that transform one representation to another when necessary. For example, since only boxed integers can instantiate generics, any unboxed integer going into a generic container, such as a list of integers, needs to be converted to the boxed representation. This work is done in the compiler pipeline, in so-called data representation transformations.
 
-Introducing coercions -- optimality question
+% Introducing coercions -- optimality question
+Furthermore, what makes things even more complicated is the fact that coercions need to be introduced optimally, so the program performance does not suffer. For example, boxing a value can be done in either one step, |box(...)|, or in three steps, sub-optimally: |box(unbox(box(...)))|. Of course, such an obvious sub-optimality is easy to observe, but there are more subtle sub-optimalities which are more difficult to observe and eliminate. This motivated the work on the Late Data Layout mechanism.
 
 \subsection {Late Data Layout}
 
-In this context, Late data laout was chosen for its ability to selectivity pick values to be transformed and the optimality in introducing coercions
+% In this context, Late data laout was chosen for its ability to selectivity pick values to be transformed and the optimality in introducing coercions
+Late Data
 
 What does it do? Starting from a high-level type (or concept), such as |scala.Int|, it transforms all references to low-level representations
 
