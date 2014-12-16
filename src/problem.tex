@@ -2,11 +2,11 @@
 \label{sec:problem}
 
 % Executive summary + vision
-This section presents a motivating example, which we use throughout the paper. It further shows the API necessary to trigger the transformation and a naive approach to changing the data representation. The naive approach allows us to see the main difficulties in ad-hoc data representation transformations, thus motivating the next section.
+This section presents a motivating example based on complex numbers, which we use throughout the paper. It then shows how the data representation transformation is triggered and introduces its terminology. Finally, it shows a naive transformation, allowing us to see the main difficulties lying ahead.
 
 \subsection{Motivating Example}
 
-In the introduction, we focused on adding complex number semantics to pairs of numbers. The complex numbers where the real and imaginary parts are integers are known as Gaussian integers, and are a countable subset of all complex numbers (with real number components). The operations defined on Gaussian integers are similar to complex number operations, with one exception: division is not precise, as it rounds the result to the nearest Gaussian integer, meaning both the real and imaginary axes will contain integers. This is similar to integer division, which also rounds the result.
+In the introduction, we focused on adding complex number semantics to pairs of numbers. The complex numbers where the real and imaginary parts are integers are known as Gaussian integers, and are a countable subset of all complex numbers (with real number components). The operations defined on Gaussian integers are similar to complex number operations, with one exception: division is not precise, as it rounds the result to the nearest Gaussian integer, meaning both the real and imaginary axes will contain integers. This is similar to integer division, which also rounds the result, such that, for example, |println(5/2)| produces value |2|.
 
 % The following implicit class defines the Gaussian integer operators on pairs of integer numbers:
 % \vlad{should we include this or spare the reader?}
@@ -45,7 +45,7 @@ The operation took `98 us`.
 (10,3)
 \end{lstlisting-nobreak}
 
-However, if we encoded the Gaussian integers into 64-bit long integers instead of heap pairs of objects, we would improve the time by a factor of 3:
+However, if we encoded the Gaussian integers into 64-bit long integers, we would improve the time by a factor of 3x:
 
 \begin{lstlisting-nobreak}
 scala> println(timed(() => gcd((544, 185), (131, 181))))
@@ -53,7 +53,7 @@ The operation took `32 us`.
 (10,3)
 \end{lstlisting-nobreak}
 
-Therefore, this is a highly desirable transformation. However, requiring the programmer to transform the code by hand is both tedious and error-prone.
+This makes the data representation transformation highly desirable. Still, letting the programmer transform the code by hand is both tedious and error-prone, sacrificing code maintainability.
 
 \subsection{Triggering the Transformation}
 
@@ -68,12 +68,12 @@ In order to reap the benefits of using the improved representation without manua
 }
 \end{lstlisting-nobreak}
 
-In order to maintain a consistent naming throughout the paper, we will use the name high-level type to designate |(Int, Int)|, which corresponds to the original type in the code. This high-level type can be encoded as its representation type, |Long|. The procedure to encode and decode the high-level type is stored in the transformation description object, in our case |IntPairComplexToLongComplex|. With this, we have all the necessary information to perform the Incremental Late Data Layout transformation.
+In order to maintain a consistent naming throughout the paper, we will use the name high-level type to designate |(Int, Int)|, which corresponds to the original type in the code. This high-level type can be encoded as its representation type, |Long|. The procedure to encode and decode the high-level type is stored in the transformation description object, in our case |IntPairComplexToLongComplex|. With this, we have the terminology necessary to reason about our first (naive) approach to transforming the code.
 
 \subsection{A Naive Approach}
 
 % It's important that's not a trivial transformation -- users will transform their input ... we'll look at this aspect again when rev
-Despite its interface, the Incremental Late Data Layout is by no means a simple transformation. For example, knowing the |ildl| marker was instructed to transform |(Int, Int)| to |Long|, the result of a naive code transformation could be:
+Despite its interface, the Incremental Late Data Layout is by no means a simple transformation. For example, knowing the |ildl| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
 
 \begin{lstlisting-nobreak}
 def gcd(n1: `Long`, n2: `Long`): `Long` = {
@@ -82,7 +82,7 @@ def gcd(n1: `Long`, n2: `Long`): `Long` = {
 }
 \end{lstlisting-nobreak}
 
-There are many questions one could ask about this naive translation. For example, is the |%| (modulo) operator the same on long integers and encoded complex numbers? Or, is there a |norm| defined for long integers? Unfortunately, the response is negative for both questions.
+There are many questions one could ask about this naive translation. For example, does the |%| (modulo) operator maintain the semantics of complex numbers when using the implementation from long integers? Or, is |norm| defined for long integers? Unfortunately, the response is negative for both questions.
 
 Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:semantics}). Moreover, we could ask what happens if the |gcd| method was overriding another method? Would the new signature still override it?
 
@@ -103,13 +103,12 @@ class Complex extends WithGCD[`(Int, Int)`] {
 %
 % \begin{lstlisting-nobreak}
 
-This would not be the case, preventing the |Complex| class from compiling. Last but not least, assuming write a piece of code calling |gcd|:
+This would not be the case, preventing the |Complex| class from compiling (\S\ref{sec:ildl:generics}). Last but not least, assuming write a piece of code calling |gcd|:
 
 \begin{lstlisting-nobreak}
 gcd((55,2), (17, 13))
 \end{lstlisting-nobreak}
 
-Then, how does the compiler bridge the gap between the pairs of integers and their long integer encoding when compiling this code? Even worse, what if the code is compiled in a separate compilation?
+Then, how does the compiler bridge the gap between the pairs of integers and their long integer encoding when compiling this code? Even worse, what if the code is compiled in a separate compilation (\S\ref{sec:ildl:signatures})?
 
-
-first, the additional Gaussian integer operators, such as the modulo operator, have to be translated to use the 64-bit encoding. Also, as the signature of the |gcd| method changes, it forces its call sites to use the updated data representation, so the effects ripple out. Finally, there is a question of transforming geneics, including collections and arrays -- should the representation be optimized there as well? These are a few of the issues we encountered in our incremental data representation transformations, and which we further present in this paper.
+We will answer all these questions in the next section, which presents the Incremental Late Data Layout transformation mechanism.
