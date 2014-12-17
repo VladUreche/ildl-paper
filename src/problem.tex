@@ -57,10 +57,10 @@ This makes the data representation transformation highly desirable. Still, letti
 
 \subsection{Triggering the Transformation}
 
-In order to reap the benefits of using the improved representation without manually transforming the code, we can rely on the compiler for an automated solution. To do so, we call the |ildl| marker method, which accepts a parameter describing the desired transformation and a block of code, which, aside from expressions, can also define classes, traits, objects and methods:
+In order to reap the benefits of using the improved representation without manually transforming the code, we can rely on the compiler for an automated solution. To do so, we call the |adrt| marker method, which accepts a parameter describing the desired transformation and a block of code, which, aside from expressions, can also define classes, traits, objects and methods:
 
 \begin{lstlisting-nobreak}
-`ildl(IntPairComplexToLongComplex)` {
+`adrt(IntPairComplexToLongComplex)` {
   def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
     val rem = n1 % n2
     if (rem.norm == 0) n2 else gcd(n2, remainder)
@@ -73,7 +73,7 @@ In order to maintain a consistent naming throughout the paper, we will use the n
 \subsection{A Naive Approach}
 
 % It's important that's not a trivial transformation -- users will transform their input ... we'll look at this aspect again when rev
-Despite its interface, the Incremental Late Data Layout is by no means a simple transformation. For example, knowing the |ildl| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
+Despite its interface, the Ad-hoc Data Representation Transformation mechanism is by no means simple. For example, knowing the |adrt| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
 
 \begin{lstlisting-nobreak}
 def gcd(n1: `Long`, n2: `Long`): `Long` = {
@@ -111,4 +111,4 @@ gcd((55,2), (17, 13))
 
 Then, how does the compiler bridge the gap between the pairs of integers and their long integer encoding when compiling this code? Even worse, what if the code is compiled in a separate compilation (\S\ref{sec:ildl:signatures})?
 
-We will answer all these questions in the next section, which presents the Incremental Late Data Layout transformation mechanism.
+We will answer all these questions in the next section, which presents the Ad-hoc Data Representation Transformation mechanism.

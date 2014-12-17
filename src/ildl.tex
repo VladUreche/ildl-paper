@@ -1,9 +1,7 @@
-\section{Incremental Late Data Layout}
+\section{Ad-hoc Representation Transformation}
 \label{sec:ildl}
 
-This section will present the Incremental Late Data Layout (ILDL) transformation, by extending the global, all-or-nothing Late Data Layout (LDL) mechanism with the necessary extensions for ad-hoc programmer-driven transformations.
-
-% \subsection{Data Representation Transformations}
+This section will present the Ad-hoc Data Representation Transformation (ADRT), which is based on the global, all-or-nothing Late Data Layout (LDL) transformation mechanism, extended with the necessary features to allow programmer-driven transformations.
 
 % DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
 Data can usually be represented in several ways, some more efficient and others more flexible. For example, the integers can use either the primitive (unboxed) value encoding, which is more efficient, or the object-based (boxed) encoding, which is more flexible, allowing the value to be assigned to supertypes, to handle method calls and to instantiate erased generics. However, the extra flexibility comes at a price: boxed integers are allocated on the heap so they need to be garbage-collected later. Also, any operations on boxed integers are performed via indirect access to the values. There is a tension between the two representations.
@@ -111,7 +109,7 @@ The Late Data Layout mechanism is agnostic to generics. This means that, dependi
 
 Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now look at how it can be extended to handle ad-hoc programmer-driven data representation transformations.
 
-\subsection{Incremental Late Data Layout}
+\subsection{Ad-hoc Data Representation Transformation}
 
 % DEFINE WHAT WE WANT
 %  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
@@ -183,6 +181,7 @@ Solution: we could either add methods for transforming data structures in the tr
 % Overriding - introduce an additional phase in LDL: bridge
 We add bridges, therefore the ILDL transformation has four phases instead of three: inject, bridge, coerce and commit.
 
+How do you override a class with a transformed method?
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Preserving the Semantics}

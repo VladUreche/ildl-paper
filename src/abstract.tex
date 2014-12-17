@@ -3,17 +3,17 @@ To maximize run-time performance, programmers specialize their
 code by hand, replacing library collections and containers by
 custom objects where the data is restructured for efficient access.
 However, this is a tedious and error-prone process that makes it
-hard to test, maintain and evolve the source code.
+hard to test, maintain and evolve the source code. \\
 
 We present an automated approach that allows programmers to
 safely change the object representation in delimited scopes
-containing anything from expressions to entire package definitions.
+containing anything from expressions to entire package definitions. \\
 
 Our technique leverages the type system in order to infer where
 the object representation needs to be converted, while keeping a
 strong correctness guarantee in the interaction with other
 object-oriented language features, such as dynamic dispatch,
-inheritance and generics.
+inheritance and generics. \\
 
 We have embedded this technique in two Scala compiler plugins,
 obtaining speedups between 2x and 14x on user programs.
