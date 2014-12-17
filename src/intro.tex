@@ -4,7 +4,7 @@
 % Objects = encapsulated data + API. Extension methods = ad-hoc additions of the API
 An object encapsulates code and data and exposes an interface. Modern
 language facilities, such as extension methods, type classes and
-implicit conversions, allow programmers to evolve the object interface
+implicit conversions allow programmers to evolve the object interface
 in an ad-hoc way, by adding new code. For example, in Scala, we can
 use an implicit conversion to add the multiplication operator to pairs
 of integers, with the semantics of complex number multiplication:
@@ -15,42 +15,43 @@ res0: (Int, Int) = (-1, 0)
 \end{lstlisting-nobreak}
 
 % Interface okay, what about the object layout?
-Unlike evolving the interface, no general mechanism is available in
-modern languages for evolving an object's encapsulated data. The
+Unlike evolving the interface, no general mechanism in modern languages
+is capable of evolving an object's encapsulated data. The
 reason is that the encapsulated code relies on certain fields being
-present in the object, so it contains hard references the object
+present in the object, so it contains hard references the encapsulated data, also know as the object
 layout. For example, the methods encapsulated by the pair, such as
 |swap| and |toString|, rely on the existence of two generic fields,
 erased to |Object|. This leads to inefficiencies, as the integers need
 to be boxed, producing as many as 3 heap objects for each ``complex
-number'': the two boxed integers and the pair container. What if,
+number'': the two boxed integers and the pair container. What if, for our program,
 instead of the pair, we concatenated the two 32-bit integers into a
-64-bit long integer value, that would represent the ``complex
+64-bit long integer, that would represent the ``complex
 number''? We could pass it by value, completely sidestepping the need
-to allocate memory and to collect it later. And, surprisingly, we
+to allocate memory and to collect it later. Additionally, what if we
 could also add the desired functionality, such as arithmetic
-operations without any overhead.
+operations, to our ad-hoc complex numbers, all without any overhead?
+Finally, what if this transformation would be completely automated?
 
 % Object layout transformations in dynamic language vms => slow (due to profiling and recompilation)
-Ad-hoc object layout transformations are common in dynamic language virtual machines, such as V8 and Truffle. These virtual machines profile values at run-time and make optimistic assumptions about the shape of objects. This allows them to optimize the object layout, but forces the recompilation of all the code that references the old object layout. However, in practice, the effort pays off. Still, if later in the execution, the assumptions prove too optimistic, the virtual machine needs to revert to the more general (and less efficient) object layout, again recompiling all code that contains hard references to the optimized object layout. As expected, this comes with important overheads, both for profiling and for the recompilation. This makes dynamic languages several times slower than compiled, statically typed languages.
+Object layout transformations are common in dynamic language virtual machines, such as V8 and Truffle. These virtual machines profile values at run-time and make optimistic assumptions about the shape of objects. This allows them to automatically optimize the object layout, but forces the recompilation of all the code that references the old object layout. However, in practice, the effort pays off. Still, if later in the execution, the assumptions prove too optimistic, the virtual machine needs to revert to the more general (and less efficient) object layout, again recompiling all the code that contains hard references to the optimized object layout. As expected, this comes with important overheads, both for profiling and for the recompilation. This makes dynamic languages several times slower than compiled, statically typed languages.
 
 % Object layout transformations in statically typed languages => primitive unboxing, value classes and specialization
-Since transforming the object layout at run-time is expensive, a natural question to ask is whether we can leverage the statically-typed nature of a compiled language to optimize the object layout? The answer is yes. Transformations such as class specialization and value class inlining transform the object layout in order to avoid the creation of heap objects. However, both of these transformations take a global approach: when a class is marked as specialized or as a value class, it needs to conform to certain restrictions and is thoroughly transformed at its definition site. Later on, this allows all references to that class, even in separately compiled sources, to be optimized by the compiler. On the other hand, if a class is not marked at its definition site, retrofitting specialization or the value class status is impossible, as it would break many non-orthogonal language features, such as generics, inheritance and overriding. %This forces the programmers into using suboptimal boxing containers, such as the pairs in our example.
+Since transforming the object layout at run-time is expensive, a natural question to ask is whether we can leverage the statically-typed nature of a programming language to optimize the object layout? The answer is yes. Transformations such as class specialization and value class inlining transform the object layout in order to avoid the creation of heap objects. However, both of these transformations take a global approach: when a class is marked as specialized or as a value class, it needs to conform to certain restrictions and is thoroughly transformed at its definition site. Later on, this allows all references to that class, even in separately compiled sources, to be optimized by the compiler. On the other hand, if a class is not marked at its definition site, retrofitting specialization or the value class status is impossible, as it would break many non-orthogonal language features, such as dynamic dispatch, inheritance and generics.
 
 % Object layout transformations in statically typed languages => not ad-hoc
 Therefore, although transformations in statically typed languages can optimize the object layout, they do not meet the ad-hoc criterion: they cannot be retrofitted later and have a global, all-or-nothing nature. In Scala, the pair is specialized but not marked as a value class, so the representation is not fully optimized, still requiring a heap object per pair. Even worse, specialization and value class inlining are mutually exclusive, making it impossible to represent our ``complex numbers'' as a long integer value even if we had complete control over the Scala library.
 
 % secret ingredient => the domain-specific information provided by the programmer
-In our ``complex numbers'' abstraction, we only use a fraction of the flexibility provided by the library tuples, and yet we have to give up all the code optimality. What makes this even worse is that, for our limited domain and scope, we are aware of a better representation, but the only solution is to transform the code by hand, essentially having to choose between an obfuscated or a slow version of the code. What if there was an automated and safe transformation that allowed us to use our domain-specific knowledge in order to use an alternative object layout in a predefined scope, effectively optimizing our algorithms on complex numbers?
+In our ``complex numbers'' abstraction, we only use a fraction of the flexibility provided by the library tuples, and yet we have to give up all the code optimality. What makes this even worse is that, for our limited domain and scope, we are aware of a better representation, but the only solution is to transform the code by hand, essentially having to choose between an obfuscated or a slow version of the code. What if there was an automated and safe transformation that allowed us to use our domain-specific knowledge in order to mark a scope where the ``complex numbers'' use an alternative object layout, effectively specializing that part of our program?
 
 % Coincidentally, this is what we're proposing in this paper...
-In this paper we show an automated transformation that allows programmers to safely change the data representation in limited, well-defined scopes which can include class and method definitions, while maintaining the program correctness in terms of non-orthogonal language features, such as generics, inheritance and overriding across separate compilations. Interestingly, our method does not rely on either specialization or the value class transformation. Instead, it extends the Late Data Layout transformation, which underpins and generalizes specialization and value classes, in order to allow ad-hoc changes to the object representation. To gain the most benefit, our transformation uses the programmers' intimate knowledge of the transformed scope, allowing them to specify the exact alternative representation and the static operations it should expose, while completely automating all the tedium involved in safely transforming the code.
+In this paper we present an automated transformation that allows programmers to safely change the data representation in limited, well-defined scopes that can include anything from an expression to method, class and package definitions, while maintaining the strong correctness guarantees in terms of non-orthogonal language features, such as dynamic dispatch, inheritance and generics across separate compilations. Interestingly, our method does not rely on either specialization or the value class transformation. Instead, it extends the Late Data Layout transformation, which underpins and generalizes specialization and value classes, in order to allow ad-hoc changes to the object representation. To gain the most benefit, our transformation uses the programmers' intimate knowledge of the transformed scope, allowing them to specify the exact alternative representation and the static operations it should expose, while completely automating all the tedium involved in safely transforming the code.
 
 Our main contributions are:
 \begin{itemize}
   \item Defining the ad-hoc data representation problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
-  \item Presenting a method that addresses this problem (\S\ref{sec:ildl}) and suggesting how it can be exposed in the language or library (\S\ref{sec:impl});
-  \item Benchmarking the performance of transformed user code, with significant speedups, ranging from 2x to 14x (\S\ref{sec:benchmarks}).
+  \item Presenting a solution that addresses this problem (\S\ref{sec:ildl}) and suggesting how it can be exposed in the language and/or library (\S\ref{sec:impl});
+  \item Benchmarking two Scala compiler plugins based on our solution and showing they can speed up user programs by factors of 2 to 14x (\S\ref{sec:benchmarks}).
 \end{itemize}
 
 The following section will describe the problem of ad-hoc data representation transformations.
