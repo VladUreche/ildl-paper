@@ -119,34 +119,125 @@ Having seen the Late Data Layout mechanism at work for unboxing primitive types,
 
 % DEFINE WHAT WE WANT
 %  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
-%  - make sure that separate compilation still works (e.g: code can be called from a separately compiled source)
-%  - correctness: make sure that we can't make any calls that are not according to the type system
-%  - handle generics and the object model correctly
-%  - for performance reasons we want to have something like LDL's extension methods
+The goal of the ADR transformation is to relax two constraints from previous data representation transformations: first, allow the transformation to take place for limited scopes, ranging from an expression all the way to complete class or package definitions and to allow custom, programmer-defined alternative representations.
 
-% Global vs local/ad-hoc -- relationship between LDL and iLDL + separate compilation
-%
-% Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
-%
-% Injection -- before storing signatures, bridge, coerce and commit come later.
+Unfortunately, relaxing these two constraints breaks core invariants of the LDL transformation. The following sections will present these invariants and explain how the ART transformation restores and preserves them.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Persisting the Data Representation information}
+\subsection{Persisting the Data Representation Information}
 \label{sec:ildl:signatures}
+
+%  - make sure that separate compilation still works (e.g: code can be called from a separately compiled source)
+Relaxing the global, all-or-nothing nature of LDL and allowing it to be limited to scopes breaks one of its core invariants: the fact that, throughout separate compilations, method and field signatures transform according to the same (context-free) rules, therefore yielding consistent object layouts. This means that, knowing a method's high-level signature, based on the high-level concept (for example |Int|), we can unambiguously determine the low-level signature. For example the method:
+
+\begin{lstlisting-nobreak}
+def valueAtIndex(lst: List[Int], idx: Int) = ...
+\end{lstlisting-nobreak}
+
+Will always be compiled to the low-level bytecode signature:
+
+\begin{lstlisting-nobreak}
+def valueAtIndex(lst: List[`java.lang.Integer`], idx: `int`) = ...
+\end{lstlisting-nobreak}
+
+This makes it possible to call methods already lowered to bytecode in previous compilation sessions without the risk of their signature not matching the expected signature.
+
+%  - correctness: make sure that we can't make any calls that are not according to the type system
+However, when limiting the data representation transformation to a scope, we could, for example, only include its definition. Let us return to our example:
+
+\begin{lstlisting-nobreak}
+`adrt(IntPairComplexToLongComplex)` {
+  def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = ...
+}
+\end{lstlisting-nobreak}
+
+In this case, the low-level signature for the |gcd| method would be:
+
+\begin{lstlisting-nobreak}
+def gcd(n1: `long`, n2: `long`): `long` = ...
+\end{lstlisting-nobreak}
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
-High-level signatures keep the high-level type, annotated with the transformation description object.
+If, in the bytecode, we stored the high-level method signature, using pairs of integers, a separate compilation would not be aware of the data representation transformation that occurred, so it might pass two pairs of integers on the stack, which would break the low-level execution. On the other hand, if the separate compilation would look at both the high-level and low-level signatures, one taken from the class file metadata and the one from the actual bytecode, it would notice a discrepancy: the pair of integer arguments from the high-level code somehow transformed into unboxed long integer arguments. But this would still be insufficient to call the method:
 
+\begin{lstlisting-nobreak}
+val res: (Int, Int) = gcd((55, 2), (17, 13))
+\end{lstlisting-nobreak}
+
+% Global vs local/ad-hoc -- relationship between LDL and iLDL + separate compilation
+% Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
+How can the pairs of integers be transformed into long integers in a separate compilation, which is not aware of the ADRT transformation semantics? The separate compilation would not be aware of the |IntPairComplexToLongComplex| object, which handles the transformations. Therefore, even looking at both the high-level and low-level signatures is not enough, as the separate compilation is missing the semantic link between the two data representations.
+
+To solve this problem, we need to first annotate the values using that will be transformed, in a phase similar to the LDL \inject{} phase:
+
+\begin{lstlisting-nobreak}
+def gcd(
+    n1: `@repr(IntPairComplexToLongComplex)` (Int, Int),
+    n2: `@repr(IntPairComplexToLongComplex)` (Int, Int)
+  ): `@repr(IntPairComplexToLongComplex)` (Int, Int) = ...
+\end{lstlisting-nobreak}
+
+The key to limiting the ADR transformation to a scope is \textbf{persisiting the high-level signature with the ADRT annotation} in the bytecode, along with the low-level method bytecode. This allows a future separate compilation stage to derive two critical pieces of information about the |gcd| method:
+
+\begin{itemize}
+  \item its low-level signature, based on the transformation description object, \\ |IntPairComplexToLongComplex|, which contains both the high-level type, |(Int, Int)| and its representation, |Long|;
+  \item the transformation necessary when calling the |gcd| method from a non-transformed scope.
+\end{itemize}
+
+Knowing this critical piece of information, we can use the LDL transformation on the call to |gcd| made in a different separate compilation stage:
+
+\begin{lstlisting-nobreak}
+val res: (Int, Int) = gcd((55, 2), (17, 13))
+\end{lstlisting-nobreak}
+
+% Injection -- before storing signatures, bridge, coerce and commit come later.
+During the type-checking and the \inject{} phase, the high-level signature for |gcd| would be loaded from the bytecode and the call would be type-checked against the loaded signature. Remember that, before the \coerce{} phase, annotated types are compatible among themselves and with non-annotated types:
+
+\begin{lstlisting-nobreak}
+// loaded signature for method gcd:
+//  def gcd(
+//      n1: `@repr(IntPairComplexToLongComplex)` (Int, Int),
+//      n2: `@repr(IntPairComplexToLongComplex)` (Int, Int)
+//    ): `@repr(IntPairComplexToLongComplex)` (Int, Int)
+val res: (Int, Int) =
+  gcd(
+    (55, 2),   // expected: @repr(...) (Int, Int) found: (Int, Int) => okay
+    (17, 13)  // expected: @repr(...) (Int, Int) found: (Int, Int) => okay
+  )             // expexted: (Int, Int) found: @repr(...) (Int, Int) => okay
+\end{lstlisting-nobreak}
+
+During the \coerce{} phase, re-type-checking the tree will introduce coercions where annotated types and non-annotated types mismatch. It is important that the coercions carry the transformation description object:
+
+\begin{lstlisting-nobreak}
+val res: (Int, Int) =
+  fromRepr(IntPairComplexToLongComplex, gcd(
+    toRepr(IntPairComplexToLongComplex, (55, 2)),
+    toRepr(IntPairComplexToLongComplex, (17, 13)
+  ))
+\end{lstlisting-nobreak}
+
+Finally, during the \commit{} phase, the encoding and decoding methods from the transformation description object are used:
+
+\begin{lstlisting-nobreak}
+val res: (Int, Int) =
+  IntPairComplexToLongComplex.fromRepr(gcd(
+    IntPairComplexToLongComplex.toRepr((55, 2)),
+    IntPairComplexToLongComplex.toRepr((17, 13))
+  ))
+\end{lstlisting-nobreak}
+
+This concludes the explanation of the signature persistence problem. The following paragraphs will explain a series of corner cases and interactions of the ADR transformation.
+
+\subsubsection{Corner Cases and Interactions}
+
+\subsubsection{Tracking the Transformed Values}
 % Persisting the transformation decisions = persisting annotations
 %  -- Usage across compilations
 %  -- Tracking the transformer
 %  -- interoperating between ``islands'' of modified code
 %      -- using the same encoding
 %      -- using different encodings
-We need this in order to save the decisions made during injection.
-
-\subsubsection{Tracking the Transformed Values}
 This allows inserting coercions.
  -- the rippling effect of signature transformations: keep track of transformer!
 
@@ -169,8 +260,10 @@ Finally, a third question one may ask is what if we had a single type, such as |
 \subsection{Handling Generics and The Object Model}
 \label{sec:ildl:generics}
 
+
 % 2 Aspects \ldots
 \subsubsection{Generics}
+%  - handle generics and the object model correctly
 
 % Generics
 %  -- Nesting datastructures
@@ -192,6 +285,8 @@ How do you override a class with a transformed method?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Preserving the Semantics}
 \label{sec:ildl:semantics}
+
+%  - for performance reasons we want to have something like LDL's extension methods
 
 % Semantics changes
 \subsubsection{Methods and Operators of the Object}
