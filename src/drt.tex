@@ -16,7 +16,7 @@ Exposing a single high-level type in the language is more popular among programm
 % Introducing LDL
 The next section will present the Late Data Layout mechanism, a general data representation technique and the three properties that make it best suited for the Ad-hoc Data Representation Transformation: selectivity, optimality and consistency.
 
-\subsection {Late Data Layout}
+\subsection{Late Data Layout}
 
 The Late Data Layout (LDL) mechanism is the underlying transformation used in Scala to unbox primitive types, to implement value class inlining and to specialize classes using the miniboxed encoding. It is a flexible and reliable mechanism, tested on many thousands of lines of code. % making it a good starting point for other data representation transformations. % This chapter will present the LDL mechanism in detail.
 
@@ -85,10 +85,12 @@ val k: Any = `Integer.valueOf`(j)
 
 The \commit{} phase is responsible for the consistency of the transformation. Since the program abstract syntax tree (AST) has been checked by the type-system extended with representation semantics, the \commit{} phase is guaranteed to correctly handle the value representations and to correctly coerce between them. This allows the \commit{} phase to be a very simple, syntax-based, transformation over the program abstract syntax tree (AST).
 
-% Object-oriented support
-\subsubsection{Object-Oriented Patterns.}
+\subsection{Late Data Layout For Object-Oriented Languages}
 
-Aside from introducing coercions, data representation transformations must handle object-oriented patterns, such as method calls and subtyping. Not all representations can be used with these patterns, such as, for example, calling the |toString| method on the unboxed |int| representation:
+The LDL mechanism is meant to be used in object-oriented programming languages. To this end, there are several adaptations to the mail LDL mechanism that are necessary, particularly in handling object-oriented patterns and generics.
+
+% Object-oriented support
+\subsubsection{Object-oriented Patterns.} Aside from introducing coercions, data representation transformations must handle object-oriented patterns, such as method calls and subtyping. Not all representations can be used with these patterns, such as, for example, calling the |toString| method on the unboxed |int| representation:
 
 \begin{lstlisting-nobreak}
 val a: `@unboxed Int` = 1
@@ -110,7 +112,6 @@ println(`extension_toString`(a))
 \end{lstlisting-nobreak}
 
 % Limited code scopes
-\subsubsection{Support for Generics.}
-The Late Data Layout mechanism is agnostic to generics. This means that, depending on the transformation semantics and the implementation of generics, the mechanism can inject annotations in the type arguments or not. For example, if generics are erased, a list of integers will have type |List[Int]|, since values need to be boxed. If generics are unboxed and reified, the list type will be |List[@unboxed Int]|. In the original paper \cite{ldl}, the authors show examples of both cases, where annotations are propagated inside generics and when they are not, showing how the LDL mechanism adapts seamlessly to either case.
+\subsubsection{Support for Generics.} The Late Data Layout mechanism is agnostic to generics. This means that, depending on the transformation semantics and the implementation of generics, the mechanism can inject annotations in the type arguments or not. For example, if generics are erased, a list of integers will have type |List[Int]|, since values need to be boxed. If generics are unboxed and reified, the list type will be |List[@unboxed Int]|. In the original paper \cite{ldl}, the authors show examples of both cases, where annotations are propagated inside generics and when they are not, showing how the LDL mechanism adapts seamlessly to either case.
 
 Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now look at how it can be extended to handle ad-hoc programmer-driven data representation transformations.

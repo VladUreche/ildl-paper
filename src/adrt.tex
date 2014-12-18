@@ -184,14 +184,14 @@ x = IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(y)) // Double => Long
 Finally, a last composability question is whether several ADR transformations can be nested. This is indeed the case, as long as they don't target the same high-level type:
 
 \begin{lstlisting-nobreak}
-adrt(ListOfIntPairAsArrayOfLong) {
+adrt(FloatPairAsLong) {
   adrt(IntPairAsLong) {
     ...
   }
 }
 \end{lstlisting-nobreak}
 
-This property is another very important property, since it allows \textbf{transformation scope nesting}, which is very important in optimizing generics. The object model section (\S\ref{sec:ildl:generics}) develops this subject.
+This property is another very important property, since it allows \textbf{transformation scope nesting} in a safe way, without running the risk of interactions between high-level types or their represenatations.
 
 \subsubsection{Safety}
 
@@ -206,11 +206,95 @@ foo(123l)
 The answer is no: the high-level type-checking will reject both calls to the |foo| method based on the mismatching high-level types. Therefore, persisting the high-level signatures provides an important safety guarantee, namely that high-level types cannot mix even if they share the same representation type.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Handling Generics and The Object Model}
+\subsection{Handling Object-Oriented Patterns and Generics}
 \label{sec:ildl:generics}
 
+The ADR transformation was designed with object-orientation in mind. In this subsection, we will present the two areas of interaction between objects defined in |adrt| scopes and the ADR transformation: dynamic dispatch and generics.
 
-% 2 Aspects \ldots
+\subsubsection{Dynamic dispatch }
+% Part of the Object model => dynamic dispatch and overriding
+is an integral part of the object-oriented programming model, allowing objects to encapsulate code. And the main solution to evolving the encapsulated code is extending a class and overriding its methods. However, changing the data representation can lead to situations where a method is no longer capable of overriding in the low-level code:
+
+\begin{lstlisting-nobreak}
+class X {
+  def identity(i: (Int, Int)) = i
+}
+adrt(IntPairAsLong) {
+  class Y extends X(t: (Int, Int)) {
+    override def identity(i: (Int, Int)): (Int, Int) = t // instead of i
+  }
+}
+\end{lstlisting-nobreak}
+
+% Data representation transformations break dynamic dispatch and overriding
+% The solution is introducing bridges => add a phase to the LDL transformation
+In the low-level bytecode, the |identity| method in class |Y| is no longer capable of overriding method |identity| in class |X|, as its low-level signature expects a long integer. This prompted us to extend the Late Data Layout to four phases, introducing a new \bridge{} phase before the \coerce{} phase, which introduces method overloads that allow correct overriding. After the \inject{} phase, class |Y| will be:
+
+\begin{lstlisting-nobreak}
+class Y extends X(t: `@repr(...)` (Int, Int)) {
+  override def identity(i: `@repr(...)` (Int, Int)): `@repr(...)` (Int, Int) = t
+}
+\end{lstlisting-nobreak}
+
+The \bridge{} phase will insert the methods necessary to allow correct overriding:
+
+\begin{lstlisting-nobreak}
+class Y extends X(t: `@repr(...)` (Int, Int)) {
+  def identity(i: `@repr(...)` (Int, Int)): `@repr(...)` (Int, Int) = t
+  // overrides method identity from class X and calls the transformed method:
+  @bridge override def identity(i: (Int, Int)) = identity(i)
+}
+\end{lstlisting-nobreak}
+
+The \coerce{} and \commit{} phases then transform class |Y| as before, resulting in a class with two methods, one which is transformed and another one which overrides:
+
+\begin{lstlisting-nobreak}
+class Y extends X(t: `Long`) {
+  def identity(i: `Long`): `Long` = t
+  @bridge override def identity(i: (Int, Int)) =
+    IntPairAsLong.fromRepr(identity(IntPairAsLong.toRepr(i)))
+}
+\end{lstlisting-nobreak}
+
+% The backwards problem is also true => bridge + warning
+If we now extended the |Y| class in another transformed scope, it would be obvious that the overriding is correct: the new class would define both the transformed method, which would override the transformed method in |Y| and the bridge method, which would override the method in |X|.
+
+However, a more difficult problem is what happens if we extended class |Y| from outside the transformation scope or from a scope with a different transformation:
+
+\begin{lstlisting-nobreak}
+adrt(`IntPairAsDouble`) {
+  class Z(t: (Int, Int)) extends Y(t) {
+    override def identity(i: (Int, Int)): (Int, Int) = i
+  }
+}
+\end{lstlisting-nobreak}
+
+Following the \inject{} and \bridge{} phases, the |Z| class will be transformed to:
+
+\begin{lstlisting-nobreak}
+class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
+  def identity(i: `@repr(IntPairAsDouble)` (Int, Int)): `@repr(IntPairAsDouble)` (Int, Int) = i
+  @bridge override /* method identity in X */
+  def identity(i: (Int, Int)): (Int, Int) = identity(i)
+  @bridge override /* method identity in Y */
+  def identity(i: `@repr(IntPairAsLong)` (Int, Int)): `@repr(IntPairAsLong)` (Int, Int) = identity(i)
+}
+\end{lstlisting-nobreak}
+
+Following the \coerce{} and \commit{} phases, class |Z| becomes:
+
+\begin{lstlisting-nobreak}
+class Z(t: `Double`) extends Y(`IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(t))`) {
+  def identity(i: `Double`): `Double` = i
+  @bridge override /* method identity in X */
+  def identity(i: `(Int, Int)`): `(Int, Int)` = ...
+  @bridge override /* method identity in Y */
+  def identity(i: `Long`): `Long` = ...
+}
+\end{lstlisting-nobreak}
+
+This more involved transformation, with two bridges and a total of 8 representation transformations (6 of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden. Furthermore, the \bridge{} phase issues a warning that using class |Z| as class |Y| will be suboptimal, as overriding requires transforming the representation in two steps. However, since both classes have the common high-level type, conversion is possible, as explained in Section \ref{sec:ildl:signatures}, so the object model and its overriding is correctly implemeted.
+
 \subsubsection{Generics}
 %  - handle generics and the object model correctly
 
@@ -225,14 +309,8 @@ Can we transform |List[(Int, Int)]| into |List[Long]|. In the general case, no, 
 Solution: we could either add methods for transforming data structures in the transformation description object or, if there is no such method available, the correctness-preserving approach is not to transform the representation inside generics.
 
 
-\subsubsection{The Object Model: Subtyping and Overriding}
-% Overriding - introduce an additional phase in LDL: bridge
-We add bridges, therefore the ILDL transformation has four phases instead of three: inject, bridge, coerce and commit.
-
-How do you override a class with a transformed method?
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Preserving the Semantics}
+\subsection{Optimizing Methods and Operators}
 \label{sec:ildl:semantics}
 
 %  - for performance reasons we want to have something like LDL's extension methods
