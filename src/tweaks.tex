@@ -116,12 +116,13 @@
 %%% http://tex.stackexchange.com/questions/10141/how-to-prevent-lstlisting-from-splitting-code-between-pages
 \lstnewenvironment{lstlisting-nobreak}[1][]%
 {
-  \vspace{0.4em}
+  \vspace{0.1em}
   \noindent
   \minipage{\linewidth}
 }
 {
   \endminipage
+  \vspace{-0.3em}
 }
 
 % Review tools
@@ -148,3 +149,5 @@
 
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
+
+\renewcommand{\subsubsection}[1]{\vspace{0.5em}\textbf{#1}}

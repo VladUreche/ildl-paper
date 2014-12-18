@@ -193,9 +193,7 @@ adrt(FloatPairAsLong) {
 
 This property is another very important property, since it allows \textbf{transformation scope nesting} in a safe way, without running the risk of interactions between high-level types or their represenatations.
 
-\subsubsection{Safety}
-
-Let us now focus on a safety problem: calling based on the representation. Let us assume we have two high-level types that share the representation type, such as, for example, a pair of integers and a pair of floating-point numbers, both of which could be encoded as a long integer. Could data pass across the representation type?
+\subsubsection{Safety.} Let us now focus on a safety problem: calling based on the representation. Let us assume we have two high-level types that share the representation type, such as, for example, a pair of integers and a pair of floating-point numbers, both of which could be encoded as a long integer. Could data pass across the representation type?
 
 \begin{lstlisting-nobreak}
 adrt(IntPairAsLong) { def foo(p: (Int, Int)) = ... }
@@ -342,7 +340,7 @@ adtr(`IntPairCompleToLongComple`) {
 }
 \end{lstlisting-nobreak}
 
-\subsubsection{Methods and Operators of the Transformed Object}
+% \subsubsection{Methods and Operators of the Transformed Object}
 
 % The normal approach taken by the LDL transformation is unnecessarily conservative: it boxes the value back and calls the method:
 When handling method calls, the LDL transformation is very conservative: it transforms the representation type back to its high-level type, which contains the method, and invokes it. This produces sub-optimal code:
@@ -418,6 +416,6 @@ val n2: Long = extension_*(n1, n1)
 Notice that the constructor the integers are now passed as arguments to the extension |toRepr_ctor| method. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 % Semantics changes
-\subsubsection{Semantics of the Transformed Type}
+\subsubsection{Correctness of the rewiring.}
 %  -- Liskov substitution principle
 reviewers may argue that data containers are generic and flexible in order to ease evolution of the data structures. Therefore transforming non-final containers might lose their semantics, since we fix the semantics of operators, which otherwise would have been dynamically dispatched to the most specific implementation. But that can be argued against using the Liskov principle -- if a subclass of the container modifies the behavior of an operator, even the original program's semantics may now be incorrect, therefore our transformation won't make correctness worse. Therefore, according to the Liskov principle, as long as the updated (static) operators are semantically equivalent to the data container's, the transformation will not affect the program semantics.
