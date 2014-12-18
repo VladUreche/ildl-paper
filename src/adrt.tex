@@ -205,6 +205,10 @@ foo(123l)
 
 The answer is no: the high-level type-checking will reject both calls to the |foo| method based on the mismatching high-level types. Therefore, persisting the high-level signatures provides an important safety guarantee, namely that high-level types cannot mix even if they share the same representation type.
 
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Handling Object-Oriented Patterns and Generics}
 \label{sec:ildl:generics}
@@ -296,17 +300,32 @@ class Z(t: `Double`) extends Y(`IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(t)
 This more involved transformation, with two bridges and a total of 8 representation transformations (6 of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden. Furthermore, the \bridge{} phase issues a warning that using class |Z| as class |Y| will be suboptimal, as overriding requires transforming the representation in two steps. However, since both classes have the common high-level type, conversion is possible, as explained in Section \ref{sec:ildl:signatures}, so the object model and its overriding is correctly implemeted.
 
 \subsubsection{Generics}
-%  - handle generics and the object model correctly
+% Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
+Another problem that arises when performing ad-hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example to decide:
 
-% Generics
-%  -- Nesting datastructures
-Can we transform |List[(Int, Int)]| into |List[Long]|. In the general case, no, for two reasons:
-\begin{itemize}
-  \item since it could break aliasing (for mutable data structures)
-  \item since there is no method available to transform from one representation to the other
-\end{itemize}
+\begin{lstlisting-nobreak}
+def use1(list: List[(Int, Int)]): Unit = ...
+adrt(IntPairAsLong) {
+  def use2(list: List[(Int, Int)]): Unit = `use1(list)`
+}
+\end{lstlisting-nobreak}
 
-Solution: we could either add methods for transforming data structures in the transformation description object or, if there is no such method available, the correctness-preserving approach is not to transform the representation inside generics.
+% In the very particular case of list, it's okay, but not in the general case
+In the very particular case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[(Int, Int)]| to |List[Long]| and call the |use1| method by mapping over the list and transforming the representation of each element. However, this domain-specific knowlege only applies to the immutable list, not any generic class that may be encountered in the signature.
+
+% Furthermore, there is an entire class of mutable containers which cannot be transformed
+Furthermore, there is an entire class of containers for which mapping over the elements to change their representation is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference. But duplicating the container and its elements (stored with a different representation) would break this invariant: changes to one copy of the mutable container will not be visible to all other copies, making the transformation incorrect.
+
+% We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegan and general solution.
+Therefore, the solution taken in the ADR transformation is to keep the high-level type inside generics. In the future, we may allow the transformation description object to designate transformations for generic containers, but, in the current implementation, we do not use this. Thus, our example after the \commit{} phase will be:
+
+\begin{lstlisting-nobreak}
+def use1(list: List[(Int, Int)]): Unit = ...
+def use2(list: List[(Int, Int)]): Unit = `use1(list)`
+\end{lstlisting-nobreak}
+
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -85,7 +85,7 @@ val k: Any = `Integer.valueOf`(j)
 
 The \commit{} phase is responsible for the consistency of the transformation. Since the program abstract syntax tree (AST) has been checked by the type-system extended with representation semantics, the \commit{} phase is guaranteed to correctly handle the value representations and to correctly coerce between them. This allows the \commit{} phase to be a very simple, syntax-based, transformation over the program abstract syntax tree (AST).
 
-\subsection{Late Data Layout For Object-Oriented Languages}
+\subsection{Support For Object-Oriented Programming}
 
 The LDL mechanism is meant to be used in object-oriented programming languages. To this end, there are several adaptations to the mail LDL mechanism that are necessary, particularly in handling object-oriented patterns and generics.
 
