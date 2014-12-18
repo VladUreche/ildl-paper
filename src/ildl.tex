@@ -229,32 +229,97 @@ val res: (Int, Int) =
 
 This concludes the explanation of the signature persistence problem. The following paragraphs will explain a series of corner cases and interactions of the ADR transformation.
 
-\subsubsection{Corner Cases and Interactions}
+\subsubsection{Composability}
 
-\subsubsection{Tracking the Transformed Values}
-% Persisting the transformation decisions = persisting annotations
-%  -- Usage across compilations
-%  -- Tracking the transformer
-%  -- interoperating between ``islands'' of modified code
-%      -- using the same encoding
-%      -- using different encodings
-This allows inserting coercions.
- -- the rippling effect of signature transformations: keep track of transformer!
+The signature persistence solution has two advantages:
+\begin{enumerate}
+  \item it allows code from different scopes to compose, across separate compilation;
+  \item it allows a high-level type to use different representations;
+  \item it allows nested scopes;
+\end{enumerate}
 
-\subsubsection{Two Types, One Representation}
+Let us look at the first advantage: composability: Can code from a different source file, or even from a separate build use the ADR transformation to optimize a call to method |gcd| in a separate compilation? The answer is yes:
 
-What if we have two types that erase to the same representation? Could a method where the first type, say (Int, Int) was converted to long be called by code that was encoding |(Float, Float)| as a long integer, thus compromising the semantics of the language?
+\begin{lstlisting-nobreak}
+`adrt(IntPairComplexToLongComplex)` {
+  val n1: (Int, Int) = ...
+  val n2: (Int, Int) = ...
+  val res: (Int, Int) = gcd(n1, n2)
+}
+\end{lstlisting-nobreak}
 
-The answer is no, since the type system protects us from doing this. The annotations, before the coerce phase, only bear the final representation, but the type exposed is the high-level type, not the representation. Therefore, the error message would make it very clear that the code attempted to call a method accepting a pair of integers but passed a pair of floating-point numbers.
+In this example, the first step is the \inject{} phase, that will add the |@repr| annotation to the values:
 
-\subsubsection{One Type, One Representation, Compatibility}
+\begin{lstlisting-nobreak}
+// loaded signature for method gcd:
+//  def gcd(n1: @repr(...) (Int, Int), n2: @repr(...) (Int, Int)): @repr(...) (Int, Int)
+val n1: `@repr(...)` (Int, Int) = ...
+val n2: `@repr(...)` (Int, Int) = ...
+val res: `@repr(...)` (Int, Int) = gcd(n1, n2)
+\end{lstlisting-nobreak}
 
-Another question we may ask ourselves is what we have the |ildl| marker method called from two different locations with the same transformation description object? Would they need to convert to the high-level (and inefficient type)? The answer is no, since the method signature will have the high-level type annotated with the representation, which will match the arguments for the call.
+Now, going into the \coerce{} phase, no coercions will be introduced, as the signatures match. Therefore, the call to |gcd| will take place without any coercions for the arguments and the return type. This gives the ADR transformation an important property: \textbf{optimized scopes are composable across source files and across separate compilation runs}. This is a highly desirable property, which allows optimized code from different scopes to naturally collaborate in order to use the more optimal representation. Following the \commit{} phase, our call will be:
 
-\subsubsection{One Type, Two Representations}
+\begin{lstlisting-nobreak}
+val n1: `Long` = ...
+val n2: `Long` = ...
+val res: `Long` = gcd(n1, n2)
+\end{lstlisting-nobreak}
 
-Finally, a third question one may ask is what if we had a single type, such as |GaussianInteger|, which could be represented as either |(Int, Int)| or |Long|, and attempted to call between parts of the code using the two representations. The answer is that, keeping the high-level signature would allow the ildl transformation to know that it needs to convert from one representation to another: it would first decode the first representation to expose the high-level type, which it would then re-encode with the second representation.
+Let us now look at the second advantage: allowing a high-level type to use different representations. This can be shown in another example:
 
+\begin{lstlisting-nobreak}
+adrt(IntPairAsLong)   { var x: (Int, Int) = (3, 5) }
+adrt(IntPairAsDouble) { val y: (Int, Int) = (2, 6); x = y }
+\end{lstlisting-nobreak}
+
+At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level types |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point. In this situation, how would the transformation occur? The high-level type-checking will succeed, as the high-level types match. Later, during the \inject{} transformation, the |adrt| scope will be inlined:
+
+\begin{lstlisting-nobreak}
+var x: `@repr(IntPairAsLong)` (Int, Int) = (3, 5)
+val y: `@repr(IntPairAsDouble)` (Int, Int) = (2, 6)
+x = y
+\end{lstlisting-nobreak}
+
+The \coerce{} phase will observe the mismatching signatures in the last line:
+
+\begin{lstlisting-nobreak}
+var x: @repr(IntPairAsLong) (Int, Int) = `toRepr`(IntPairAsLong, (3, 5))
+val y: @repr(IntPairAsDouble) (Int, Int) = `toRepr`(IntPairAsDouble, (2, 6))
+x = `toRepr(IntPairAsLong, `fromRepr`(IntPairAsDouble, y))
+\end{lstlisting-nobreak}
+
+What happens is that, in the \coerce{} phase the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This allows \textbf{composing scopes that use the same high-level type even across different representations}. The \commit{} phase will transform the example to:
+
+\begin{lstlisting-nobreak}
+var x: `Long` = IntPairAsLong.toRepr((3, 5))
+val y: `Double` = IntPairAsDouble.toRepr((2, 6))
+x = IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(y)) // Double => Long
+\end{lstlisting-nobreak}
+
+Finally, a last composability question is whether several ADR transformations can be nested. This is indeed the case, as long as they don't target the same high-level type:
+
+\begin{lstlisting-nobreak}
+adrt(ListOfIntPairAsArrayOfLong) {
+  adrt(IntPairAsLong) {
+    ...
+  }
+}
+\end{lstlisting-nobreak}
+
+This property is another very important property, since it allows \textbf{transformation scope nesting}, which is very important in optimizing generics. The object model section (\S\ref{sec:ildl:generics}) develops this subject.
+
+\subsubsection{Safety}
+
+Let us now focus on a safety problem: calling based on the representation. Let us assume we have two high-level types that share the representation type, such as, for example, a pair of integers and a pair of floating-point numbers, both of which could be encoded as a long integer. Could data pass across the representation type?
+
+\begin{lstlisting-nobreak}
+adrt(IntPairAsLong) { def foo(p: (Int, Int)) = ... }
+adrt(FloatPairAsLong) { foo((1f, 2f)) }
+foo(123l)
+\end{lstlisting-nobreak}
+
+The answer is no: the high-level type-checking will reject both calls to the |foo| method based on the mismatching high-level types. Therefore, persisting the high-level signatures provides an important safety guarantee, namely that high-level types cannot mix even if they share the same representation type.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Handling Generics and The Object Model}
@@ -288,6 +353,10 @@ How do you override a class with a transformed method?
 
 %  - for performance reasons we want to have something like LDL's extension methods
 
+\subsubsection{Semantics of the Transformed Type}
+%  -- Liskov substitution principle
+reviewers may argue that data containers are generic and flexible in order to ease evolution of the data structures. Therefore transforming non-final containers might lose their semantics, since we fix the semantics of operators, which otherwise would have been dynamically dispatched to the most specific implementation. But that can be argued against using the Liskov principle -- if a subclass of the container modifies the behavior of an operator, even the original program's semantics may now be incorrect, therefore our transformation won't make correctness worse. Therefore, according to the Liskov principle, as long as the updated (static) operators are semantically equivalent to the data container's, the transformation will not affect the program semantics.
+
 % Semantics changes
 \subsubsection{Methods and Operators of the Object}
 % Operators
@@ -302,8 +371,4 @@ Short-cutting methods are located in the transformation description object, whic
 \end{itemize}
 
 Operators need not required their arguments to use the high-level type: for example, when defining the |+| operator, we need to force the second operator to use the high-level type |(Int, Int)|. Instead, we accept a value of type |@encoded Long|, which allows it to accept the optimized representation for the other value as well. Interestingly, this does not prevent it from accepting the high-level type |(Int, Int)|: based on annotations, the ildl transformation knows the |(Int, Int)| value must be converted to a |Long| value.
-
-\subsubsection{Semantics of the Transformed Type}
-%  -- Liskov substitution principle
-reviewers may argue that data containers are generic and flexible in order to ease evolution of the data structures. Therefore transforming non-final containers might lose their semantics, since we fix the semantics of operators, which otherwise would have been dynamically dispatched to the most specific implementation. But that can be argued against using the Liskov principle -- if a subclass of the container modifies the behavior of an operator, even the original program's semantics may now be incorrect, therefore our transformation won't make correctness worse. Therefore, according to the Liskov principle, as long as the updated (static) operators are semantically equivalent to the data container's, the transformation will not affect the program semantics.
 
