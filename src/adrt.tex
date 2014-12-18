@@ -170,7 +170,7 @@ The \coerce{} phase will observe the mismatching signatures in the last line:
 \begin{lstlisting-nobreak}
 var x: @repr(IntPairAsLong) (Int, Int) = `toRepr`(IntPairAsLong, (3, 5))
 val y: @repr(IntPairAsDouble) (Int, Int) = `toRepr`(IntPairAsDouble, (2, 6))
-x = `toRepr(IntPairAsLong, `fromRepr`(IntPairAsDouble, y))
+x = `toRepr`(IntPairAsLong, `fromRepr`(IntPairAsDouble, y))
 \end{lstlisting-nobreak}
 
 What happens is that, in the \coerce{} phase the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This allows \textbf{composing scopes that use the same high-level type even across different representations}. The \commit{} phase will transform the example to:
@@ -193,9 +193,7 @@ adrt(FloatPairAsLong) {
 
 This property is another very important property, since it allows \textbf{transformation scope nesting} in a safe way, without running the risk of interactions between high-level types or their represenatations.
 
-\subsubsection{Safety}
-
-Let us now focus on a safety problem: calling based on the representation. Let us assume we have two high-level types that share the representation type, such as, for example, a pair of integers and a pair of floating-point numbers, both of which could be encoded as a long integer. Could data pass across the representation type?
+\subsubsection{Safety.} Let us now focus on a safety problem: calling based on the representation. Let us assume we have two high-level types that share the representation type, such as, for example, a pair of integers and a pair of floating-point numbers, both of which could be encoded as a long integer. Could data pass across the representation type?
 
 \begin{lstlisting-nobreak}
 adrt(IntPairAsLong) { def foo(p: (Int, Int)) = ... }
@@ -324,32 +322,114 @@ def use1(list: List[(Int, Int)]): Unit = ...
 def use2(list: List[(Int, Int)]): Unit = `use1(list)`
 \end{lstlisting-nobreak}
 
-
+However, although the integer pair cannot be transformed inside the generic container, it is possible to change the container representation itself: we can define a separate (optimized) storage for |List[(Int, Int)]| and use the ability to nest transformation scopes in a composable way, thus transforming both the pair of integers and its container.
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Optimizing Methods and Operators}
+\subsection{Optimizing The Encapsulated Code}
 \label{sec:ildl:semantics}
 
-%  - for performance reasons we want to have something like LDL's extension methods
+% Objects encapsulate data and executable code. So far, the focus has been on the data representation, but that's not all: we also care about accessing methods of the transformed object
+Objects encapsulate data and executable code. The presentation so far focused on optimizing the data representation, but in many cases the choice of using a generic container is motivated by its very flexible interface, which programmers use to quickly achieve their given task. For the last part of the ADR transformation, we will focus on handling method calls:
 
-\subsubsection{Semantics of the Transformed Type}
-%  -- Liskov substitution principle
-reviewers may argue that data containers are generic and flexible in order to ease evolution of the data structures. Therefore transforming non-final containers might lose their semantics, since we fix the semantics of operators, which otherwise would have been dynamically dispatched to the most specific implementation. But that can be argued against using the Liskov principle -- if a subclass of the container modifies the behavior of an operator, even the original program's semantics may now be incorrect, therefore our transformation won't make correctness worse. Therefore, according to the Liskov principle, as long as the updated (static) operators are semantically equivalent to the data container's, the transformation will not affect the program semantics.
+\begin{lstlisting-nobreak}
+adtr(`IntPairCompleToLongComple`) {
+  val n = (0, 1)
+  println(n.toString)
+}
+\end{lstlisting-nobreak}
+
+% \subsubsection{Methods and Operators of the Transformed Object}
+
+% The normal approach taken by the LDL transformation is unnecessarily conservative: it boxes the value back and calls the method:
+When handling method calls, the LDL transformation is very conservative: it transforms the representation type back to its high-level type, which contains the method, and invokes it. This produces sub-optimal code:
+
+\begin{lstlisting-nobreak}
+val n: Long = IntPairCompleToLongComple.`toRepr`((0, 1))
+println(IntPairCompleToLongComple.`fromRepr`(n).toString)
+\end{lstlisting-nobreak}
+
+% However, it also features extension methods, which are more efficient. However, these methods have to be added manually to the transformation description object to be used by the ADR transformation:
+To optimize such cases, the LDL transformation is capable of skipping the high-level type when extension methods are available. For example, assuming the |extension_toString| exists in the transformation description object, then the following code can be rewritten as:
+
+\begin{lstlisting-nobreak}
+val n: Long = IntPairCompleToLongComple.toRepr((0, 1))
+println(IntPairCompleToLongComple.`extension_toString`(n))
+\end{lstlisting-nobreak}
+
+This avoids the costly object creation that can slow down execution and stall the program due to garbage collection cycles. In practice, the ADR transformation will look up the |extension_toString| method, and, in case it is not present, will warn the programmer and proceed with decoding the representation type so the dynamically dispatched method can be used.
+
+% implicitly added methods + parameters
+\subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
+
+\begin{lstlisting-nobreak}
+adtr(`IntPairCompleToLongComple`) {
+  val n1 = (0, 1)
+  val n2 = n1 * n1
+}
+\end{lstlisting-nobreak}
+
+First, they wrap the original value in a new object, which has the method, and then invoke this method:
+
+\begin{lstlisting-nobreak}
+adtr(IntPairCompleToLongComple) {
+  val n1: (Int, Int) = (0, 1)
+  val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
+}
+\end{lstlisting-nobreak}
+
+Clearly, this is a costly pattern. To optimize it, the ADR transformation will attempt to look for an extension method in the transformation description object. In practice, the name of the extension method also contains the name of the implicit conversion, but, for simplicity, let us assume its name is |extension_*|.
+
+There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would make the signature:
+
+\begin{lstlisting-nobreak}
+def extension_*(recv: @repr(...) (Int, Int), n2: `(Int, Int)`): `(Int, Int)`
+\end{lstlisting-nobreak}
+
+However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
+
+\begin{lstlisting-nobreak}
+def extension_*(
+    recv: `@repr(...) (Int, Int)`,
+    n2:   `@repr(...) (Int, Int)`
+  ): `@repr(...) (Int, Int)`
+\end{lstlisting-nobreak}
+
+Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
+
+\begin{lstlisting-nobreak}
+val n1: Long = IntPairCompleToLongComple.toRepr((0, 1))
+val n2: Long = extension_*(n1, n1)
+\end{lstlisting-nobreak}
+
+This code is much more efficient: it never requires the pair of integer representation in order to execute the complex number multiplication. Yet, there is still a snag.
+
+% constructors
+\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites their invocations to extension methods that output the representation type directly. Using this feature on the code above, we get:
+
+\begin{lstlisting-nobreak}
+val n1: Long = IntPairCompleToLongComple.toRepr_ctor(0, 1)
+val n2: Long = extension_*(n1, n1)
+\end{lstlisting-nobreak}
+
+Notice that the constructor the integers are now passed as arguments to the extension |toRepr_ctor| method. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 % Semantics changes
-\subsubsection{Methods and Operators of the Object}
-% Operators
-%  -- transformation tracker
-We can always decode the representation to expose the high-level type and make the call based on that. Yet, this is inefficient. The solution is to short-circuit the calls to the operators and perform them directly on the encoded value, much like extension methods work for value classes.
+%  -- Liskov substitution principle
+\subsection{Correctness of the Ad-hoc Data Representation Transformation}
 
-Short-cutting methods are located in the transformation description object, which needs to contain:
-\begin{itemize}
-  \item transformations between the high-level type and the representation (and back);
-  \item (optional) transformations between generic containers with the high-level type (|List[(Int, Int)]|) and the generic container with the improved representation (|List[Long]|);
-  \item (optional) operators and methods on the encoded representation, such as |+|, |-|, |*|, |/|, |%| and |norm|.
-\end{itemize}
+% Terminology from http://stackoverflow.com/questions/4157639/what-is-the-antonym-of-encapsulation:
+The Ad-hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
 
-Operators need not required their arguments to use the high-level type: for example, when defining the |+| operator, we need to force the second operator to use the high-level type |(Int, Int)|. Instead, we accept a value of type |@encoded Long|, which allows it to accept the optimized representation for the other value as well. Interestingly, this does not prevent it from accepting the high-level type |(Int, Int)|: based on annotations, the ildl transformation knows the |(Int, Int)| value must be converted to a |Long| value.
+% De-encapsulation of containers, which are essentially value types, without a significant object identity
+The explanation needs to take into account the target of the ADR transformation: immutable containers with essentially value semantics and without significant object identity. There are entire classes of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing code outside the collections to extend them. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
 
+% Bad performance
+On the other hand, containers are usually meant to cover a very broad spectrum of use-cases, thus requiring generic data and many utility methods for accessing and transforming the data. While this speeds up development, it makes these containers impossible to use in performance-aware applications, not only due to the significant indirection overhead but also due to the massive amounts of garbage generated, which require the Java Virtual Machine garbage collector to regularly revisit the heap objects and collect the unused ones, making application response time impossible to predict.
+
+% A middle ground
+The only solution for performance-oriented applications remains to write very low-level code, which is almost impossible evolve at the same pace as the high-level container-based code. And this is only due to the very strict nature of compilers and type systems, which only accept a small fraction of the possible correct programs, the fraction that the type system can check. There is a need for a middle ground, where the compiler can be overridden, in well-defined scopes and under the strict guidance of the programmer. Think casting in a more disciplined way.
+
+% ``Safe'' relaxation of the strict semantics,
+This is where the ADR transformation comes in: it allows the programmer to override the compiler without the need to worry about the boilerplate and the possible negative interactions with the rest of the object-oriented system. The single burden put on the programmer is designing and implementing the transformation description object correctly. But, being a contained entity, it is very easy to unit-test and correct, unlike a system-wide refactoring using low-level code. Furthermore, with a single system flag, the ADR transformation can be prevented, allowing bugs to be easily attributed to either the data representation transformation or the rest of the code.
