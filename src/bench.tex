@@ -8,4 +8,101 @@
 \label{sec:benchmarks:ad-hoc}
 
 \subsection{Retrofitting Specialization to Functions}
+
 \label{sec:benchmarks:funcs}
+We describe next the the scala-streams design and implementation. 
+
+A Push stream type has a single constructor. The \verb|Stream| constructor takes
+as a parameter a loop-function which takes as a parameter another function with
+type \verb|T => bool|.
+
+\begin{lstlisting}[language=Scala]
+(T => Boolean) => Unit
+\end{lstlisting}
+
+In words, a stream holds a function that represents the entire iteration over
+elements of an array, with another function applied to each one.  The
+\verb|bool| return value serves to indicate whether the next consumer down the
+operator chain should be called on the element or not.
+
+The iteration itself is encoded as a loop (hereafter: the \verb|iterf|
+function). The \verb|ofArray| operator creates such a stream with the initial
+looping function passed as the \verb|iterf| function. Note the correspondence
+with the Java iteration scheme. Much like the Java \verb|of|, the scala-streams
+operator \verb|ofArray| yields a consumer that contains a predefined iteration
+block (\verb|iterf|) and returns a new stream.  Java's \verb|tryAdvance| and
+\verb|forEachRemaining| (that also checks if the iteration must proceed),
+correspond to the above function \verb|iterf|. The code skeleton of
+\verb|ofArray| is shown below, for reference.
+
+
+\begin{lstlisting}[language=scala]
+@inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
+  val gen = (iterf: T => Boolean) => {
+    var counter = 0
+    var cont = true
+    val size = xs.length
+    while (counter < size && cont) {
+      cont = iterf(xs(counter))
+      counter += 1
+    }
+  }
+}
+new Stream(gen)
+\end{lstlisting}
+
+
+\begin{lstlisting}[language=scala]
+  def toArray()(implicit builder: SpecializedArrayBuilder[T]): Array[T] = {
+    foldLeft(builder)((b, v) => {b += v;b})
+    builder.result
+  }
+
+  def filter(p: T => Boolean): Stream[T] =
+    new Stream(iterf => streamf(value => !p(value) || iterf(value)))
+
+  def map[@miniboxed R: ClassTag](f: T => R): Stream[R] = 
+    new Stream(iterf => streamf(value => iterf(f(value))))
+
+  def takeWhile(p: T => Boolean): Stream[T] = 
+    new Stream(iterf => streamf(value => if (p(value)) iterf(value) else false))
+
+  def skipWhile(p: T => Boolean): Stream[T] = 
+    new Stream(iterf => streamf(value => {
+      var shortcut = true;
+      if (!shortcut && p(value)) {
+	true
+      }
+      else {
+	shortcut = true
+	iterf(value)
+      }
+    }))
+
+  def flatMap[@miniboxed R: ClassTag](f: T => Stream[R]): Stream[R] = 
+    new Stream(iterf => streamf(value => {
+	val innerf = f(value).streamf
+	innerf(iterf)
+	true
+    }))
+\end{lstlisting}
+
+\begin{lstlisting}[language=scala]
+def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
+  var acc = a
+  streamf(value => {
+    acc = op(acc, value)
+    true
+  })
+  acc
+}
+
+def fold(z: T)(op: (T, T) => T): T = 
+  foldLeft(z)(op)
+
+def size(): Long = 
+  foldLeft(0L)((a: Long, _) => a + 1L)
+
+def sum[@miniboxed N >: T](implicit num: Numeric[N]): N = 
+  foldLeft(num.zero)(num.plus)
+\end{lstlisting}

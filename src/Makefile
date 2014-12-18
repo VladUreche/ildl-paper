@@ -1,14 +1,12 @@
 TARGETS      := main.pdf
 PDFLATEX     := $$pdflatex='pdflatex -interaction=nonstopmode -synctex=1 %S %O'
-LATEXMK      := latexmk -cd -e $(PDFLATEX) -f -pdf
-CHECKPOINT   := 
+LATEXMK      := latexmk -cd -e $(PDFLATEX) -f -pdf 
 
-all : $(TARGETS)
+.PHONY : all clean
+all : $(TARGETS) 
 
-%.pdf : %.tex
+%.pdf : %.tex  $(wildcard *.tex)
 	$(LATEXMK) $<
-
-.PHONY : all
 
 clean : 
 	latexmk -c
