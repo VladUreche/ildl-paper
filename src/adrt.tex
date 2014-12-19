@@ -1,11 +1,11 @@
-\section{Ad-hoc Data Representation Transformation}
+\section{Ad-hoc Data Representation (ADR) Transformation}
 \label{sec:ildl}
 
 % DEFINE WHAT WE WANT
 %  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
-The goal of the Ad-hoc Data Representation (ADR) transformation is to relax two constraints from previous data representation transformations: first, allow the transformation to take place for limited scopes, ranging from an expression all the way to full class or package definitions and to allow custom, programmer-defined alternative representations.
+The ADR transformation relaxes two constraints always present in existing data representation transformations: first, it allows the transformation to take place for limited scopes, ranging from an expression all the way to full class or package definitions and allows custom, programmer-defined alternative representations.
 
-Unfortunately, relaxing these two constraints breaks core invariants of most data representation transformations. The following sections will present these invariants and explain how we adapted the Late Data Layout transformation for these relaxed constraints.
+Unfortunately, relaxing these two constraints breaks core invariants of most data representation transformations. The following sections will present these invariants and explain how we adapted the Late Data Layout transformation to fit these relaxed constraints.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Persisting the Data Representation Information}
@@ -17,10 +17,10 @@ Strongly typed languages that compile to low-level code need to store high-level
 def rewrite(c: Context)(tree: `c.Tree`, tpe: `c.Type`) = ...
 \end{lstlisting-nobreak}
 
-Will irreversibly lose all its path-dependent type information in the low-level bytecode, since the low-level signatures do not support it:
+Will irreversibly lose all its path-dependent type information in the low-level bytecode, as the low-level signatures stored in the bytecode do not support it:
 
 \begin{lstlisting-nobreak}
-def rewrite(c: Context)(tree: `Object`, tpe: `Object`) = ...
+def rewrite(c: Context, tree: `Object`, tpe: `Object`) = ...
 \end{lstlisting-nobreak}
 
 Therefore, in order to allow separate compilation, Scala stores the high-level signature as bytecode metadata. This allows it to later type-check code that calls the |rewrite| method against the path-dependent signature, enforcing strong guarantees about the program behavior:
@@ -31,14 +31,14 @@ scala> rewrite(new Context())(new Object, new Object)
  found   : Object
  required: c.Tree where val c: Context
               rewrite(new Context())(new Object, new Object)
-                                     ^
+                                            ^
 ...
 \end{lstlisting-nobreak}
 
-This behavior is not limited to Scala: C and C++ require member declarations in header files, whereas Java stores generic information separately in the bytecode. Aside from the fact that high-level signatures are not derivable from the low-level ones, we have an extra problem: several low-level members can correspond to a single high-level one, making it very important to be able to consistently derive the low-level members from a high-level signature, so they can be correctly called in the low-level code.
+This behavior is not limited to Scala: C and C++ require header files to declare the signatures of all classes and methods used, whereas Java stores generic information separately in the bytecode. Aside from the fact that high-level signatures are not derivable from the low-level ones, we have an extra problem: several low-level members can correspond to a single high-level one, making it very important to be able to consistently derive the low-level members from a high-level signature, so they can be correctly called in the low-level code.
 
 %  - make sure that separate compilation still works (e.g: code can be called from a separately compiled source)
-Relaxing the global, all-or-nothing nature of the LDL mechanism and allowing it to be limited to parts of a program breaks one of its core invariants: the fact that, throughout separate compilations, high-level method and field signatures are transformed according to the same (context-free) rules, yielding consistent object layouts and low-level signatures.
+One of the core invariants on the LDL transformation is that, throughout separate compilations, the high-level signatures are transformed according to the same (context-free) rules, yielding consistent object layouts and low-level signatures. However, when relaxing the global, all-or-nothing nature of the LDL mechanism we are essentially breaking this invariant.
 %
 % For example, given method |valueAtIndex| with high-level signature:
 %
@@ -72,7 +72,7 @@ def gcd(n1: `Long`, n2: `Long`): `Long` = ...
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
-Not being aware of the ADR transformation of method |gcd|, a separate compilation could assume its bytecode would accept two pairs of integers as input. However, in the lowered bytecode, the |gcd| method accepts two long integers. A possible solution would be to add a bridge method with the expected signature, and we will later see this is necessary in some cases. However, ideally, the compiler should be able to call the transformed method:
+Not being aware of the ADR transformation of method |gcd|, a separate compilation could assume its bytecode would accept two pairs of integers as input. However, in the lowered bytecode, the |gcd| method accepts two long integers. A possible solution would be to add a bridge method with the expected signature, and we will later see this is necessary in some cases. However, ideally, the compiler should be able to call the transformed method directly:
 
 % not be aware of the data representation transformation that occurred, so it might pass two pairs of integers on the stack, which would break the low-level execution. On the other hand, if the separate compilation would look at both the high-level and low-level signatures, one taken from the class file metadata and the one from the actual bytecode, it would notice a discrepancy: the pair of integer arguments from the high-level code somehow transformed into unboxed long integer arguments. But this would still be insufficient to call the method:
 
@@ -82,9 +82,9 @@ val res: (Int, Int) = gcd((55, 2), (17, 13))
 
 % Global vs local/ad-hoc -- relationship between LDL and iLDL + separate compilation
 % Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
-How can the pairs of integers be transformed into long integers in a separate compilation, which is not aware of the ADR transformation semantics? The separate compilation would not be aware of the |IntPairComplexToLongComplex| object, which handles the transformations. Even looking at both the high-level and low-level signatures side-by-side, the compiler would not be able to infer how the data arguments should be transformed, since it is missing the semantic link between the two representations.
+How can the pairs of integers be transformed into long integers in a separate compilation, which is not aware of the previous ADR transformation? Even looking at both the high-level and low-level signatures side-by-side, the compiler would not be able to infer how the data arguments should be transformed, since it is missing the semantic link between the two representations: the |IntPairComplexToLongComplex| object. This is caused by relaxing the second LDL invariant: allowing custom, programmer-defined alternative representations instead of its fixed set of transformation rules.
 
-To solve this problem, we need to run an LDL-like \inject{} phase before storing the signatures, and also store the transformation description object in the high-level signature. This allows the second LDL constraint to be lifted by allowing custom, programmer-defined alternative representations:
+To solve this problem, we need to run an LDL-like \inject{} phase before storing the high-level signatures. This phase would annotate the high-level signature with the representation transformations that are planned for the |gcd| method. Furthermore, to inform LDL about the custom representation semantics, the annotation refers to the transformation description object:
 
 \begin{lstlisting-nobreak}
 def gcd(
@@ -93,9 +93,7 @@ def gcd(
   ): `@repr(IntPairComplexToLongComplex)` (Int, Int) = ...
 \end{lstlisting-nobreak}
 
-%%% allow custom, programmer-defined alternative representations
-
-The key to limiting the ADR transformation to a scope is \textbf{persisiting the high-level signature with the ADRT annotation} in the bytecode, along with the low-level method bytecode. This allows a future separate compilation stage to derive two critical pieces of information about the |gcd| method:
+The key to limiting the ADR transformation to a scope is \textbf{persisiting the high-level signature with the injected annotation}, along with the low-level method bytecode. This allows a future separate compilation stage to derive two critical pieces of information about the |gcd| method:
 
 \begin{itemize}
   \item its low-level signature, based on the transformation description object, \\ |IntPairComplexToLongComplex|, which contains both the high-level type, |(Int, Int)| and its representation, |Long|;
@@ -173,12 +171,12 @@ val n2: `@repr(...)` (Int, Int) = ...
 val res: `@repr(...)` (Int, Int) = gcd(n1, n2)
 \end{lstlisting-nobreak}
 
-Now, going into the \coerce{} phase, no coercions will be introduced, as the signatures match. Therefore, the call to |gcd| will take place without any coercions for the arguments and the return type. This gives the ADR transformation an important property: \textbf{optimized scopes are composable across source files and across separate compilation runs}. This is a highly desirable property, which allows optimized code from different transformed scopes to seamlessly collaborate using the more optimal representation. Following the \commit{} phase, our call will be:
+Now, going into the \coerce{} phase, no coercions will be introduced, as the signatures match. Therefore, the call to |gcd| will take place without any coercions for the arguments and the return type. This gives the ADR transformation an important property: \textbf{transformed scopes are composable across source files and across separate compilation runs}. This is a highly desirable property, which allows optimized code from different transformed scopes to seamlessly collaborate using the more optimal representation. Following the \commit{} phase, our call will be:
 
 \begin{lstlisting-nobreak}
 val n1: `Long` = ...
 val n2: `Long` = ...
-val res: `Long` = gcd(n1, n2)
+val res: `Long` = gcd(n1, n2) // efficient call, no coercions introduced!!!
 \end{lstlisting-nobreak}
 
 Let us now look at the second advantage: allowing a high-level type to use different representations. This can be shown in another example:
@@ -188,7 +186,7 @@ adrt(IntPairAsLong)   { var x: (Int, Int) = (3, 5) }
 adrt(IntPairAsDouble) { val y: (Int, Int) = (2, 6); x = y }
 \end{lstlisting-nobreak}
 
-At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point. In this situation, how would the transformation occur? The high-level type-checking will succeed, as the high-level types match. Later, during the \inject{} transformation, the |adrt| scope will be inlined:
+At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point. In this situation, how will the assignment |x = y| be translated? The high-level types match, but the representation types don't. The first step is to inline the two |adrt| scopes and \inject{} annotations:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairAsLong)` (Int, Int) = (3, 5)
