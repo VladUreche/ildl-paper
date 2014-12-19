@@ -64,7 +64,7 @@ block (\verb|iterf|) and returns a new stream. Java's \verb|tryAdvance| and
 correspond to the above function \verb|iterf|. The code skeleton of
 \verb|ofArray| is shown below, for reference.
 
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Creation of a stream.]
 @inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
   val gen = (iterf: T => Boolean) => {
     var counter = 0
@@ -80,7 +80,7 @@ new Stream(gen)
 \end{lstlisting}
 
 
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Basic intermediate operators.]
   def toArray()(implicit builder: SpecializedArrayBuilder[T]): Array[T] = {
     foldLeft(builder)((b, v) => {b += v;b})
     builder.result
@@ -96,7 +96,7 @@ new Stream(gen)
     new Stream(iterf => streamf(value => if (p(value)) iterf(value) else false))
 \end{lstlisting}
 
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Basic terminal operators.]
 def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
   var acc = a
   streamf(value => {
