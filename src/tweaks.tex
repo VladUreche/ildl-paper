@@ -116,12 +116,13 @@
 %%% http://tex.stackexchange.com/questions/10141/how-to-prevent-lstlisting-from-splitting-code-between-pages
 \lstnewenvironment{lstlisting-nobreak}[1][]%
 {
-  \vspace{0.4em}
+  \vspace{0.1em}
   \noindent
   \minipage{\linewidth}
 }
 {
   \endminipage
+  \vspace{-0.3em}
 }
 
 % Review tools
@@ -137,12 +138,16 @@
 
 % Separators and paper-specific definitions
 \newcommand{\inject}[0]{\textsc{inject}}
+\newcommand{\bridge}[0]{\textsc{bridge}}
 \newcommand{\coerce}[0]{\textsc{coerce}}
 \newcommand{\commit}[0]{\textsc{commit}}
 \newcommand{\Inject}[0]{\textsc{Inject}}
+\newcommand{\Bridge}[0]{\textsc{Bridge}}
 \newcommand{\Coerce}[0]{\textsc{Coerce}}
 \newcommand{\Commit}[0]{\textsc{Commit}}
 \newcommand{\inv}[1]{{\color{White}#1}}
 
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
+
+\renewcommand{\subsubsection}[1]{\vspace{0.5em}\noindent\textbf{#1}}
