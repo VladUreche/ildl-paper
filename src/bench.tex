@@ -10,7 +10,30 @@
 \subsection{Retrofitting Specialization to Functions}
 
 \label{sec:benchmarks:funcs}
-We describe next the the scala-streams design and implementation. 
+The \emph{scala-streams} library introduces lazy streams as a potential
+alternative to scala-views and its design is inspired by Java 8 Streams. In Java
+8, streams are fundamentaly continuation-based instead of iterator-based. The
+main difference between the two methodologies is that although both are lazy,
+the former is lazy for producers and the latter is lazy for consumers (who can
+control the iteration through the methods of the iterator). A term often used to
+describe such an internal iteration scheme is ``\emph{Pus
+  iteration}''~\cite{obsidian,defuncpush}.  The consumer of a Push stream will
+provide a consumer function of type \verb|T => Boolean| that is instantiated
+into the iteration block of the stream. The loop internally is controlled by the
+return value of this function and also by the existance of more elements to be
+processed. The dual of a Push stream is a~\emph{Pull stream}. Every combinator
+of a Pull stream will build an iterator that will propagate some effect (e.g.,
+apply a function \verb|f| if this combinator is \verb|map|) to each next
+element. C\#, F\# and Scala implement deferred execution over pipelines as Pull
+streams. Java, on the other hand, supports Push streams by default (although it
+also provides Pull capabilities through the \verb|tryAdvance| method). This
+difference in stream library architectures was assessed in Biboudis et al.~\cite{}
+
+\begin{lstlisting}[language=Scala]
+var y = Stream(xs).filter(_*2==0).toArray()
+var y = Stream(xs).map(_*2).fold(0)(_+_)
+var y = Stream(lines).flatMap(line => Stream(line split "\\W+")).toArray
+\end{lstlisting}
 
 A Push stream type has a single constructor. The \verb|Stream| constructor takes
 as a parameter a loop-function which takes as a parameter another function with
@@ -26,7 +49,7 @@ elements of an array, with another function applied to each one.  The
 operator chain should be called on the element or not.
 
 The iteration itself is encoded as a loop (hereafter: the \verb|iterf|
-function). The \verb|ofArray| operator creates such a stream with the initial
+function). The \verb|Stream| case class creates such a stream with the initial
 looping function passed as the \verb|iterf| function. Note the correspondence
 with the Java iteration scheme. Much like the Java \verb|of|, the scala-streams
 operator \verb|ofArray| yields a consumer that contains a predefined iteration
