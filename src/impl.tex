@@ -4,6 +4,18 @@
   \item implementation - lexical scope transformation
 \end{itemize}
 
-% why is this not a macro but requires a full transformation phase?
+% Two implementations in Scala, as a compiler plugins, starting from the LDL compiler plugins alreasdy available on the net. The rest will describe the important changes
 
-% transformation description object in annotation => depedency of the code => change it => recompile!
+% - |adrt| macro => inject phase; very close to the semantics of the multi-stage programming transformation for LDL
+
+% - transformation description objects => bootstrapping problem => annotation
+
+% - transformation description object  => depedency of the code => change it => recompile!
+
+% - bridge - warinings
+
+% - coerce - the main work was around using the extension methods and providing a good solution for them
+
+% - commit -- very simple
+
+
