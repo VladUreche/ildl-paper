@@ -1,11 +1,31 @@
 \section{Related Work}
 \label{sec:related}
 
+
+
+Changing data representations is a well-established and time-honored
+programming need. Techniques for removing abstraction barriers appear
+in the literature since the invention of high-level programming
+languages and often target low-level data representations. However,
+our technique is distinguished by its automatic determination of when
+data representations should be transformed, while giving the
+programmer control of how to perform this transformation and on which
+scope it is applicable. We survey some recent related work.
+
+The CoCo approach~\cite{Xu:2013:CSA:2524984.2524986} adaptively
+replaces uses of Java collections with optimized representations.
+CoCo has a similar high-level goal as our techniques, yet focuses
+explicitly on collections only. Approaches to more efficient data
+structure storage strategies have also been proposed for
+Python~\cite{Bolz:2013:SSC:2509136.2509531}.
+
+Common virtual machine optimizations aim to produce efficient low-level
+representations.
+
 \vlad{this is the dropping ground for different related work we're aware of}
 
 \begin{itemize}
-  \item dynamic language vms V8, Truffle, PyPy: shape analysis, begone tagging, hidden classes
-  \item transforming the storage strategy - OOPSLA 13
+  \item dynamic language vms V8, Truffle~\cite{Wurthinger:2013:OVR:2509578.2509581}, PyPy: shape analysis, begone tagging, hidden classes
   \item inlining + escape analysis + allocation sinking in virtual machines can also change the representation
   \item ldl \cite{ldl}, haskell transformations \cite{spj-unboxed-values} \cite{thiemann-unboxed-objects-cps} \cite{shao-flexible-representation-analysis}, unboxed objects and polymorphism \cite{leroy-unboxed-objects}
   \item til \cite{tarditi-til} \cite{harper-intensional-type-analysis}, napier88 \cite{morrison-napier88}, etc...
