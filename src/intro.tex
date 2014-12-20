@@ -50,8 +50,8 @@ In this paper we present an automated transformation that allows programmers to 
 Our main contributions are:
 \begin{itemize}
   \item Defining the ad-hoc data representation problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
-  \item Presenting the extensions that allow global data representation transformations (\S\ref{sec:drt}) to be used as ad-hoc programmer-driven transformations (\S\ref{sec:ildl}) and suggesting how these extensions can be exposed to the programmer (\S\ref{sec:impl});
-  \item Benchmarking two Scala compiler plugins based on our solution and showing they can speed up user programs by factors of 2 to 14x (\S\ref{sec:benchmarks}).
+  \item Presenting the extensions that allow global data representation transformations (\S\ref{sec:drt}) to be used as ad-hoc programmer-driven transformations (\S\ref{sec:ildl});
+  \item Benchmarking two Scala compiler plugins based on our solution and showing they can speed up user programs by factors between 2 to 14x (\S\ref{sec:benchmarks}).
 \end{itemize}
 
 The result of our work is an intuitive interface over an optimal, consistent and composible programmer-driven data representation transformation, where the composition works not only across source files but also across separate compilation (\S\ref{sec:ildl:signatures}). Furthermore, the transformation adheres to the principle of separating the reusable, general and provably correct mechanism from the programmer-driven policy, which may contain incorrect decisions \cite{lampson-mechanism-policy} (\S\ref{sec:ildl:discussion}). Overall, we feel the value brought by the transformation surpasses the sum of its individual components, opening new directions in compiler customization and programmer-driven transformation.

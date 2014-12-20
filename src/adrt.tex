@@ -298,19 +298,21 @@ adrt(`IntPairAsDouble`) { // different from IntPairAsLong
 }
 \end{lstlisting-nobreak}
 
-Following the \inject{} and \bridge{} phases, the |Z| class will be transformed to:
+% Following the \inject{} and \bridge{} phases, the |Z| class will be transformed to:
+%
+% \begin{lstlisting-nobreak}
+% class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
+%   def identity(i: `@repr(IntPairAsDouble)` (Int, Int)): `@repr(IntPairAsDouble)` (Int, Int) = i
+%   @bridge override /* method identity in X */
+%   def identity(i: (Int, Int)): (Int, Int) = identity(i)
+%   @bridge override /* method identity in Y */
+%   def identity(i: `@repr(IntPairAsLong)` (Int, Int)): `@repr(IntPairAsLong)` (Int, Int) = identity(i)
+% }
+% \end{lstlisting-nobreak}
+%
+% And following the \coerce{} and \commit{} phases, class |Z| becomes:
 
-\begin{lstlisting-nobreak}
-class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
-  def identity(i: `@repr(IntPairAsDouble)` (Int, Int)): `@repr(IntPairAsDouble)` (Int, Int) = i
-  @bridge override /* method identity in X */
-  def identity(i: (Int, Int)): (Int, Int) = identity(i)
-  @bridge override /* method identity in Y */
-  def identity(i: `@repr(IntPairAsLong)` (Int, Int)): `@repr(IntPairAsLong)` (Int, Int) = identity(i)
-}
-\end{lstlisting-nobreak}
-
-And following the \coerce{} and \commit{} phases, class |Z| becomes:
+In this case, the \bridge{} phase generates two bridge methods, one for each existing signature of the method |identity|:
 
 \begin{lstlisting-nobreak}
 class Z(t: `Double`) extends Y(...) {
@@ -320,7 +322,9 @@ class Z(t: `Double`) extends Y(...) {
 }
 \end{lstlisting-nobreak}
 
-This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden. Furthermore, the \bridge{} phase issues a warning that upcasting class |Z| to |Y| is suboptimal, as overriding requires transforming the representation in two steps (\S\ref{sec:ildl:signatures}).
+%This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden.
+
+In this case, the \bridge{} phase issues a warning that up-casting class |Z| to |Y| is suboptimal, as overriding requires transforming the representation in two steps (\S\ref{sec:ildl:signatures}).
 
 \subsubsection{Generics}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
@@ -415,10 +419,7 @@ def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
 However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
 
 \begin{lstlisting-nobreak}
-def extension_*(
-    recv: `@repr(...) (Int, Int)`,
-    n2:   `@repr(...) (Int, Int)`
-  ): `@repr(...) (Int, Int)`
+def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
 \end{lstlisting-nobreak}
 
 Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
@@ -459,6 +460,6 @@ The only solution for performance-oriented applications remains to write very lo
 % ``Safe'' relaxation of the strict semantics,
 This is where the ADR transformation comes in: it separates the reusable, generic and provably correct mechanism for programmer-driven data representation transformations, with all the necessary boilerplate, from the programmer-driven policy itself, encoded in the transformation description object. Therefore, the ADR transformation adheres to an important system design principle, the separation of mechanism and policy \cite{lampson-mechanism-policy}. In order to aid the programmer in designing and implementing the transformation description object, it can gradually include more extension methods and can be unit-tested separately. Furthermore, with a single flag, the ADR transformation can be globally disabled, allowing bugs to be easily blamed either on the data representation transformation or on the code logic.
 
-Finally, the ADR transformation relies on the Late Data Layout mechanism \cite{ldl, ldl-www}, which has been battle-tested by the Scala community in the miniboxing plugin \cite{miniboxing, miniboxing-www} and guarantees the optimal introduction of coercions and the consistency of the resulting lowered code.
+Finally, the ADR transformation relies on the Late Data Layout mechanism \cite{ldl,ldl-www}, which has been battle-tested by the Scala community in the miniboxing plugin \cite{miniboxing,miniboxing-www} and guarantees the optimal introduction of coercions and the consistency of the resulting lowered code.
 
 
