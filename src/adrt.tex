@@ -443,7 +443,7 @@ Notice the integers are now passed as arguments to the extension |toRepr_ctor| m
 % Semantics changes
 %  -- Liskov substitution principle
 \subsection{Extension Methods and Object Semantics}
-
+\label{sec:ildl:discussion}
 % Terminology from http://stackoverflow.com/questions/4157639/what-is-the-antonym-of-encapsulation:
 The Ad-hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
 
@@ -454,7 +454,11 @@ The explanation needs to take into account the target of the ADR transformation:
 On the other hand, containers are usually meant to cover a very broad spectrum of use-cases, thus requiring generic data and many utility methods for accessing and transforming it. While this speeds up development, it makes these containers impossible to use in performance-oriented applications, not only due to the significant indirection overhead but also due to the massive amounts of garbage generated, which require the Java Virtual Machine garbage collector to regularly revisit the heap objects and collect the unused ones, adding significant jitter to the application response time.
 
 % A middle ground
-The only solution for performance-oriented applications remains to write very low-level code, which is almost impossible evolve at the same pace as the high-level container-based code. And this is only due to the very strict nature of compilers and type systems, which only accept a small fraction of the possible correct programs, specifically the fraction that the type system prove correct. Still, there is a need for a middle ground, where the compiler checks can be overridden, in well-defined scopes and under the strict guidance of the programmer. Like the unchecked casting but at a larger scale and in a more disciplined way.
+The only solution for performance-oriented applications remains to write very low-level code, which is almost impossible evolve at the same pace as the high-level container-based code. And this is only due to the very strict nature of compilers and type systems, which only accept a small fraction of the possible correct programs, specifically the fraction that the type system prove correct. Still, there is a need for a middle ground, where the compiler rules can be overridden, but in well-defined scopes and using a principled approach. % Like the unchecked casting but at a larger scale and in a more disciplined way.
 
 % ``Safe'' relaxation of the strict semantics,
-This is where the ADR transformation comes in: it allows the programmer to override the representation without worrying about the boilerplate and the possible implications to the other object-oriented patterns. The only burden left to the programmer is designing and implementing the transformation description object correctly. But, being a contained entity, it is very easy to unit-test and correct, unlike a system-wide refactoring using low-level code. Furthermore, with a single flag, the ADR transformation can be globally disabled, allowing bugs to be easily blamed either on the data representation transformation or on the code logic.
+This is where the ADR transformation comes in: it separates the reusable, generic and provably correct mechanism for programmer-driven data representation transformations, with all the necessary boilerplate, from the programmer-driven policy itself, encoded in the transformation description object. Therefore, the ADR transformation adheres to an important system design principle, the separation of mechanism and policy \cite{lampson-mechanism-policy}. In order to aid the programmer in designing and implementing the transformation description object, it can gradually include more extension methods and can be unit-tested separately. Furthermore, with a single flag, the ADR transformation can be globally disabled, allowing bugs to be easily blamed either on the data representation transformation or on the code logic.
+
+Finally, the ADR transformation relies on the Late Data Layout mechanism \cite{ldl, ldl-www}, which has been battle-tested by the Scala community in the miniboxing plugin \cite{miniboxing, miniboxing-www} and guarantees the optimal introduction of coercions and the consistency of the resulting lowered code.
+
+
