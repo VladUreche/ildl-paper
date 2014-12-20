@@ -19,8 +19,8 @@ Unlike evolving the interface, no general mechanism in modern
 languages is capable of evolving an object's encapsulated data. The
 data representation is assumed fixed. Compiled code contains hard
 references to the encapsulated data, encoded according to a convention
-known as the \emph{object layout}. For example, the methods
-encapsulated by the pair, such as |swap| and |toString|, rely on the
+known as the \emph{object layout}. For example, methods encapsulated
+by the generic pair class, such as |swap| and |toString|, rely on the
 existence of two generic fields, erased to |Object|. This leads to
 inefficiencies, as the integers need to be boxed, producing as many as
 3 heap objects for each ``complex number'': the two boxed integers and
