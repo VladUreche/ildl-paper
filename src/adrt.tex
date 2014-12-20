@@ -371,7 +371,7 @@ adtr(`IntPairComplexToLongComplex`) {
 When handling method calls, the default LDL behavior is very conservative: it encodes the transformed representation back to its high-level type, which exposes the method, and then invokes it. This produces sub-optimal code:
 
 \begin{lstlisting-nobreak}
-val n: Long = IntPairComplexToLongComplex.`toRepr`((0, 1))
+val n: Long = ...
 println(IntPairComplexToLongComplex.`fromRepr`(n).toString)
 \end{lstlisting-nobreak}
 
@@ -379,7 +379,7 @@ println(IntPairComplexToLongComplex.`fromRepr`(n).toString)
 To optimize such cases, the LDL transformation can use extension methods, when they are available. For example, assuming the |extension_toString| exists in the transformation description object, the example can be transformed to:
 
 \begin{lstlisting-nobreak}
-val n: Long = IntPairComplexToLongComplex.toRepr((0, 1))
+val n: Long = ...
 println(IntPairComplexToLongComplex.`extension_toString`(n))
 \end{lstlisting-nobreak}
 
@@ -395,7 +395,7 @@ adtr(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-First, they wrap the original value in a new object, which exposed the method, and then invoke this method:
+First, they wrap the original value in a new object, which exposes the multiplication operator, and then invoke this method:
 
 \begin{lstlisting-nobreak}
 adtr(IntPairComplexToLongComple) {
@@ -404,12 +404,12 @@ adtr(IntPairComplexToLongComple) {
 }
 \end{lstlisting-nobreak}
 
-Clearly, this is a costly pattern. To optimize it, the ADR transformation will attempt to look for an extension method in the transformation description object. In practice, the name of the extension method contains the name of the implicit conversion as well, but, for simplicity, let us assume its name is |extension_*|.
+Clearly, this is a costly pattern, creating at least the pair and the wrapper object. To optimize it, the ADR transformation looks for an extension method in the transformation description object that corresponds to combining the implicit method and the operator. In practice, the name of the extension method will encode the implicit conversion and the operator, but, for simplicity, let us assume its name is |extension_*|.
 
-There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would make the signature:
+There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would produce the signature:
 
 \begin{lstlisting-nobreak}
-def extension_*(recv: @repr(...) (Int, Int), n2: `(Int, Int)`): `(Int, Int)`
+def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
 \end{lstlisting-nobreak}
 
 However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
@@ -425,7 +425,7 @@ Replacing this method in the compiled tree, after the \commit{} phase, produces 
 
 \begin{lstlisting-nobreak}
 val n1: Long = IntPairComplexToLongComplex.toRepr((0, 1))
-val n2: Long = extension_*(n1, n1)
+val n2: Long = `extension_*(n1, n1)`
 \end{lstlisting-nobreak}
 
 This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
@@ -434,11 +434,11 @@ This code is much more efficient: the complex multiplication does not require an
 \subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites their invocations to extension methods that output the representation type directly. Using this feature on the code above, we get:
 
 \begin{lstlisting-nobreak}
-val n1: Long = IntPairComplexToLongComplex.toRepr_ctor(0, 1)
+val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
 val n2: Long = extension_*(n1, n1)
 \end{lstlisting-nobreak}
 
-Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
+Notice the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 % Semantics changes
 %  -- Liskov substitution principle
