@@ -10,15 +10,44 @@
 \subsection{Retrofitting Specialization to Functions}
 
 \label{sec:benchmarks:funcs}
-We describe next the the scala-streams design and implementation. 
+The \emph{scala-streams} library introduces lazy streams as a potential
+alternative to scala-views and its design is inspired by Java 8 Streams. In Java
+8, streams are fundamentaly continuation-based instead of iterator-based. The
+main difference between the two methodologies is that although both are lazy,
+the former is lazy for producers and the latter is lazy for consumers (who can
+control the iteration through the methods of the iterator). A term often used to
+describe such an internal iteration scheme is ``\emph{Pus
+  iteration}''~\cite{obsidian,defuncpush}.  The consumer of a Push stream will
+provide a consumer function of type \verb|T => Boolean| that is instantiated
+into the iteration block of the stream. The loop internally is controlled by the
+return value of this function and also by the existance of more elements to be
+processed. The dual of a Push stream is a~\emph{Pull stream}. Every combinator
+of a Pull stream will build an iterator that will propagate some effect (e.g.,
+apply a function \verb|f| if this combinator is \verb|map|) to each next
+element. C\#, F\# and Scala implement deferred execution over pipelines as Pull
+streams. Java, on the other hand, supports Push streams by default (although it
+also provides Pull capabilities through the \verb|tryAdvance| method). The
+performance implications of each different design decision in stream libraries
+was assessed in Biboudis et al.~\cite{biboudis_clash_2014}. The source of
+inspiration for scala-streams is Nessos Streams which implement push-style
+streams for F\# and C\#~\cite{nessos_streams}.
 
+\begin{lstlisting}[language=Scala, caption=Example uses of scala-streams.]
+var y = Stream(xs).filter(_*2==0).toArray()
+var y = Stream(xs).map(_*2).fold(0)(_+_)
+var y = Stream(lines).flatMap(line => Stream(line split "\\W+")).toArray
+\end{lstlisting}
+
+The implementation of scala-streams relies on loop-function and transformation
+functions composed together in continuation-passing style. This makes
+scala-streams a very good candidate to present the performance benefits of the
+automated data representation transformation of function types for pipelines
+that perform number crunching. 
+
+\paragraph{Description of the library. }
 A Push stream type has a single constructor. The \verb|Stream| constructor takes
 as a parameter a loop-function which takes as a parameter another function with
 type \verb|T => bool|.
-
-\begin{lstlisting}[language=Scala]
-(T => Boolean) => Unit
-\end{lstlisting}
 
 In words, a stream holds a function that represents the entire iteration over
 elements of an array, with another function applied to each one.  The
@@ -26,17 +55,16 @@ elements of an array, with another function applied to each one.  The
 operator chain should be called on the element or not.
 
 The iteration itself is encoded as a loop (hereafter: the \verb|iterf|
-function). The \verb|ofArray| operator creates such a stream with the initial
+function). The \verb|Stream| class constructs such a stream with the initial
 looping function passed as the \verb|iterf| function. Note the correspondence
 with the Java iteration scheme. Much like the Java \verb|of|, the scala-streams
 operator \verb|ofArray| yields a consumer that contains a predefined iteration
-block (\verb|iterf|) and returns a new stream.  Java's \verb|tryAdvance| and
+block (\verb|iterf|) and returns a new stream. Java's \verb|tryAdvance| and
 \verb|forEachRemaining| (that also checks if the iteration must proceed),
 correspond to the above function \verb|iterf|. The code skeleton of
 \verb|ofArray| is shown below, for reference.
 
-
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Creation of a stream.]
 @inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
   val gen = (iterf: T => Boolean) => {
     var counter = 0
@@ -52,7 +80,7 @@ new Stream(gen)
 \end{lstlisting}
 
 
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Basic intermediate operators.]
   def toArray()(implicit builder: SpecializedArrayBuilder[T]): Array[T] = {
     foldLeft(builder)((b, v) => {b += v;b})
     builder.result
@@ -66,28 +94,9 @@ new Stream(gen)
 
   def takeWhile(p: T => Boolean): Stream[T] = 
     new Stream(iterf => streamf(value => if (p(value)) iterf(value) else false))
-
-  def skipWhile(p: T => Boolean): Stream[T] = 
-    new Stream(iterf => streamf(value => {
-      var shortcut = true;
-      if (!shortcut && p(value)) {
-	true
-      }
-      else {
-	shortcut = true
-	iterf(value)
-      }
-    }))
-
-  def flatMap[@miniboxed R: ClassTag](f: T => Stream[R]): Stream[R] = 
-    new Stream(iterf => streamf(value => {
-	val innerf = f(value).streamf
-	innerf(iterf)
-	true
-    }))
 \end{lstlisting}
 
-\begin{lstlisting}[language=scala]
+\begin{lstlisting}[language=scala, caption=Basic terminal operators.]
 def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
   var acc = a
   streamf(value => {
@@ -102,7 +111,6 @@ def fold(z: T)(op: (T, T) => T): T =
 
 def size(): Long = 
   foldLeft(0L)((a: Long, _) => a + 1L)
-
-def sum[@miniboxed N >: T](implicit num: Numeric[N]): N = 
-  foldLeft(num.zero)(num.plus)
 \end{lstlisting}
+
+\paragraph{Assessment. } \aggelos{TODO}.
