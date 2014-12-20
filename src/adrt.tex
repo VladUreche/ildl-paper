@@ -240,15 +240,15 @@ The answer is no: the high-level type-checking will reject both calls to the |fo
 \subsection{Handling Object-Oriented Patterns and Generics}
 \label{sec:ildl:generics}
 
-This section presents the interaction between object-oriented patterns and the ADR transformation. We focus on dynamic dispatch and generics, since both features require additional rules to transform the program code.
+This section presents the interaction between object-oriented patterns and the ADR transformation. We focus on dynamic dispatch and generics, since both features require additional rules to correctly transform the program code.
 
-\subsubsection{Dynamic dispatch }
+\subsubsection{Dynamic dispatch}
 % Part of the Object model => dynamic dispatch and overriding
 is an integral part of the object-oriented programming model, allowing objects to encapsulate code. The main approach to evolving this encapsulated code is extending the class and overriding its methods. However, changing the data representation can lead to situations where source-level overriding methods are no longer overriding in the low-level translation:
 
 \begin{lstlisting-nobreak}
 class X {
-  def identity(i: (Int, Int)) = i
+  def identity(i: (Int, Int)): (Int, Int) = i
 }
 adrt(IntPairAsLong) {
   class Y extends X(t: (Int, Int)) {
@@ -259,7 +259,7 @@ adrt(IntPairAsLong) {
 
 % Data representation transformations break dynamic dispatch and overriding
 % The solution is introducing bridges => add a phase to the LDL transformation
-In the low-level bytecode, the |identity| method in class |Y| is no longer overrides method |identity| in class |X|, as its low-level signature expects a long integer instead of a pair of integers. This prompted us to extend the Late Data Layout mechanism, introducing a new \bridge{} phase, which runs just before \coerce{} and introduces method overloads, called bridges, that allow correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
+In the low-level bytecode, the |identity| method in class |Y| no longer overrides method |identity| in class |X|, as its low-level signature expects a long integer instead of a pair of integers. This prompted us to extend the Late Data Layout mechanism, introducing a new \bridge{} phase, which runs just before \coerce{} and introduces method overloads, called bridges, that enable correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
 
 \begin{lstlisting-nobreak}
 class Y extends X(t: `@repr(...)` (Int, Int)) {
@@ -273,7 +273,7 @@ The \bridge{} phase inserts the methods necessary to allow correct overriding:
 class Y extends X(t: `@repr(...)` (Int, Int)) {
   def identity(i: `@repr(...)` (Int, Int)): `@repr(...)` (Int, Int) = t
   // overrides method identity from class X and calls the transformed method:
-  @bridge override def identity(i: (Int, Int)) = identity(i)
+  @bridge override def identity(i: (Int, Int)): (Int, Int) = identity(i)
 }
 \end{lstlisting-nobreak}
 
@@ -288,9 +288,7 @@ class Y extends X(t: `Long`) {
 \end{lstlisting-nobreak}
 
 % The backwards problem is also true => bridge + warning
-If we now extend class |Y| in another |adrt| scope with the same transformation description object, overriding will take place correctly: the new class will define both the transformed method and the bridge, overriding both methods in |Y|.
-
-However, a more interesting problem occurs if we extend class |Y| from outside the |adrt| scope or from a scope with a different description object:
+If we now extend class |Y| in another |adrt| scope with the same transformation description object, overriding will take place correctly: the new class will define both the transformed method and the bridge, overriding both methods above. However, a more interesting problem occurs if we extend class |Y| from outside the |adrt| scope or from a scope with a different description object:
 
 \begin{lstlisting-nobreak}
 adrt(`IntPairAsDouble`) { // different from IntPairAsLong
@@ -312,7 +310,7 @@ class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
 }
 \end{lstlisting-nobreak}
 
-Following the \coerce{} and \commit{} phases, class |Z| becomes:
+And following the \coerce{} and \commit{} phases, class |Z| becomes:
 
 \begin{lstlisting-nobreak}
 class Z(t: `Double`) extends Y(...) {
@@ -322,7 +320,7 @@ class Z(t: `Double`) extends Y(...) {
 }
 \end{lstlisting-nobreak}
 
-This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden. Furthermore, the \bridge{} phase issues a warning that using class |Z| as class |Y| will be suboptimal, as overriding requires transforming the representation in two steps. However, since both classes have the common high-level type, conversion is possible, as explained in Section \ref{sec:ildl:signatures}, so the object model is correctly implemented.
+This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden. Furthermore, the \bridge{} phase issues a warning that upcasting class |Z| to |Y| is suboptimal, as overriding requires transforming the representation in two steps (\S\ref{sec:ildl:signatures}).
 
 \subsubsection{Generics}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
@@ -336,7 +334,7 @@ adrt(IntPairAsLong) {
 \end{lstlisting-nobreak}
 
 % In the very particular case of list, it's okay, but not in the general case
-In the very particular case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This could be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowlege of how to transform the container only applies to the immutable list, not any generic class that may be encountered in the signature.
+In the very particular case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This could be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the container only applies to the immutable list, but is not suited to any generic class that may be encountered in the signature.
 
 % Furthermore, there is an entire class of mutable containers which cannot be transformed
 Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the cointainer. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies, violating the invariant.
@@ -349,7 +347,7 @@ def use1(list: List[(Int, Int)]): Unit = ...
 def use2(list: List[(Int, Int)]): Unit = `use1(list)`
 \end{lstlisting-nobreak}
 
-Although the integer pair cannot be transformed inside the generic container, it is possible to change the container representation itself: we can define a separate (optimized) storage for |List[(Int, Int)]| and use the ability to nest transformation scopes in a composable way, thus transforming both the pair of integers and its container.
+Although the integer pair cannot be transformed inside the generic container, it is possible to change the container representation itself: we can define a separate (optimized) storage for |List[(Int, Int)]| and use the ability to nest transformation scopes, thus transforming |List[(Int, Int)]| and |(Int, Int)| independently.
 
 
 
