@@ -1,7 +1,7 @@
 \section{Data Representation Transformations}
 \label{sec:drt}
 
-This section presents data representation transformations in general and, in particular, the global, all-or-nothing Late Data Layout (LDL) transformation mechanism, which we later extend to our ad-hoc programmer-driven transformation.
+This section presents data representation transformations in general and, in particular, the global, all-or-nothing Late Data Layout (LDL) transformation mechanism, which we later extend to our ad hoc programmer-driven transformation.
 
 % DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
 Data can usually be represented in several ways, some more efficient and others more flexible. For example, integer numbers can use either the primitive (unboxed) value encoding, which is more efficient, or the object-based (boxed) encoding, which is more flexible. The boxed representation allows integers to act as the receivers of dynamically dispatched method calls, to be assigned to supertypes and to instantiate erased generics. However, the extra flexibility comes at a price: boxed integers are allocated on the heap so they need to be garbage-collected later. Also, all the operations on boxed integers incur an indirection overhead, leading to a tension between the two representations.
@@ -14,7 +14,7 @@ From a language perspective, there are two approaches to exposing the multiple r
 Exposing a single high-level type in the language is more popular among programmers for its simplicity, but it puts more burden on the compiler, which has to do two additional steps: first, it needs to choose the data representation of each value and second, it needs to introduce coercions that switch between representations where necessary. For example, since only boxed integers can instantiate generics, any unboxed integer going into a generic container, such as a list, needs to be converted to the boxed representation. This work is done in the compiler pipeline, in so-called data representation transformations.
 
 % Introducing LDL
-The next section will present the Late Data Layout mechanism, a general data representation technique and the three properties that make it best suited for the Ad-hoc Data Representation Transformation: selectivity, optimality and consistency.
+The next section will present the Late Data Layout mechanism, a general data representation technique and the three properties that make it best suited for the Ad hoc Data Representation Transformation: selectivity, optimality and consistency.
 
 \subsection{Late Data Layout}
 
@@ -114,4 +114,4 @@ println(`extension_toString`(a))
 % Limited code scopes
 \subsubsection{Support for Generics.} The Late Data Layout mechanism is agnostic to generics. This means that, depending on the transformation semantics and the implementation of generics, the mechanism can inject annotations in the type arguments or not. For example, if generics are erased, a list of integers will have type |List[Int]|, since values need to be boxed. If generics are unboxed and reified, the list type will be |List[@unboxed Int]|. In the original paper \cite{ldl}, the authors show examples of both cases, where annotations are propagated inside generics and when they are not, showing how the LDL mechanism adapts seamlessly to either case.
 
-Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now look at how it can be extended to handle ad-hoc programmer-driven data representation transformations.
+Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now look at how it can be extended to handle ad hoc programmer-driven data representation transformations.

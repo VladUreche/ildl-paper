@@ -1,4 +1,4 @@
-\section{Ad-hoc Data Representation (ADR) Transformation}
+\section{Ad hoc Data Representation (ADR) Transformation}
 \label{sec:ildl}
 
 % DEFINE WHAT WE WANT
@@ -80,7 +80,7 @@ Not being aware of the ADR transformation of method |gcd|, a separate compilatio
 val res: (Int, Int) = gcd((55, 2), (17, 13))
 \end{lstlisting-nobreak}
 
-% Global vs local/ad-hoc -- relationship between LDL and iLDL + separate compilation
+% Global vs local/ad hoc -- relationship between LDL and iLDL + separate compilation
 % Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
 How can the pairs of integers be transformed into long integers in a separate compilation, which is not aware of the previous ADR transformation? Even looking at both the high-level and low-level signatures side-by-side, the compiler would not be able to infer how the data arguments should be transformed, since it is missing the semantic link between the two representations: the |IntPairComplexToLongComplex| object. This is caused by relaxing the second LDL invariant: allowing custom, programmer-defined alternative representations instead of its fixed set of transformation rules.
 
@@ -328,7 +328,7 @@ In this case, the \bridge{} phase issues a warning that up-casting class |Z| to 
 
 \subsubsection{Generics}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
-Another problem that arises when performing ad-hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example to decide:
+Another problem that arises when performing ad hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example to decide:
 
 \begin{lstlisting-nobreak}
 def use1(list: List[(Int, Int)]): Unit = ...
@@ -446,7 +446,7 @@ Notice the integers are now passed as arguments to the extension |toRepr_ctor| m
 \subsection{Extension Methods and Object Semantics}
 \label{sec:ildl:discussion}
 % Terminology from http://stackoverflow.com/questions/4157639/what-is-the-antonym-of-encapsulation:
-The Ad-hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
+The Ad hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
 
 % De-encapsulation of containers, which are essentially value types, without a significant object identity
 The explanation needs to take into account the target of the ADR transformation: immutable containers with essentially value semantics and without object identity. There are entire classes of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing inheritance outside the collections hierarchy. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
