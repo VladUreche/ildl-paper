@@ -3,9 +3,162 @@
 
 % DEFINE WHAT WE WANT
 %  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
-The ADR transformation relaxes two constraints always present in existing data representation transformations: first, it allows the transformation to take place for limited scopes, ranging from an expression all the way to full class or package definitions and allows custom, programmer-defined alternative representations.
+Our Ad hoc Data Representation (ADR) transformation adds two new
+elements to existing data representation transformations: first, it
+enables custom, programmer-defined alternative representations; and
+second, it allows the transformation to take place for limited scopes,
+ranging from an expression all the way to full class or package
+definitions. In this way, we can support a locally correct
+transformation that is not valid for other uses of the same class.
 
-Unfortunately, relaxing these two constraints breaks core invariants of most data representation transformations. The following sections will present these invariants and explain how we adapted the Late Data Layout transformation to fit these relaxed constraints.
+We next discuss the difficulties of supporting these features and
+our mechanisms that enable such support.
+
+%Unfortunately, relaxing these two constraints breaks core invariants
+%of most data representation transformations. The following sections
+%will present these invariants and explain how we adapted the Late
+%Data Layout transformation to fit these relaxed constraints.
+
+\subsection{Ad hoc Data Representation Transformation Overview}
+\label{sec:ildl:user-story}
+
+We already saw in Section~\ref{sec:automating} how the ADR
+transformation is triggered on its use site, using the |adrt|
+marker. The running example is reproduced below for quick
+reference.
+
+\begin{lstlisting-nobreak}
+`adrt(IntPairComplexToLongComplex)` {
+  def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
+    val remainder = n1 % n2
+    if (remainder.norm == 0) n2 else gcd(n2, remainder)
+  }
+}
+\end{lstlisting-nobreak}
+
+The |adrt| marker receives a transformation description object
+as parameter. Such objects are user-defined, following a
+protocol prescribed by our ADR infrastructure. The 
+transformation description object for our example is:
+
+\begin{lstlisting-nobreak}
+object IntPairComplexToLongComplex extends TransformationDescription {
+  type High = (Int, Int)
+  type Repr = Long
+  private def pack(re: Int, im: Int) = (re.toLong << 32l) | (im.toLong & 0xFFFFFFFFl)
+  def toRepr(pair: (Int, Int)) = pack(pair._1, pair._2)
+  def fromRepr(l: Long @repr): (Int, Int) = (extension__1(l), extension__2(l))
+  def extension__1(l: @repr Long): Int = (l >>> 32).toInt        // the ._1 method
+  def extension__2(l: @repr Long): Int = (l & 0xFFFFFFFF).toInt  // ._2 method
+  def extension_norm(l: @repr Long) = extension__1(l)^2 + extension__1(l)^2
+  ... // other methods
+}
+\end{lstlisting-nobreak}
+
+Effectively, our ADR machinery offers a domain-specific language for
+transformation descriptions. The high-level type and the
+representation type are specified, and so are conversion functions from
+and to the different types. Any supported operations on a pair object
+are translated to corresponding operations on long numbers.
+
+The above is the \emph{only} code the programmer needs to write to
+enable the ADR transformation. The compiler relieves the programmer
+from the obligation to write other code that is necessary for
+correctness and performance. The facilities offered for free include:
+
+\begin{compactitem}
+\item \emph{Local type inference}, in both forward and
+  backward direction, in order to determine when there should be a
+  conversion between representations. This is handled optimally by the
+  \coerce{} phase of our extension to the LDL transformation.
+% produce a minimal number of representation conversion operations.
+
+\item Handling of correctness requirements relative to overriding,
+  dynamic dispatch, and generics (\S\ref{sec:ildl:generics}), as
+  well as optimizations (\S\ref{sec:ildl:semantics}).
+\end{compactitem}
+
+Importantly, the programmer is responsible for ensuring the
+correctness of the transformation description object and of uses of
+the |adrt| marker. Specifically, the correctness of a representation
+transformation is violated for objects that do not have value
+semantics in the scope where representation conversion may occur. Such
+objects can get aliased and modified while in two different
+representations.  In this way, changes in the object state while in
+one representation will not be reflected in the other. Objects can
+also be compared with reference equality, in which case the two
+different representations of the same object will be found to be
+distinct.
+
+Thus, the target of the ADR transformation is (locally) immutable
+containers with value semantics and without object identity. There are
+large classes of such containers, from database rows, records, tuples,
+immutable collections, etc. Although these objects can be involved in
+referential equality checks, this should be nothing more than a
+fast-path guarding the slow-path that checks structural equality.
+
+Note that these semantic assumptions may only hold locally.  The ADR
+transformation is the only facility we are aware of that can achieve
+optimization in these cases, while offering the programmer (partial)
+correctness and optimality guarantees.
+
+%% \yannis{This is important but too defensive. I don't know where to
+%% put it. Not here, for sure.}
+% Furthermore, with a single flag, the ADR transformation can be
+% globally disabled, allowing bugs to be easily blamed either on the
+% data representation transformation or on the code logic.
+
+
+
+
+
+%% \yannis{I'm not sure the para below says anything more. The
+%% programmer is responsible for writing correct methods for the
+%% alternate representation. But that's a given. Correct methods
+%% should be compatible with overridden versions in a subclass
+%% (Liskov). So, I'm not sure we even need to mention it.}
+
+% Furthermore, many of these containers are final, not
+%allowing inheritance outside the collections hierarchy. And in case
+%they are not final, they are required to adhere to the Liskov
+%Substitution Principle \cite{liskov-substitution-principle}, which
+%dictates that their interface methods should behave identically in any
+%subclass of the original type.
+
+
+
+
+%%% \yannis{The text below looks like another introduction or
+%%% conclusions. It doesn't belong in a section in the middle of the
+%%% technical discussion, I think. I took important elements from it,
+%%% though. We can have it later as a ``Discussion'' section.}
+
+%% % Semantics changes
+%% %  -- Liskov substitution principle
+%% \subsection{Extension Methods and Object Semantics}
+%% \label{sec:ildl:discussion}
+%% % Terminology from http://stackoverflow.com/questions/4157639/what-is-the-antonym-of-encapsulation:
+%% The Ad hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
+
+%% % De-encapsulation of containers, which are essentially value types, without a significant object identity
+%% The explanation needs to take into account the target of the ADR transformation: immutable containers with essentially value semantics and without object identity. There are entire classes of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing inheritance outside the collections hierarchy. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
+
+%% % Bad performance
+%% On the other hand, containers are usually meant to cover a very broad spectrum of use-cases, thus requiring generic data and many utility methods for accessing and transforming it. While this speeds up development, it makes these containers impossible to use in performance-oriented applications, not only due to the significant indirection overhead but also due to the massive amounts of garbage generated, which require the Java Virtual Machine garbage collector to regularly revisit the heap objects and collect the unused ones, adding significant jitter to the application response time.
+
+%% % A middle ground
+%% The only solution for performance-oriented applications remains to write very low-level code, which is almost impossible evolve at the same pace as the high-level container-based code. And this is only due to the very strict nature of compilers and type systems, which only accept a small fraction of the possible correct programs, specifically the fraction that the type system prove correct. Still, there is a need for a middle ground, where the compiler rules can be overridden, but in well-defined scopes and using a principled approach. % Like the unchecked casting but at a larger scale and in a more disciplined way.
+
+%% % ``Safe'' relaxation of the strict semantics,
+%% This is where the ADR transformation comes in: it separates the reusable, generic and provably correct mechanism for programmer-driven data representation transformations, with all the necessary boilerplate, from the programmer-driven policy itself, encoded in the transformation description object. Therefore, the ADR transformation adheres to an important system design principle, the separation of mechanism and policy \cite{lampson-mechanism-policy}. In order to aid the programmer in designing and implementing the transformation description object, it can gradually include more extension methods and can be unit-tested separately. Furthermore, with a single flag, the ADR transformation can be globally disabled, allowing bugs to be easily blamed either on the data representation transformation or on the code logic.
+
+%% Finally, the ADR transformation relies on the Late Data Layout mechanism \cite{ldl,ldl-www}, which has been battle-tested by the Scala community in the miniboxing plugin \cite{miniboxing,miniboxing-www} and guarantees the optimal introduction of coercions and the consistency of the resulting lowered code.
+
+
+
+
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Persisting the Data Representation Information}
@@ -441,25 +594,5 @@ val n2: Long = extension_*(n1, n1)
 
 Notice the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
-% Semantics changes
-%  -- Liskov substitution principle
-\subsection{Extension Methods and Object Semantics}
-\label{sec:ildl:discussion}
-% Terminology from http://stackoverflow.com/questions/4157639/what-is-the-antonym-of-encapsulation:
-The Ad hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
-
-% De-encapsulation of containers, which are essentially value types, without a significant object identity
-The explanation needs to take into account the target of the ADR transformation: immutable containers with essentially value semantics and without object identity. There are entire classes of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing inheritance outside the collections hierarchy. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
-
-% Bad performance
-On the other hand, containers are usually meant to cover a very broad spectrum of use-cases, thus requiring generic data and many utility methods for accessing and transforming it. While this speeds up development, it makes these containers impossible to use in performance-oriented applications, not only due to the significant indirection overhead but also due to the massive amounts of garbage generated, which require the Java Virtual Machine garbage collector to regularly revisit the heap objects and collect the unused ones, adding significant jitter to the application response time.
-
-% A middle ground
-The only solution for performance-oriented applications remains to write very low-level code, which is almost impossible evolve at the same pace as the high-level container-based code. And this is only due to the very strict nature of compilers and type systems, which only accept a small fraction of the possible correct programs, specifically the fraction that the type system prove correct. Still, there is a need for a middle ground, where the compiler rules can be overridden, but in well-defined scopes and using a principled approach. % Like the unchecked casting but at a larger scale and in a more disciplined way.
-
-% ``Safe'' relaxation of the strict semantics,
-This is where the ADR transformation comes in: it separates the reusable, generic and provably correct mechanism for programmer-driven data representation transformations, with all the necessary boilerplate, from the programmer-driven policy itself, encoded in the transformation description object. Therefore, the ADR transformation adheres to an important system design principle, the separation of mechanism and policy \cite{lampson-mechanism-policy}. In order to aid the programmer in designing and implementing the transformation description object, it can gradually include more extension methods and can be unit-tested separately. Furthermore, with a single flag, the ADR transformation can be globally disabled, allowing bugs to be easily blamed either on the data representation transformation or on the code logic.
-
-Finally, the ADR transformation relies on the Late Data Layout mechanism \cite{ldl,ldl-www}, which has been battle-tested by the Scala community in the miniboxing plugin \cite{miniboxing,miniboxing-www} and guarantees the optimal introduction of coercions and the consistency of the resulting lowered code.
 
 
