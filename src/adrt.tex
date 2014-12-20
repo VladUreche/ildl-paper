@@ -568,7 +568,16 @@ println(IntPairComplexToLongComplex.`fromRepr`(n).toString)
 \end{lstlisting-nobreak}
 
 % However, it also features extension methods, which are more efficient. However, these methods have to be added manually to the transformation description object to be used by the ADR transformation:
-To optimize such cases, the LDL transformation can use extension methods, when they are available. For example, assuming the |extension_toString| exists in the transformation description object, the example can be transformed to:
+To optimize such cases, the LDL transformation can use extension
+methods,\yannis{I don't get this. Do you mean LDL already uses
+  extension methods, or that it *could* in theory? I see we even
+  advertise this facility of LDL in section 3. So, how is it an ADR
+  novelty? Should we just say ``we inherit and extend LDL's facility
+  for ...''? Also a sentence (earlier in the paper) defining extension
+  methods will be welcome for the non-Scala-versed.} when they are
+available. For example, assuming the |extension_toString| exists in
+the transformation description object, the example can be transformed
+to:
 
 \begin{lstlisting-nobreak}
 val n: Long = ...
@@ -620,14 +629,14 @@ val n2: Long = `extension_*(n1, n1)`
 This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
 
 % constructors
-\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites their invocations to extension methods that output the representation type directly. Using this feature on the code above, we get:
+\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
 
 \begin{lstlisting-nobreak}
 val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
 val n2: Long = extension_*(n1, n1)
 \end{lstlisting-nobreak}
 
-Notice the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
+Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 
 
