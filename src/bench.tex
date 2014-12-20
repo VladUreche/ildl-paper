@@ -42,7 +42,7 @@ The implementation of scala-streams relies on loop-function and transformation
 functions composed together in continuation-passing style. This makes
 scala-streams a very good candidate to present the performance benefits of the
 automated data representation transformation of function types for pipelines
-that perform number crunching. 
+that perform number crunching.
 
 \paragraph{Description of the library. }
 A Push stream type has a single constructor. The \verb|Stream| constructor takes
@@ -80,37 +80,23 @@ new Stream(gen)
 \end{lstlisting}
 
 
-\begin{lstlisting}[language=scala, caption=Basic intermediate operators.]
+\begin{lstlisting}[language=scala, caption=Sample operators.]
   def toArray()(implicit builder: SpecializedArrayBuilder[T]): Array[T] = {
     foldLeft(builder)((b, v) => {b += v;b})
     builder.result
   }
 
-  def filter(p: T => Boolean): Stream[T] =
-    new Stream(iterf => streamf(value => !p(value) || iterf(value)))
-
   def map[@miniboxed R: ClassTag](f: T => R): Stream[R] = 
     new Stream(iterf => streamf(value => iterf(f(value))))
 
-  def takeWhile(p: T => Boolean): Stream[T] = 
-    new Stream(iterf => streamf(value => if (p(value)) iterf(value) else false))
-\end{lstlisting}
-
-\begin{lstlisting}[language=scala, caption=Basic terminal operators.]
-def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
-  var acc = a
-  streamf(value => {
-    acc = op(acc, value)
-    true
-  })
-  acc
-}
-
-def fold(z: T)(op: (T, T) => T): T = 
-  foldLeft(z)(op)
-
-def size(): Long = 
-  foldLeft(0L)((a: Long, _) => a + 1L)
+  def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
+    var acc = a
+    streamf(value => {
+      acc = op(acc, value)
+      true
+    })
+    acc
+  }
 \end{lstlisting}
 
 \paragraph{Assessment. } \aggelos{TODO}.
