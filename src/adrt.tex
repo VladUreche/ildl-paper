@@ -453,7 +453,7 @@ class Y extends X(t: `@repr(...)` (Int, Int)) {
 }
 \end{lstlisting-nobreak}
 
-The \coerce{} and \commit{} phases then transform class |Y| as before, resulting in a class with two methods, one with the transformed signature and another one which enables overriding, marked as |@bridge|:
+The \coerce{} and \commit{} phases then transform class |Y| as before, resulting in a class with two methods, one with the transformed signature and another that enables overriding, marked as |@bridge|:
 
 \begin{lstlisting-nobreak}
 class Y extends X(t: `Long`) {
@@ -488,7 +488,7 @@ adrt(`IntPairAsDouble`) { // different from IntPairAsLong
 %
 % And following the \coerce{} and \commit{} phases, class |Z| becomes:
 
-In this case, the \bridge{} phase generates two bridge methods, one for each existing signature of the method |identity|:
+The ensuing \bridge{} phase generates two bridge methods, one for each existing signature of the method |identity|:
 
 \begin{lstlisting-nobreak}
 class Z(t: `Double`) extends Y(...) {
@@ -502,9 +502,11 @@ class Z(t: `Double`) extends Y(...) {
 
 In this case, the \bridge{} phase issues a warning that up-casting class |Z| to |Y| is suboptimal, as overriding requires transforming the representation in two steps (\S\ref{sec:ildl:signatures}).
 
-\subsubsection{Generics}
+\yannis{I'm not sure I understand the above.}
+
+\subsubsection{Generics.}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
-Another problem that arises when performing ad hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example to decide:
+Another problem that arises when performing ad hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We illustrate the issue with an example:
 
 \begin{lstlisting-nobreak}
 def use1(list: List[(Int, Int)]): Unit = ...
@@ -514,20 +516,30 @@ adrt(IntPairAsLong) {
 \end{lstlisting-nobreak}
 
 % In the very particular case of list, it's okay, but not in the general case
-In the very particular case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This could be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the container only applies to the immutable list, but is not suited to any generic class that may be encountered in the signature.
+In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the container only applies to the immutable list, and not to other generic classes that may be encountered in the signature.
 
 % Furthermore, there is an entire class of mutable containers which cannot be transformed
 Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the cointainer. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies, violating the invariant.
 
 % We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegan and general solution.
-Therefore, the solution taken in the ADR transformation is to preserve the high-level type inside generics. In the future, we may allow the transformation description object to designate transformations for generic containers, but, in the current implementation, we do not allow this. Thus, our example after the \commit{} phase will be:
+Therefore, the approach we follow in the ADR transformation is to
+preserve the high-level type inside generics.\footnote{An interesting
+  future direction would be to allow the transformation description
+  object to also designate transformations for generic containers.}
+%, but, in the current implementation, we do not allow this. 
+Thus, our example after the \commit{} phase will be:
 
 \begin{lstlisting-nobreak}
 def use1(list: List[(Int, Int)]): Unit = ...
 def use2(list: List[(Int, Int)]): Unit = `use1(list)`
 \end{lstlisting-nobreak}
 
-Although the integer pair cannot be transformed inside the generic container, it is possible to change the container representation itself: we can define a separate (optimized) storage for |List[(Int, Int)]| and use the ability to nest transformation scopes, thus transforming |List[(Int, Int)]| and |(Int, Int)| independently.
+Although the integer pair cannot be transformed inside the generic
+container, it is possible to change the container representation
+itself: we can define a separate (optimized) representation
+specifically for |List[(Int, Int)]|. Further, since transformation
+scopes for different high-level types can be nested, we can transform
+|List[(Int, Int)]| and |(Int, Int)| simultaneously.
 
 
 
