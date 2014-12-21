@@ -86,7 +86,7 @@ In Listing~\ref{lst:operators} we present two operators, an intermediate
 mapping function and returns a new stream that has updated the looping function
 (the consumer of the stream) by first applying \verb|f| before passing the value
 to the next transformation function.
-\begin{lstlisting}[language=scala, label=lst:operators caption=Sample operators.]
+\begin{lstlisting}[language=scala, label=lst:operators, caption=Sample operators.]
 final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) {
 
   def map[@miniboxed R: ClassTag](f: T => R): Stream[R] = 
