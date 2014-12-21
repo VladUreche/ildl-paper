@@ -1,8 +1,6 @@
 \section{Ad hoc Data Representation Transformation}
 \label{sec:ildl}
 
-% DEFINE WHAT WE WANT
-%  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
 Our Ad hoc Data Representation (ADR) transformation adds two new
 elements to existing data representation transformations: first, it
 enables custom, programmer-defined alternative representations; and
@@ -10,14 +8,6 @@ second, it allows the transformation to take place in limited scopes,
 ranging from expressions all the way to full class or package
 definitions. In this way, we can support a locally correct
 transformation that may be incorrect for code outside the given scope.
-
-% In the next sections we discuss the difficulties of supporting these features and
-% our mechanisms that enable such support.
-
-%Unfortunately, relaxing these two constraints breaks core invariants
-%of most data representation transformations. The following sections
-%will present these invariants and explain how we adapted the Late
-%Data Layout transformation to fit these relaxed constraints.
 
 \subsection{Ad hoc Data Representation Transformation Overview}
 \label{sec:ildl:user-story}
@@ -35,8 +25,6 @@ reference:
 \end{lstlisting-nobreak}
 
 The transformation description object passed to the |adrt| marker is defined by the programmer and describes the transformation itself. For example:
-%% \aggelos{I think we should explicitely define our protocol. Not formally of course but description of what consists the code below, what is the object we extend from, etc. Right?}
-%% \vlad{We'll do this in the implementation section}
 
 \begin{lstlisting-nobreak}
 object IntPairComplexToLongComplex extends TransformationDescription {
@@ -50,35 +38,16 @@ object IntPairComplexToLongComplex extends TransformationDescription {
 
 Effectively, the programmer specifies the data representation transformation: the high-level type and its representation, the coercions between them and the extension methods that allow translating operations on the high-level type directly to its representations.
 
-% Fortunately, the object above is the \emph{only} code the programmer needs to write to enable the ADR transformation.
-
 Once the transformation description object is defined, our technique relieves the programmer from the rest of the refactoring necessary to transform the code:
 
 \begin{compactitem}
 \item the transformation from the high-level type to its representation and the optimal introduction of coercions when interacting with outside code (\S\ref{sec:ildl:ldl});
-\item the ability for separately transformed scopes to communicate via the representation type, even across separate source files and compilation runs (\S\ref{sec:ildl:compose});
+\item the ability for separately transformed scopes to communicate via the representation type, even across separate source files and compilation runs (\S\ref{sec:ildl:sepatate-compilation});
 \item the correct handling of the object model and of generics in the presence of the transformation (\S\ref{sec:ildl:generics})
 \item the optimal handling of methods on the optimized representation (\S\ref{sec:ildl:semantics})
 \end{compactitem}
 
-%% \vlad{These seem pretty random to me. Why did you mention these two in particular?}
-% \begin{compactitem}
-% \item \emph{Local type inference}, in both forward and
-%   backward direction, in order to determine when there should be a
-%   conversion between representations. This is handled optimally by the
-%   \coerce{} phase of our extension to the LDL transformation.
-% % produce a minimal number of representation conversion operations.
-%
-% \item Handling of correctness requirements relative to overriding,
-%   dynamic dispatch, and generics (\S\ref{sec:ildl:generics}), as
-%   well as optimizations (\S\ref{sec:ildl:semantics}).
-% \end{compactitem}
-
 Importantly, the programmer is responsible for ensuring the correctness of the transformation description object and of the scopes under the |adrt| marker. We will further explore this after presenting the transformation (\S\ref{sec:ildl:discussion}).
-
-% Specifically, the ADR transformation is mainly targeted at immutable containers with value semantics and without object identity, such as database rows, records, tuples and immutable collections, which do not impose many transformation restrictions. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Contrarily, mutable value are very difficult to transform, as the link to the original object must not be servered, as it may be aliased and updated by outside code. This is why the ADR transformation can be seen to be as correct as its description object.
-
-% \vlad{I decided to leave the discussion subsection at the end, as it only makes sense once the reader has understood what the transformation does.}
 
 
 
@@ -141,7 +110,6 @@ x = IntPairToLong.toRepr(IntPairToDouble.fromRepr(y)) // Double => Long
 
 Therefore, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at another scenario:
 
-% \yannis{Isn't this something we get for free from following the IDL analysis? I'm afraid I see no new idea below.} \vlad{I don't claim it as a novel insight, but it's a non-obvious result of building on top of LDL.}
 \subsubsection{Different transformation scopes can be safely nested} in order to optimize multiple high-level types in the same piece of code:
 
 \begin{lstlisting-nobreak}
@@ -174,7 +142,7 @@ This is not the only solution. As we will later see, the programmer can use exte
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Extending Composition across Separate Compilation}
-\label{sec:ildl:signatures}
+\label{sec:ildl:sepatate-compilation}
 
 Preserving the annotation in the high-level signature enables transformed scopes to seamlessly pass encoded values, even if they are compiled from different files and in different separate compilation runs. To reason about composing scopes across different compilation runs, let us assume we already compiled the |gcd| method in the motivating example:
 
@@ -317,20 +285,6 @@ adrt(`IntPairAsDouble`) { // different from IntPairAsLong
   }
 }
 \end{lstlisting-nobreak}
-
-% Following the \inject{} and \bridge{} phases, the |Z| class will be transformed to:
-%
-% \begin{lstlisting-nobreak}
-% class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
-%   def identity(i: `@repr(IntPairAsDouble)` (Int, Int)): `@repr(IntPairAsDouble)` (Int, Int) = i
-%   @bridge override /* method identity in X */
-%   def identity(i: (Int, Int)): (Int, Int) = identity(i)
-%   @bridge override /* method identity in Y */
-%   def identity(i: `@repr(IntPairAsLong)` (Int, Int)): `@repr(IntPairAsLong)` (Int, Int) = identity(i)
-% }
-% \end{lstlisting-nobreak}
-%
-% And following the \coerce{} and \commit{} phases, class |Z| becomes:
 
 The ensuing \bridge{} phase generates two bridge methods, one for each existing signature of the method |identity|:
 
