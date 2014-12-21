@@ -1,14 +1,99 @@
 \section{Benchmarks}
 \label{sec:benchmarks}
-\begin{itemize}
-  \item benchmarks - presentation of the tools: ildl plugin + numbers on FFT, miniboxing plugin extension + streams + numbers
-\end{itemize}
 
-\subsection{System Setup}
-\aggelos{TODO1: Vlad this section should be common for all benchmarks.}
+This section describes the benchmarks we ran on transformed programs, to evaluate whether the transformation is worthwhile.
+
+We executed all benchmarks on a laptop computer with an Intel |i7-4702HQ| quad-core processor with the frequency fixed at |2.2GHz|. The RAM memory available to the benchmarks was |2GB| of RAM. The benchmarks were ran either by executing the benchmark 1000 times and averaging the total time, for the first benchmark target, or by using the dedicated JHM benchmarking and performance analysis platform \cite{aleksey_shipilev_openjdk:_????} for the second benchmark target. We would like our readers to assume the numbers presented are preliminary. We plan to execute all benchmarks using JMH on a dedicated server machine.
+
+We developed two transformations for the tests: the ADR plugin itself and an extension to the miniboxing plugin \cite{miniboxing} that transforms the function representation. We will present the benchmarks for each of these transformations individually.
 
 \subsection{Ad hoc Data Representation Transformations}
 \label{sec:benchmarks:ad-hoc}
+
+We tested the |adrt| Scala compiler plugin (\S\ref{sec:impl}) using two different benchmarks:
+
+\begin{compactitem}
+\item the Gaussian integer greatest common divisor algorithm, presented in \S\ref{sec:problem};
+\item the algorithm for computing the first 2000 Hamming numbers.
+\end{compactitem}
+
+For the Gaussian integer benchmark, we replaced the pair-based Gaussian integer representation by a long integer. Furthermore, we encoded all the operations, such as |+|, |-|, |/|, |%|
+and others as extension methods:
+
+\begin{lstlisting-nobreak}
+adrt(IntPairComplexToLongComplex) {
+  def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
+    val remainder = n1 % n2
+    if (remainder.norm == 0) n2 else gcd(n2, remainder)
+  }
+}
+\end{lstlisting-nobreak}
+
+For the Hamming numbers benchmark, we took the code from the Rosetta Code repository\footnote{Available at: \url{http://rosettacode.org/wiki/Hamming_numbers#Scala}.} and transformed all reference to |BigInt| by |Long|:
+
+\begin{lstlisting-nobreak}
+adrt(QueueOfIntAsFunnyQueue) {
+  class Hamming extends Iterator[Long] {
+    import scala.collection.mutable.Queue
+    val q2 = new Queue[Long]
+    val q3 = new Queue[Long]
+    val q5 = new Queue[Long]
+    def enqueue(n: Long) =
+      q2 enqueue n * 2; q3 enqueue n * 3; q5 enqueue n * 5
+    def next = {
+      val n = q2.head min q3.head min q5.head
+      if (q2.head == n) q2.dequeue
+      if (q3.head == n) q3.dequeue
+      if (q5.head == n) q5.dequeue
+      enqueue(n); n
+    }
+    def hasNext = true
+    q2 enqueue 1; q3 enqueue 1; q5 enqueue 1
+  }
+}
+\end{lstlisting-nobreak}
+
+Then, just to prove the point, we used the ADR transformation to replace the mutable |Queue[Long]| by a very simple circular buffer implemented using an array and two indices. The transformation is clearly incorrect in the general case, as mutable containers should not be duplicated and, furthermore, in our very simplified implementation, we throw an exception if the buffer overflows. Yet, the many levels of optimization make the transformed program 4x faster.
+
+We tested the programs in two scenarios: unsing the
+
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+\begin{table}
+  \begin{tabularx}{\textwidth}{|g *{3}{|Y}|} \hline
+    \rowcolor{Gray}
+    \textbf{Benchmark}        &  \textbf{Original}  & \textbf{Transformed} &      \textbf{Speedup} \\ \hline
+    Hamming 2000, interpreter &                    42314 &                     8587 &                   4.9x \\
+    Hamming 2000, with JIT    &                      687 &                      170 &                   4.0x \\
+    Gaussian GCD, interpreter &                      127 &                       32 &                   3.9x \\
+    Gaussian GCD, with JIT    &                       39 &                       22 &                   1.7x \\ \hline
+  \end{tabularx}
+  \caption{Running time for the benchmarks, in $\mu$seconds}
+  \label{table:adrt}
+  \vspace{-10mm}
+\end{table}
+% \begin{lstlisting-nobreak}
+% class FunnyQueue {
+%   private[this] val array = new Array[Long](20000)
+%   private[this] var index_start = 0
+%   private[this] var index_stop = 0
+%   def enqueue(l: Long) = {
+%     array(index_stop) = l
+%     index_stop = (index_stop + 1) % 20000
+%   }
+%   def dequeue1(): Long = {
+%     val res = array(index_start)
+%     index_start = (index_start + 1) % 20000
+%     res
+%   }
+%   def head1(): Long =
+%     array(index_start)
+% }
+% \end{lstlisting-nobreak}
+
+This is an outrageous transformation, since we do not protect against buffer overflows and we transform a mutable container. Yet, since the queue does not escape, it is a valid transformation that brings 5x speed improvements on average.
+
+ for the general case, but is proves the point that, for our given transformation, it works perfectly.
 
 \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
@@ -112,7 +197,7 @@ object Stream {
   new Stream(gen)
 }
 final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) {
-  def map[@miniboxed R: ClassTag](f: T => R): Stream[R] = 
+  def map[@miniboxed R: ClassTag](f: T => R): Stream[R] =
     new Stream(iterf => streamf(value => iterf(f(value))))
 
   def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
