@@ -4,9 +4,8 @@
   \item benchmarks - presentation of the tools: ildl plugin + numbers on FFT, miniboxing plugin extension + streams + numbers
 \end{itemize}
 
-\subsection{Methodology}
-
 \subsection{System Setup}
+\aggelos{TODO1: Vlad this section should be common for all benchmarks.}
 
 \subsection{Ad hoc Data Representation Transformations}
 \label{sec:benchmarks:ad-hoc}
@@ -14,11 +13,39 @@
 \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
 
-The \emph{scala-streams} library introduces lazy streams as a potential
-alternative to scala-views and its design is inspired by Java 8 Streams. In Java
-8, streams are fundamentaly continuation-based instead of iterator-based. The
-main difference between the two methodologies is that although both are lazy,
-the former is lazy for producers and the latter is lazy for consumers (who can
+\paragraph{Methodology: } In this work, we use 4 main microbenchmarks inspired
+by~\cite{biboudis_clash_2014}. We focus our efforts on measuring iteration
+throughput for a library that implements push-style streams in scala called
+\emph{scala-streams}~\footnote{https://github.com/biboudis/scala-streams .}. In
+all of our benchmarks we produce scalar values as the result of a terminal
+operation. We measure the performance of:
+
+\begin{itemize}
+ \item \textbf{sum} iteration speed with no lambdas, just a single iteration.
+ \item \textbf{sumOfSquares} a small pipeline with one map operation.
+ \item \textbf{sumOfSquaresEven} a bigger pipeline with a filter and map chain..
+ \item \textbf{cart} a nested pipeline with a \verb|flatMap| and an inner
+   operation, again with a \verb|flatMap| (capturing a variable), to encode a
+   Cartesian product.
+\end{itemize}
+
+For micro-benchmarks we use the Java Microbenchmark Harness
+(JMH)~\cite{aleksey_shipilev_openjdk:_????} tool: a benchmarking tool for
+JVM-based languages that is part of the OpenJDK.
+
+\paragraph{Input:} All tests were run with the same input set. For the
+\textbf{sum}, \textbf{sumOfSquares} and \textbf{sumOfSquaresEven} we used an
+array of $N = 10,000,000$ long integers, produced by $N$ integers with a
+\verb|Array.tabulate| function. The \textbf{cart} test iterates over two
+arrays. An outer one of $1,000,000$ long integers and an inner one of $10$.
+
+The scala-streams library introduces lazy streams as a potential alternative to
+scala-views and its design is inspired by Nessos Streams~\cite{nessos_streams},
+a library that implements push-style streams for F\# and C\#. Nessos Streams
+implemented streams according to the Java 8 stream library design. In Java 8,
+streams are fundamentaly continuation-based instead of iterator-based. The main
+difference between the two methodologies is that although both are lazy, the
+former is lazy for producers and the latter is lazy for consumers (who can
 control the iteration through the methods of the iterator). A term often used to
 describe such an internal iteration scheme is ``\emph{Push
   iteration}''~\cite{obsidian,defuncpush}.  The consumer of a Push stream will
@@ -29,12 +56,8 @@ processed. The dual of a Push stream is a~\emph{Pull stream}. Every combinator
 of a Pull stream will build an iterator that will propagate some effect (e.g.,
 apply a function \verb|f| if this combinator is \verb|map|) to each next
 element. C\#, F\# and Scala implement deferred execution over pipelines as Pull
-streams. Java, on the other hand, supports Push streams by default (although it
-also provides Pull capabilities through the \verb|tryAdvance| method). The
-performance implications of each different design decision in stream libraries
-was assessed in Biboudis et al.~\cite{biboudis_clash_2014}. The source of
-inspiration for scala-streams is Nessos Streams~\cite{nessos_streams}, a library
-that implements push-style streams for F\# and C\#.
+streams. The performance implications of each different design decision in
+stream libraries was assessed in Biboudis et al.~\cite{biboudis_clash_2014}.
 
 \begin{lstlisting}[language=Scala, caption=Example uses of scala-streams.]
 var y = Stream(xs).filter(_*2==0).toArray()
@@ -62,33 +85,33 @@ function). The \verb|Stream| class constructs such a stream with the initial
 looping function passed as the \verb|iterf| function. Note the correspondence
 with the Java iteration scheme. Much like the Java method \verb|Stream.of|, the
 scala-streams method apply yields a consumer that contains a predefined
-iteration block (\verb|iterf|) and returns a new stream of that function. Java's
-\verb|tryAdvance| and \verb|forEachRemaining| (that also checks if the iteration
-must proceed), correspond to the above function \verb|iterf|. The code skeleton
-of \verb|ofArray| is shown below, for reference.
+iteration block (\verb|iterf|) and returns a new stream of that function. In
+Listing~\ref{lst:operators} we present the construction of a stream and two
+operators, an intermediate \verb|map| and a terminal \verb|foldLeft|. \verb|map|
+takes as a parameter the mapping function and returns a new stream that has
+updated the looping function (the consumer of the stream) by first applying
+\verb|f| before passing the value to the next transformation function.
+\aggelos{TODO2: I can produce figures but I use LibreOffice for my charts and
+  all figures should be of the same style: my results are here:
+  https://github.com/VladUreche/ildl-paper/blob/master/scala-streams-results.ods}
 
-\begin{lstlisting}[language=scala, caption=Creation of a stream.]
-@inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
-  val gen = (iterf: T => Boolean) => {
-    var counter = 0
-    var cont = true
-    val size = xs.length
-    while (counter < size && cont) {
-      cont = iterf(xs(counter))
-      counter += 1
+\begin{lstlisting-nobreak}[language=scala, caption=Creation of a stream \& examples of
+  operators., label=lst:operators]
+object Stream {
+  @inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
+    val gen = (iterf: T => Boolean) => {
+      var counter = 0
+      var cont = true
+      val size = xs.length
+      while (counter < size && cont) {
+        cont = iterf(xs(counter))
+        counter += 1
+      }
     }
   }
+  new Stream(gen)
 }
-new Stream(gen)
-\end{lstlisting}
-In Listing~\ref{lst:operators} we present two operators, an intermediate
-\verb|map| and a terminal \verb|foldLeft|. \verb|map| takes as a parameter the
-mapping function and returns a new stream that has updated the looping function
-(the consumer of the stream) by first applying \verb|f| before passing the value
-to the next transformation function.
-\begin{lstlisting}[language=scala, label=lst:operators, caption=Sample operators.]
 final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) {
-
   def map[@miniboxed R: ClassTag](f: T => R): Stream[R] = 
     new Stream(iterf => streamf(value => iterf(f(value))))
 
@@ -101,10 +124,25 @@ final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) 
     acc
   }
 }
-\end{lstlisting}
-It is of high importance to provide an implementation that works well under both
-reference types and primitives.  \aggelos{Trying to use map as the base example
-  of the transformation. Will try again tomorrow to dissasemble
-  https://gist.github.com/biboudis/00b22abea986e496f060 obtained by
-  "-Xprint:minibox-commit"}
-\paragraph{Assessment. } \aggelos{TODO}.
+\end{lstlisting-nobreak}
+\begin{figure}
+  \centering
+%  \includegraphics[width=.95\linewidth]{scala-streams.pdf}
+  \caption{Microbenchmark of scala-streams. Y-axis in milliseconds / iteration (average of 10).}
+  \label{fig:stream_benchmarks}
+\end{figure}
+\paragraph{Discussion: }  It is of high importance to provide an implementation
+that works well under both reference types and primitives and ildl-plugin has
+proven highly beneficial in scala-streams. Although scala-streams seem to
+outperform Scala views, by using the \verb|@specialized| annotation we get
+\aggelos{todo}x speedup and by using the ildl-plugin we get \aggelos{todo}x
+speedup. In Figure~\ref{fig:stream_benchmarks}, we present the execution times
+of our microbenchmarks. By running our experiments with the \verb|-perf perfasm|
+flag of JMH, we are able to see that no internal boxing occurs. Instead, the
+mapping function \verb|f| has been bridged with functions that use primitive
+types as parameters and return types.
+
+\aggelos{TODO3: Should we explain more the output of "-Xprint:minibox-commit"?: https://gist.github.com/biboudis/00b22abea986e496f060}
+
+\aggelos{TODO4: Should we examine closely sumOfSquares JMH trace: no boxing occured!: https://gist.github.com/biboudis/1684edf24bb646450f3d}
+
