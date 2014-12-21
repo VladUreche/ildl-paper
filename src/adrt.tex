@@ -43,7 +43,7 @@ Once the transformation description object is defined, our technique relieves th
 \begin{compactitem}
 \item the transformation from the high-level type to its representation and the optimal introduction of coercions when interacting with outside code (\S\ref{sec:ildl:ldl});
 \item the ability for separately transformed scopes to safely communicate via the representation type, even across separate compilation runs (\S\ref{sec:ildl:sepatate-compilation});
-\item the correct handling of the object model and of generics in the presence of the transformation (\S\ref{sec:ildl:generics})
+\item the correct handling of the object model and of generics in the presence of data representation transformations (\S\ref{sec:ildl:generics})
 \item the optimal handling of methods on the optimized representation (\S\ref{sec:ildl:semantics})
 \end{compactitem}
 
@@ -66,14 +66,14 @@ Importantly, the programmer is responsible for ensuring the correctness of the t
 
 Unlike existing data representation transformations, like value class inlining and specialization, which have a fixed semantic and occur in a sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercion semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. We leverage the type system and the signature persistence facilities to provide correct concurrent scope transformations and to allow scopes to efficiently pass values among themselves, using the representation type, a property we call composibility.
 
-The key to the composibility property is shifting the focus from the scope to the individual values within that scope. The LDL selectivity provides us with the ability to annotate each value in the |adrt| scope for transformation, all without affecting the code outside. And, in order to allow each value transformation to occur independently according to the scope semantics, we extended the LDL mechanism to allow annotations parameterized on the transformation description object. Essentially, this makes annotated types self-sufficient, allowing each value transformation to progress independently, assuring optimal value passing and ruling out entire classes of unsoundness.
+The key to the composibility property is shifting the focus from the scope to the individual values within that scope. The LDL selectivity provides us with the ability to annotate each individual value in the |adrt| scope for transformation, all without affecting the code outside. And, in order to allow each value transformation to occur independently according to the scope semantics, we extended the LDL mechanism to allow annotations parameterized on the transformation description object. Essentially, this makes annotated types self-sufficient, allowing each value transformation to progress independently, assuring optimal value passing and ruling out entire classes of unsoundness.
 
-In this secion we look at two instances of composibility:
+In this section we look at two instances of composibility:
 
-\begin{itemize}
+\begin{compactitem}
   \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
   \item |adrt| scopes isolate each high-level type, barring unsound value leaks through the representation type;
-\end{itemize}
+\end{compactitem}
 
 \subsubsection{A high-level type can have different representations in different scopes.} This goes according to the scoped nature of the ADR transformation, which allows programmers to safely use the most efficient data representation for each task. Yet, this raises the question of whether values can be safely passed across scopes that use different representations:
 
@@ -92,7 +92,7 @@ val y: `@repr(IntPairToDouble)` (Int, Int) = (2, 6)
 `x = y`
 \end{lstlisting-nobreak}
 
-The \coerce{} phase then notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, it is correct to use the high-level type as a middle ground:
+The \coerce{} phase then notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, it is correct to use the high-level type as a middle ground when transforming between the two representations:
 
 \begin{lstlisting-nobreak}
 var x: @repr(IntPairToLong) (Int, Int) = `toRepr`(IntPairToLong, (3, 5))
