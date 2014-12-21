@@ -5,21 +5,42 @@
 % \end{itemize}
 
 % Two implementations in Scala, as a compiler plugins, starting from the LDL compiler plugins alreasdy available on the net. The rest will describe the important changes
-We implemented the ADR transformation as a Scala compiler plugin, by extending the open-source multi-stage programming transformation provided with the Lata Data Layout artifact\footnote{Available at address:\\ \url{https://github.com/miniboxing/staging-plugin}} \cite{ldl}. The development went smoothly, with a few exceptions that we describe here, in hope of aiding future implementers in porting our work to other languages and compilers. We plan to submit our Scala implementation as an artifact and open-source it as soon as the paper is accepted.
+We implemented the ADR transformation as a Scala compiler plugin, by extending the open-source multi-stage programming transformation provided with the Lata Data Layout artifact\footnote{Available at address:\\ \url{https://github.com/miniboxing/staging-plugin}} \cite{ldl}. The development went smoothly, with a few exceptions that we describe here, in hope of aiding future implementers in porting our work to other languages. We plan to submit our Scala implementation as an artifact and open-source it as soon as the paper is accepted.
 
-The programmer front-end consists of two elements: the |adrt| scope, which acts as a marker for the lexical scope that will be transformed and the |TransformationDescription| class, which programmers need to extend in order to define transformation description objects. These programmer-facing constructs are shown in the Problem Statement section (\S\ref{sec:problem}) and throughout the paper. We will analyze each of these programmer-facing constructs.
+The programmer front-end consists of the |adrt| scope, which acts as a marker for the scope that will be transformed and the |TransformationDescription| class, which programmers need to extend in order to define transformation description objects. These programmer-facing constructs are shown in the Problem Statement (\S\ref{sec:problem}) and the Overview of the ADR transformation (\S\ref{sec:ildl:user-story}). We will analyze each of these programmer-facing constructs.
 
 % - |adrt| macro => inject phase; very close to the semantics of the multi-stage programming transformation for LDL
-The |adrt| scope is responsible for accepting a block of statements and expressions and injecting the annotations that later drives the representation transformation. Initially, we implemented |adrt| as a marker method, that would be executed by the \inject{} phasse. In doing so, realized this is not feasible: the Scala compiler encodes blocks of code passed to methods as anonymous functions. This means that defining a method or class inside the transformed |adrt| scope makes it a part of the anonymous function passed to |adrt| instead of the outer scope of the |adrt| method. This means that, placing the |adrt| scope in a class |C|, any method defined in the scope would not be visible as a method of class |C| during type-checking. Thus valid programs would get rejected because  To fix this, we changed the |adrt| method implementation to use a macro, which, during type-checking, injects the synthetic |@repr| annotations and
+The |adrt| scope is responsible for accepting a block of statements and expressions and injecting the annotations that later drive the representation transformation. Initially, we implemented |adrt| as a marker method, that would be executed by the \inject{} phase. In doing so, realized this is not feasible: the Scala compiler encodes blocks of code passed to methods as anonymous functions. This means that defining a method or class inside the transformed |adrt| scope makes it a part of the anonymous function passed to |adrt| instead of the outer scope of the |adrt| method. This means that, placing the |adrt| scope in a class |C|, any method defined in the scope would not be visible as a method of class |C| during type-checking. Thus valid programs would get rejected because the methods inside the |adrt| scope would not be visible during type-checking. To fix this without altering the type-checker, we transformed the |adrt| marker into a macro, which injects the synthetic |@repr| annotations and inlines the scope code just before the type-checking phase. This works perfectly, as before being fed to the macro, the code is type-checked, with all missing type annotations inferred. After the type-checking phase, the source-level signatures are persisted, along with the |@repr| anotations.
 
 % - transformation description objects => bootstrapping problem => annotation
+For the description objects, we used the |TransformationDescription| abstract marker class, which declares the high-level and representation types and the coercions between them (\S\ref{sec:ildl:user-story}). The programmer is then free to add extension methods. To ease the programmer into adding extension methods, the \coerce{} phase warns whenever a value needs to be decoded to the high-level type in order to do a method call, and gives the expected extension method name and its signature. Here we encountered a bootstrapping problem: although extension methods need to handle the representation type and thus their body needs to be type-checked against the representation type manipulations, during \coerce{}, their signatures are expected to handle the annotated high-level type, to allow redirecting method calls. To work around this, we added a new annotation |@high| which acts as an anti-|@repr|:
+
+\begin{lstlisting-nobreak}
+object IntPairToLong extends TransformationDescription {
+  ...
+  // source-level signature (allows type-checking the method body)
+  def extension_toString(repr: `@high(IntPairToLong)` Long): String = ...
+  // signature during coerce (allows rewriting calls)
+  //   def extension_toString(repr: @repr(IntPairToLong) (Int, Int))
+  // signature after commit (matches the bytecode signature)
+  //   def extension_toString(repr: Long)
+}
+\end{lstlisting-nobreak}
+
+This mechanism allows the transformation description objects to compile even in the same time as the code that is being transformed, which is a significant advantage over the other bootstrapping issues in Scala. For example, macros have the same bootstrapping issue, but they have to be defined in a previous compilation run to be used.
 
 % - transformation description object  => depedency of the code => change it => recompile!
+Another advantage we got for free thanks to referencing the transformation description object is the fact that the dependency is visible to build tools, especially to the Scala incremental compiler. Therefore changes in the description object automatically force the recompilation of all the code under the |adrt| scopes that depends on the changed description object.
 
 % - bridge - warinings
-
 % - coerce - the main work was around using the extension methods and providing a good solution for them
-
 % - commit -- very simple
+The LDL phases did underwent the following transformations:
+\begin{compactitem}
+\item since the |adrt| macro annotates the types, the \inject{} phase is only responsible for transforming the |@high| annotation, after it has been persisted in the signature;
+\item the \bridge{} method is responsible for adding all necessary overrides to correctly transform the object representation and warning when they need to make double transformations;
+\item the \coerce{} phase has additional machinery to support extension methods for operators and methods added through implicit conversions;
+\item the \commit{} phase transforms signatures to use the representation type in the description object instead of using a hard-coded logic.
+\end{compactitem}
 
-
+Currently, very serious errors could be triggered by manually adding |@repr| annotation in the source code. We would like to restrict that, but since in the Scala compiler name resolution and type-checker phases execute in tandem, finding user-added |@repr| annotations is impossible: before, the abstract syntax tree does not have symbols assigned, so there is no way to know if a reference to |@repr| means the actual annotation while after type-checking, the |adrt| macro has already added its valid |@repr| annotations. We are looking into other ways to fix this.
