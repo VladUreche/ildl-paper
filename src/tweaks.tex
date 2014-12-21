@@ -117,13 +117,13 @@
 %%% http://tex.stackexchange.com/questions/10141/how-to-prevent-lstlisting-from-splitting-code-between-pages
 \lstnewenvironment{lstlisting-nobreak}[1][]%
 {
-  \vspace{0.1em}
+  \vspace{-0.1em}
   \noindent
   \minipage{\linewidth}
 }
 {
   \endminipage
-  \vspace{-0.3em}
+  \vspace{-0.35em}
 }
 
 % Review tools
@@ -154,7 +154,7 @@
 \renewcommand{\subsubsection}[1]{\vspace{0.5em}\noindent\textbf{#1}}
 
 % Paper hacks:
-\setstretch{1.0}
+\setstretch{0.97}
 % \renewcommand{\bibfont}{\scriptsize}
 \renewcommand*{\UrlFont}{\ttfamily\scriptsize\relax}
 

@@ -1,23 +1,13 @@
-\section{Ad hoc Data Representation (ADR) Transformation}
+\section{Ad hoc Data Representation Transformation}
 \label{sec:ildl}
 
-% DEFINE WHAT WE WANT
-%  - transform scopes of code, where the scope can contain anything from an expression to a method or class definition
 Our Ad hoc Data Representation (ADR) transformation adds two new
 elements to existing data representation transformations: first, it
 enables custom, programmer-defined alternative representations; and
 second, it allows the transformation to take place in limited scopes,
 ranging from expressions all the way to full class or package
 definitions. In this way, we can support a locally correct
-transformation that may be incorrect for code outside the transformed scope.
-
-% In the next sections we discuss the difficulties of supporting these features and
-% our mechanisms that enable such support.
-
-%Unfortunately, relaxing these two constraints breaks core invariants
-%of most data representation transformations. The following sections
-%will present these invariants and explain how we adapted the Late
-%Data Layout transformation to fit these relaxed constraints.
+transformation that may be incorrect for code outside the given scope.
 
 \subsection{Ad hoc Data Representation Transformation Overview}
 \label{sec:ildl:user-story}
@@ -35,8 +25,6 @@ reference:
 \end{lstlisting-nobreak}
 
 The transformation description object passed to the |adrt| marker is defined by the programmer and describes the transformation itself. For example:
-%% \aggelos{I think we should explicitely define our protocol. Not formally of course but description of what consists the code below, what is the object we extend from, etc. Right?}
-%% \vlad{We'll do this in the implementation section}
 
 \begin{lstlisting-nobreak}
 object IntPairComplexToLongComplex extends TransformationDescription {
@@ -50,97 +38,113 @@ object IntPairComplexToLongComplex extends TransformationDescription {
 
 Effectively, the programmer specifies the data representation transformation: the high-level type and its representation, the coercions between them and the extension methods that allow translating operations on the high-level type directly to its representations.
 
-% Fortunately, the object above is the \emph{only} code the programmer needs to write to enable the ADR transformation.
-
 Once the transformation description object is defined, our technique relieves the programmer from the rest of the refactoring necessary to transform the code:
 
 \begin{compactitem}
 \item the transformation from the high-level type to its representation and the optimal introduction of coercions when interacting with outside code (\S\ref{sec:ildl:ldl});
-\item the ability for separately transformed scopes to communicate via the representation type, a property we call composability and that works across separate source files and compilation runs (\S\ref{sec:ildl:compose});
+\item the ability for separately transformed scopes to communicate via the representation type, even across separate source files and compilation runs (\S\ref{sec:ildl:sepatate-compilation});
 \item the correct handling of the object model and of generics in the presence of the transformation (\S\ref{sec:ildl:generics})
 \item the optimal handling of methods on the optimized representation (\S\ref{sec:ildl:semantics})
 \end{compactitem}
 
-%% \vlad{These seem pretty random to me. Why did you mention these two in particular?}
-% \begin{compactitem}
-% \item \emph{Local type inference}, in both forward and
-%   backward direction, in order to determine when there should be a
-%   conversion between representations. This is handled optimally by the
-%   \coerce{} phase of our extension to the LDL transformation.
-% % produce a minimal number of representation conversion operations.
-%
-% \item Handling of correctness requirements relative to overriding,
-%   dynamic dispatch, and generics (\S\ref{sec:ildl:generics}), as
-%   well as optimizations (\S\ref{sec:ildl:semantics}).
-% \end{compactitem}
-
 Importantly, the programmer is responsible for ensuring the correctness of the transformation description object and of the scopes under the |adrt| marker. We will further explore this after presenting the transformation (\S\ref{sec:ildl:discussion}).
 
-% Specifically, the ADR transformation is mainly targeted at immutable containers with value semantics and without object identity, such as database rows, records, tuples and immutable collections, which do not impose many transformation restrictions. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Contrarily, mutable value are very difficult to transform, as the link to the original object must not be servered, as it may be aliased and updated by outside code. This is why the ADR transformation can be seen to be as correct as its description object.
 
-\vlad{I decided to leave the discussion subsection at the end, as it only makes sense once the reader has understood what the transformation does.}
+
+
+
+
+
+
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Persisting the Data Representation Information}
-\label{sec:ildl:signatures}
+\subsection{Data Representation Transformation}
+\label{sec:ildl:ldl}
+
+Unlike existing data representation transformations, like value class inlining and specialization, which have a fixed semantic and occur in sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercions semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. This section will present the composition property stemming from the concurrent nature of ADR transformation scopes.
+
+The ADR transformation relies on a very useful Late Data Layout property: selectivity. This allows values in |adrt| scopes to be annotated for transformation, without affecting the representations outside. Yet, since each |adrt| scope has its own semantics, we had to extend LDL to allow annotations parameterized on the description object. Essentially, this makes annotated types self-sufficient by encoding the entire transformation semantics in the annotation. This, in turn, allows each value to be individually transformed.
+
+The result is the ability of different (and even nested) |adrt| scopes to correctly pass values, a property we call composition. Let us look at two instances of composition:
+
+\begin{itemize}
+  \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
+  \item |adrt| scopes isolate each high-level type, barring unsound value leaks through the representation type;
+\end{itemize}
+
+\subsubsection{A high-level type can have different representations in different scopes.} This goes according to the scoped nature of the ADR transformation, which allows programmers to safely use the most efficient data representation for each task. Yet, this raises the question of whether values can be safely passed across scopes that use different representations:
+
+\begin{lstlisting-nobreak}
+adrt(IntPairToLong)   { var x: (Int, Int) = (3, 5) }
+adrt(IntPairToDouble) { val y: (Int, Int) = (2, 6); `x = y` }
+\end{lstlisting-nobreak}
+
+At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
+
+The scope begins by being type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
+
+\begin{lstlisting-nobreak}
+var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
+val y: `@repr(IntPairToDouble)` (Int, Int) = (2, 6)
+`x = y`
+\end{lstlisting-nobreak}
+
+The \coerce{} phase then notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, it is correct to use the high-level type as a middle ground:
+
+\begin{lstlisting-nobreak}
+var x: @repr(IntPairToLong) (Int, Int) = `toRepr`(IntPairToLong, (3, 5))
+val y: @repr(IntPairToDouble) (Int, Int) = `toRepr`(IntPairToDouble, (2, 6))
+x = `toRepr`(IntPairToLong, `fromRepr`(IntPairToDouble, y))
+\end{lstlisting-nobreak}
+
+Finally, the \commit{} phase will transform the example to:
+
+\begin{lstlisting-nobreak}
+var x: `Long` = IntPairToLong.toRepr((3, 5))
+val y: `Double` = IntPairToDouble.toRepr((2, 6))
+x = IntPairToLong.toRepr(IntPairToDouble.fromRepr(y)) // Double => Long
+\end{lstlisting-nobreak}
+
+Therefore, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at another scenario:
+
+\subsubsection{Different transformation scopes can be safely nested} in order to optimize multiple high-level types in the same piece of code:
+
+\begin{lstlisting-nobreak}
+adrt(FloatPairAsLong) {
+  adrt(IntPairAsLong) {
+    val x: (Float, Float) = (1f, 0f)
+    var y: (Int, Int) = (0, 1)
+    // y = x
+    // y = 123l
+  }
+}
+\end{lstlisting-nobreak}
+
+Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. A question that may occur, since both the integer and the float pairs are encoded as long integers, is whether values can leak through the representations between the high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different higl-level type, making the transformation unsound.
+
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to transform it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allowed the unsound assignments to take place.
+
+\subsubsection{However, barring programmer access to the representation type may seem limiting.} For example, a performance-consious programmer might want to transform the high-level integer pair into a floating-point pair without actually allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
+
+This is not the only solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a change in the transformation description object. This is the price to pay for an automated and principled transformation.
 
 
-%%% \yannis{The commented-out text below is very nice and nicely
-%%% written. But it undermines our argument. If what we do is so
-%%% common and general, why do we claim it as a contribution?}
-
-%% Strongly typed languages that compile to low-level code need to store high-level semantic information about the program separately from the low-level code. This is done in order to support separate compilation, since the language usually imposes stricter rules than can be inferred from the low-level code. For example, consider the following signature in Scala:
-
-%% \begin{lstlisting-nobreak}
-%% def rewrite(c: Context)(tree: `c.Tree`, tpe: `c.Type`) = ...
-%% \end{lstlisting-nobreak}
-
-%% This signature will irreversibly lose all its path-dependent type
-%% information in the low-level bytecode, as the low-level signatures
-%% stored in the bytecode do not support it:
-
-%% \begin{lstlisting-nobreak}
-%% def rewrite(c: Context, tree: `Object`, tpe: `Object`) = ...
-%% \end{lstlisting-nobreak}
-
-%% Therefore, in order to allow separate compilation, Scala stores the high-level signature as bytecode metadata. This allows it to later type-check code that calls the |rewrite| method against the path-dependent signature, enforcing strong guarantees about the program behavior:
-
-%% \begin{lstlisting-nobreak}
-%% scala> rewrite(new Context())(new Object, new Object)
-%% <console>:10: error: type mismatch;
-%%  found   : Object
-%%  required: c.Tree where val c: Context
-%%               rewrite(new Context())(new Object, new Object)
-%%                                             ^
-%% ...
-%% \end{lstlisting-nobreak}
-
-%% This behavior is not limited to Scala: C and C++ require header files to declare the signatures of all classes and methods used, whereas Java stores generic information separately in the bytecode. Aside from the fact that high-level signatures are not derivable from the low-level ones, we have an extra problem: several low-level members can correspond to a single high-level one, making it very important to be able to consistently derive the low-level members from a high-level signature, so they can be correctly called in the low-level code.
 
 
 
 
-%  - make sure that separate compilation still works (e.g: code can be called from a separately compiled source)
-One of the core invariants on the LDL transformation is that, throughout separate compilations, the high-level signatures are transformed according to the same (context-free) rules, yielding consistent object layouts and low-level signatures. However, when relaxing the global, all-or-nothing nature of the LDL mechanism we are essentially breaking this invariant.
-%
-% For example, given method |valueAtIndex| with high-level signature:
-%
-% \begin{lstlisting-nobreak}
-% def valueAtIndex(lst: List[Int], idx: Int) = ...
-% \end{lstlisting-nobreak}
-%
-% The lowered signature following LDL-based primitive unboxing will always be:
-%
-% \begin{lstlisting-nobreak}
-% def valueAtIndex(lst: List[`java.lang.Integer`], idx: `int`) = ...
-% \end{lstlisting-nobreak}
-%
-% This allows code in the current compilation run to correctly call methods from previous separate compilations: (1) by checking the high-level signature, which may constrain the call in high-level ways (for example, though dependent types, structural types or type bounds) and (2) by consistently lowering the signature to the same bytecode-friendly low-level signature.
-%
-% %  - correctness: make sure that we can't make any calls that are not according to the type system
-% However, when limiting the data representation transformation to a scope, we could, for example, transform a single method. Let us return to our example:
-To see how this invariant is broken, we can go back to our |gcd| method:
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Extending Composition across Separate Compilation}
+\label{sec:ildl:sepatate-compilation}
+
+Preserving the annotation in the high-level signature enables transformed scopes to seamlessly pass encoded values, even if they are compiled from different files and in different separate compilation runs. To reason about composing scopes across different compilation runs, let us assume we already compiled the |gcd| method in the motivating example:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -148,27 +152,7 @@ To see how this invariant is broken, we can go back to our |gcd| method:
 }
 \end{lstlisting-nobreak}
 
-In this case, the lowered signature for the |gcd| method, before primitive unboxing and erasure of generics, would be:
-
-\begin{lstlisting-nobreak}
-def gcd(n1: `Long`, n2: `Long`): `Long` = ...
-\end{lstlisting-nobreak}
-
-% An important question in DRTs: how to modify signatures
-%  -- keeping track of transformed methods (do I have a transformed version?)
-Not being aware of the ADR transformation of method |gcd|, a separate compilation could assume its bytecode would accept two pairs of integers as input. However, in the lowered bytecode, the |gcd| method accepts two long integers. A possible solution would be to add a bridge method with the expected signature, and we will later see this is necessary in some cases. However, ideally, the compiler should be able to call the transformed method directly:
-
-% not be aware of the data representation transformation that occurred, so it might pass two pairs of integers on the stack, which would break the low-level execution. On the other hand, if the separate compilation would look at both the high-level and low-level signatures, one taken from the class file metadata and one from the actual bytecode, it would notice a discrepancy: the pair of integer arguments from the high-level code somehow transformed into unboxed long integer arguments. But this would still be insufficient to call the method:
-
-\begin{lstlisting-nobreak}
-val res: (Int, Int) = gcd((55, 2), (17, 13))
-\end{lstlisting-nobreak}
-
-% Global vs local/ad hoc -- relationship between LDL and iLDL + separate compilation
-% Where does the transformation take place -- difference between high-level signatures and low-level signatures \ldots
-How can the pairs of integers be transformed into long integers in a separate compilation, which is not aware of the previous ADR transformation? Even looking at both the high-level and low-level signatures side-by-side, the compiler would not be able to infer how the data arguments should be transformed, since it is missing the semantic link between the two representations: the |IntPairComplexToLongComplex| object. This is caused by relaxing the second LDL invariant: allowing custom, programmer-defined alternative representations instead of its fixed set of transformation rules.
-
-To solve this problem, we need to run an LDL-like \inject{} phase before storing the high-level signatures. This phase annotates the high-level signature with the representation transformations that are planned for the |gcd| method. Furthermore, to inform LDL about the custom representation semantics, the annotation refers to the transformation description object:
+In this case, after the \inject{} phase, the signature for |gcd| is:
 
 \begin{lstlisting-nobreak}
 def gcd(
@@ -177,160 +161,67 @@ def gcd(
   ): `@repr(IntPairComplexToLongComplex)` (Int, Int) = ...
 \end{lstlisting-nobreak}
 
-The key to limiting the ADR transformation to a scope is \textbf{persisting the high-level signature with the injected annotation}, along with the low-level method bytecode. This allows a future separate compilation stage to derive two critical pieces of information about the |gcd| method:
+After the representation transformation, the bytecode signature for the |gcd| method is:
 
-\begin{itemize}
-  \item its low-level signature, based on the transformation description object, \\ |IntPairComplexToLongComplex|, which contains both the high-level type, |(Int, Int)| and its representation, |Long|;
-  \item the transformation necessary when calling the |gcd| method from a non-transformed scope.
-\end{itemize}
+\begin{lstlisting-nobreak}
+def gcd(n1: `long`, n2: `long`): `long` = ...
+\end{lstlisting-nobreak}
 
-Knowing these two critical pieces of information, a separate compilation can successfully call the |gcd| method:
+% An important question in DRTs: how to modify signatures
+%  -- keeping track of transformed methods (do I have a transformed version?)
+When compiling source code that refers to existing low-level code, such as bytecode compiled in a previous run, compilers need to load the high-level signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume its bytecode would accept two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts two long integers, which makes passing pairs of integers incorrect.
+
+The most intuitive solution is to create two methods for each transformation: the transformed method itself and a bridge, which would exposes the expected signature, accepting pairs of integers, encodes them as long integers and calls the transformed version of the |gcd| method. This approach allows calling the |gcd| method from separate compilations without being aware of the transformation. However, we can do better.
+
+\subsubsection{Persisting transformations in signatures.} Let us assume we want to call the |gcd| method from a scope transformed using the same |IntPairComplexToLongComplex| description object, but in a different compilation run:
+
+\begin{lstlisting-nobreak}
+`adrt(IntPairComplexToLongComplex)` {
+  val n1: (Int, Int) = ...
+  val n2: (Int, Int) = ...
+  val res: (Int, Int) = gcd(n1, n2)
+}
+\end{lstlisting-nobreak}
+
+In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, they would have to be decoded before calling the bridge method, which would encode them back. This is suboptimal. Instead, what we want is to let the |adrt| scopes become part of the high-level signature, making the transformation a first-class language feature. To do so, we persist the annotation and the reference to the transformation description object in the signature. This allows calling the transformed |gcd| method directly:
+
+\begin{lstlisting-nobreak}
+// loaded signature for method gcd:
+//  def gcd(n1: @repr(...) (Int, Int), n2: @repr(...) (Int, Int)): @repr(...) (Int, Int)
+val n1: `@repr(...)` (Int, Int) = ...
+val n2: `@repr(...)` (Int, Int) = ...
+val res: `@repr(...)` (Int, Int) = gcd(n1, n2)
+\end{lstlisting-nobreak}
+
+With these signatures, there is no need for coercions, as all the values are annotated with the same description object. This allows |adrt| scopes to seamlessly compose even across separate compilation. Following the \commit{} phase, our call will be:
+
+\begin{lstlisting-nobreak}
+val n1: `Long` = ...
+val n2: `Long` = ...
+val res: `Long` = gcd(n1, n2) // efficient call, no coercions introduced!!!
+\end{lstlisting-nobreak}
+
+\subsubsection{Making bridge methods redundant.} Persisting transformation information in the high-level signatures allows us to skip creating bridges for all methods. For example, calling the |gcd| method outside the |adrt| scope is still possible:
 
 \begin{lstlisting-nobreak}
 val res: (Int, Int) = gcd((55, 2), (17, 13))
 \end{lstlisting-nobreak}
 
-% Injection -- before storing signatures, bridge, coerce and commit come later.
-During the type-checking and the \inject{} phase, the high-level
-signature for |gcd| is retrieved from the bytecode and the call is
-type-checked against the loaded signature. Recall that, before the
-\coerce{} phase, annotations are ignored for type checking, thus
-differently-annotated (or non-annotated) versions of compatible types
-are compatible:
+Since the signature for method |gcd| references the transformation description object, it is possible to use the \coerce{} phase to introduce the correct coercions:
 
 \begin{lstlisting-nobreak}
 // loaded signature for method gcd:
-//  def gcd(
-//      n1: `@repr(IntPairComplexToLongComplex)` (Int, Int),
-//      n2: `@repr(IntPairComplexToLongComplex)` (Int, Int)
-//    ): `@repr(IntPairComplexToLongComplex)` (Int, Int)
+//  def gcd(n1: @repr(...) (Int, Int), n2: @repr(...) (Int, Int)): @repr(...) (Int, Int)
 val res: (Int, Int) =
-  gcd(
-    (55, 2),   // expected: @repr(...) (Int, Int) found: (Int, Int) => okay
-    (17, 13)  // expected: @repr(...) (Int, Int) found: (Int, Int) => okay
-  )             // expexted: (Int, Int) found: @repr(...) (Int, Int) => okay
+  fromRepr(...,
+    gcd(                           // expected: (Int, Int) found: @repr(...) (Int, Int)
+      toRepr(..., (55, 2)),   // expected: @repr(...) (Int, Int) found: (Int, Int)
+      toRepr(..., (17, 13))  // expected: @repr(...) (Int, Int) found: (Int, Int)
+    )
+  )
 \end{lstlisting-nobreak}
 
-During the \coerce{} phase, re-type-checking the tree will introduce coercions whenever annotated types and non-annotated types are mixed. It is important that the coercions carry the transformation description object:
-
-\begin{lstlisting-nobreak}
-val res: (Int, Int) =
-  fromRepr(`IntPairComplexToLongComplex`, gcd(
-    toRepr(`IntPairComplexToLongComplex`, (55, 2)),
-    toRepr(`IntPairComplexToLongComplex`, (17, 13)
-  ))
-\end{lstlisting-nobreak}
-
-Finally, during the \commit{} phase, the encoding and decoding methods from the transformation description object are used:
-
-\begin{lstlisting-nobreak}
-val res: (Int, Int) =
-  IntPairComplexToLongComplex.fromRepr(gcd(
-    IntPairComplexToLongComplex.toRepr((55, 2)),
-    IntPairComplexToLongComplex.toRepr((17, 13))
-  ))
-\end{lstlisting-nobreak}
-
-%This concludes the signature persistence section. The following
-%paragraphs will show the properties that stem from this decision:
-%composability and safety.
-
-\subsubsection{Composability. }
-Persisting transformation information in signatures allows full composability
-of the transformation:
-%Persisting transformation information in signatures brings three advantages:
-\begin{enumerate}
-  \item a single high-level type can use multiple representations;
-  \item code from different scopes can compose across separate compilations;
-  \item ADR transformations that do not target the same high-level type can be safely nested, regardless of their representation types.
-\end{enumerate}
-
-We illustrate the first of these advantages with an example:
-
-%% The first advantage is that code from a different source file or even from a separate compilation can use the ADR transformation to optimize a call to method |gcd| in a separate compilation:
-
-%% \begin{lstlisting-nobreak}
-%% `adrt(IntPairComplexToLongComplex)` {
-%%   val n1: (Int, Int) = ...
-%%   val n2: (Int, Int) = ...
-%%   val res: (Int, Int) = gcd(n1, n2)
-%% }
-%% \end{lstlisting-nobreak}
-
-%% In this example, the first step is the \inject{} phase, that will add the |@repr| annotation to the values:
-
-%% \begin{lstlisting-nobreak}
-%% // loaded signature for method gcd:
-%% //  def gcd(n1: @repr(...) (Int, Int), n2: @repr(...) (Int, Int)): @repr(...) (Int, Int)
-%% val n1: `@repr(...)` (Int, Int) = ...
-%% val n2: `@repr(...)` (Int, Int) = ...
-%% val res: `@repr(...)` (Int, Int) = gcd(n1, n2)
-%% \end{lstlisting-nobreak}
-
-%% Now, going into the \coerce{} phase, no coercions will be introduced, as the signatures match. Therefore, the call to |gcd| will take place without any coercions for the arguments and the return type. This gives the ADR transformation an important property: \textbf{transformed scopes are composable across source files and across separate compilation runs}. This is a highly desirable property, which allows optimized code from different transformed scopes to seamlessly collaborate using the more optimal representation. Following the \commit{} phase, our call will be:
-
-%% \begin{lstlisting-nobreak}
-%% val n1: `Long` = ...
-%% val n2: `Long` = ...
-%% val res: `Long` = gcd(n1, n2) // efficient call, no coercions introduced!!!
-%% \end{lstlisting-nobreak}
-
-%Let us now look at the second advantage: allowing a high-level type
-%to use different representations. This can be shown in another
-%example:
-
-\begin{lstlisting-nobreak}
-adrt(IntPairAsLong)   { var x: (Int, Int) = (3, 5) }
-adrt(IntPairAsDouble) { val y: (Int, Int) = (2, 6); x = y }
-\end{lstlisting-nobreak}
-
-At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? The high-level types match, but the representation types do not. The first step is to inline the two |adrt| scopes and \inject{} annotations:
-
-\begin{lstlisting-nobreak}
-var x: `@repr(IntPairAsLong)` (Int, Int) = (3, 5)
-val y: `@repr(IntPairAsDouble)` (Int, Int) = (2, 6)
-x = y
-\end{lstlisting-nobreak}
-
-The \coerce{} phase will observe the mismatching signatures in the last line:
-
-\begin{lstlisting-nobreak}
-var x: @repr(IntPairAsLong) (Int, Int) = `toRepr`(IntPairAsLong, (3, 5))
-val y: @repr(IntPairAsDouble) (Int, Int) = `toRepr`(IntPairAsDouble, (2, 6))
-x = `toRepr`(IntPairAsLong, `fromRepr`(IntPairAsDouble, y))
-\end{lstlisting-nobreak}
-
-What happens is that, in the \coerce{} phase, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This allows \textbf{composing scopes that use the same high-level type even across different representations}. Finally, the \commit{} phase will transform the example to:
-
-\begin{lstlisting-nobreak}
-var x: `Long` = IntPairAsLong.toRepr((3, 5))
-val y: `Double` = IntPairAsDouble.toRepr((2, 6))
-x = IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(y)) // Double => Long
-\end{lstlisting-nobreak}
-
-%% Finally, a last composability question is whether several ADR transformations can be nested. This is indeed the case, as long as they don't target the same high-level type:
-
-%% \begin{lstlisting-nobreak}
-%% adrt(FloatPairAsLong) {
-%%   adrt(IntPairAsLong) {
-%%     ...
-%%   }
-%% }
-%% \end{lstlisting-nobreak}
-
-%% This is another very important property, since it allows \textbf{transformation scope nesting} in a safe way, without running the risk of interactions between high-level types or their representations.
-
-
-%% \yannis{Isn't this something we get for free from following the IDL analysis? I'm afraid I see no new idea below.}
-%% \subsubsection{Safety.} Let us now focus on a safety problem: assuming two high-level types that share the representation type, could data flow across the representation type from one high-level type to another? Of course, this would be incorrect, as it would interpret the data using an incorrect semantic:
-
-%% \begin{lstlisting-nobreak}
-%% adrt(IntPairAsLong) { def foo(p: (Int, Int)) = ... }
-%% adrt(FloatPairAsLong) { foo((1f, 2f)) }
-%% foo(123l)
-%% \end{lstlisting-nobreak}
-
-%% The answer is no: the high-level type-checking will reject both calls to the |foo| method based on the mismatching high-level types: the first call passes a floating-point pair while the second one passes a long integer. Yet, the high-level signature of method |foo| expects a pair of integers. Thus persisting the high-level signatures provides an important safety guarantee, namely that data cannot flow from one high-level type to another by way of the representation type.
+The next section will show where bridge methods are still necessary.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -395,20 +286,6 @@ adrt(`IntPairAsDouble`) { // different from IntPairAsLong
 }
 \end{lstlisting-nobreak}
 
-% Following the \inject{} and \bridge{} phases, the |Z| class will be transformed to:
-%
-% \begin{lstlisting-nobreak}
-% class Z(t: `@repr(IntPairAsDouble)` (Int, Int)) extends Y(t) {
-%   def identity(i: `@repr(IntPairAsDouble)` (Int, Int)): `@repr(IntPairAsDouble)` (Int, Int) = i
-%   @bridge override /* method identity in X */
-%   def identity(i: (Int, Int)): (Int, Int) = identity(i)
-%   @bridge override /* method identity in Y */
-%   def identity(i: `@repr(IntPairAsLong)` (Int, Int)): `@repr(IntPairAsLong)` (Int, Int) = identity(i)
-% }
-% \end{lstlisting-nobreak}
-%
-% And following the \coerce{} and \commit{} phases, class |Z| becomes:
-
 The ensuing \bridge{} phase generates two bridge methods, one for each existing signature of the method |identity|:
 
 \begin{lstlisting-nobreak}
@@ -421,9 +298,7 @@ class Z(t: `Double`) extends Y(...) {
 
 %This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden.
 
-In this case, the \bridge{} phase issues a warning that up-casting class |Z| to |Y| is suboptimal, as overriding requires transforming the representation in two steps (\S\ref{sec:ildl:signatures}).
-
-\yannis{I'm not sure I understand the above.}
+Although the resulting object layout is consistent, |@brige| methods use coercions to transform between the representations, making them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. To make the programmer aware, the \bridge{} phase issues warnings whenever two or more different representations need to be bridged, as in this case.
 
 \subsubsection{Generics.}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
@@ -478,86 +353,78 @@ adtr(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-% \subsubsection{Methods and Operators of the Transformed Object}
-
-% The normal approach taken by the LDL transformation is unnecessarily conservative: it boxes the value back and calls the method:
-When handling method calls, the default LDL behavior is very conservative: it encodes the transformed representation back to its high-level type, which exposes the method, and then invokes it. This produces sub-optimal code:
+When handling method calls, the default LDL behavior is very conservative: it encodes the transformed representation back to its high-level type, which exposes the method, and then invokes it:
 
 \begin{lstlisting-nobreak}
 val n: Long = ...
 println(IntPairComplexToLongComplex.`fromRepr`(n).toString)
 \end{lstlisting-nobreak}
 
-% However, it also features extension methods, which are more efficient. However, these methods have to be added manually to the transformation description object to be used by the ADR transformation:
-To optimize such cases, the LDL transformation can use extension
-methods,\yannis{I don't get this. Do you mean LDL already uses
-  extension methods, or that it *could* in theory? I see we even
-  advertise this facility of LDL in section 3. So, how is it an ADR
-  novelty? Should we just say ``we inherit and extend LDL's facility
-  for ...''? Also a sentence (earlier in the paper) defining extension
-  methods will be welcome for the non-Scala-versed.} when they are
-available. For example, assuming the |extension_toString| exists in
-the transformation description object, the example can be transformed
-to:
+Whenever extension methods are available, the LDL transformation can use them to provide a better translation. For example, assuming the |extension_toString| exists in the transformation description object, the example can be transformed to:
 
 \begin{lstlisting-nobreak}
 val n: Long = ...
 println(IntPairComplexToLongComplex.`extension_toString`(n))
 \end{lstlisting-nobreak}
 
-This avoids the costly pair object creation that slows down execution and inflates the heap requirements. In practice, the ADR transformation will look up the |extension_toString| method, and, in case it is not present, will warn the programmer and proceed with decoding the representation type so the dynamically dispatched method can be used.
+We augmented the LDL extension method rewiring mechanism to also work for methods that are added through implicit conversions. This allows the high-level types in |adrt| scopes to have optimized implicit methods, such as the |*| and |%| operator for pairs of integers, that are implemented directly on their long integer encoding.
+%
+%
+%
+%
+% This avoids the costly pair object creation that slows down execution and inflates the heap requirements. In practice, the ADR transformation will look up the |extension_toString| method, and, in case it is not present, will warn the programmer and proceed with decoding the representation type so the dynamically dispatched method can be used.
+%
+% % implicitly added methods + parameters
+% \subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
+%
+% \begin{lstlisting-nobreak}
+% adtr(`IntPairComplexToLongComplex`) {
+%   val n1 = (0, 1)
+%   val n2 = n1 * n1
+% }
+% \end{lstlisting-nobreak}
+%
+% First, they wrap the original value in a new object, which exposes the multiplication operator, and then invoke this method:
+%
+% \begin{lstlisting-nobreak}
+% adtr(IntPairComplexToLongComple) {
+%   val n1: (Int, Int) = (0, 1)
+%   val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
+% }
+% \end{lstlisting-nobreak}
+%
+% Clearly, this is a costly pattern, creating at least the pair and the wrapper object. To optimize it, the ADR transformation looks for an extension method in the transformation description object that corresponds to combining the implicit method and the operator. In practice, the name of the extension method will encode the implicit conversion and the operator, but, for simplicity, let us assume its name is |extension_*|.
+%
+% There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would produce the signature:
+%
+% \begin{lstlisting-nobreak}
+% def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
+% \end{lstlisting-nobreak}
+%
+% However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
+%
+% \begin{lstlisting-nobreak}
+% def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
+% \end{lstlisting-nobreak}
+%
+% Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
+%
+% \begin{lstlisting-nobreak}
+% val n1: Long = IntPairComplexToLongComplex.toRepr((0, 1))
+% val n2: Long = `extension_*(n1, n1)`
+% \end{lstlisting-nobreak}
+%
+% This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
+%
+% % constructors
+% \subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
+%
+% \begin{lstlisting-nobreak}
+% val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
+% val n2: Long = extension_*(n1, n1)
+% \end{lstlisting-nobreak}
 
-% implicitly added methods + parameters
-\subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
-
-\begin{lstlisting-nobreak}
-adtr(`IntPairComplexToLongComplex`) {
-  val n1 = (0, 1)
-  val n2 = n1 * n1
-}
-\end{lstlisting-nobreak}
-
-First, they wrap the original value in a new object, which exposes the multiplication operator, and then invoke this method:
-
-\begin{lstlisting-nobreak}
-adtr(IntPairComplexToLongComple) {
-  val n1: (Int, Int) = (0, 1)
-  val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
-}
-\end{lstlisting-nobreak}
-
-Clearly, this is a costly pattern, creating at least the pair and the wrapper object. To optimize it, the ADR transformation looks for an extension method in the transformation description object that corresponds to combining the implicit method and the operator. In practice, the name of the extension method will encode the implicit conversion and the operator, but, for simplicity, let us assume its name is |extension_*|.
-
-There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would produce the signature:
-
-\begin{lstlisting-nobreak}
-def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
-\end{lstlisting-nobreak}
-
-However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
-
-\begin{lstlisting-nobreak}
-def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
-\end{lstlisting-nobreak}
-
-Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
-
-\begin{lstlisting-nobreak}
-val n1: Long = IntPairComplexToLongComplex.toRepr((0, 1))
-val n2: Long = `extension_*(n1, n1)`
-\end{lstlisting-nobreak}
-
-This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
-
-% constructors
-\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
-
-\begin{lstlisting-nobreak}
-val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
-val n2: Long = extension_*(n1, n1)
-\end{lstlisting-nobreak}
-
-Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
+% Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 
 
