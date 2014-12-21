@@ -1,4 +1,4 @@
-\section{Ad hoc Data Representation (ADR) Transformation}
+\section{Ad hoc Data Representation Transformation}
 \label{sec:ildl}
 
 % DEFINE WHAT WE WANT
@@ -9,7 +9,7 @@ enables custom, programmer-defined alternative representations; and
 second, it allows the transformation to take place in limited scopes,
 ranging from expressions all the way to full class or package
 definitions. In this way, we can support a locally correct
-transformation that may be incorrect for code outside the transformed scope.
+transformation that may be incorrect for code outside the given scope.
 
 % In the next sections we discuss the difficulties of supporting these features and
 % our mechanisms that enable such support.
@@ -56,7 +56,7 @@ Once the transformation description object is defined, our technique relieves th
 
 \begin{compactitem}
 \item the transformation from the high-level type to its representation and the optimal introduction of coercions when interacting with outside code (\S\ref{sec:ildl:ldl});
-\item the ability for separately transformed scopes to communicate via the representation type, a property we call composability and that works across separate source files and compilation runs (\S\ref{sec:ildl:compose});
+\item the ability for separately transformed scopes to communicate via the representation type, even across separate source files and compilation runs (\S\ref{sec:ildl:compose});
 \item the correct handling of the object model and of generics in the presence of the transformation (\S\ref{sec:ildl:generics})
 \item the optimal handling of methods on the optimized representation (\S\ref{sec:ildl:semantics})
 \end{compactitem}
@@ -78,11 +78,117 @@ Importantly, the programmer is responsible for ensuring the correctness of the t
 
 % Specifically, the ADR transformation is mainly targeted at immutable containers with value semantics and without object identity, such as database rows, records, tuples and immutable collections, which do not impose many transformation restrictions. Although these objects can be involved in referential equality checks, this should be nothing more than a fast-path guarding the slow-path that checks structural equality. Contrarily, mutable value are very difficult to transform, as the link to the original object must not be servered, as it may be aliased and updated by outside code. This is why the ADR transformation can be seen to be as correct as its description object.
 
-\vlad{I decided to leave the discussion subsection at the end, as it only makes sense once the reader has understood what the transformation does.}
+% \vlad{I decided to leave the discussion subsection at the end, as it only makes sense once the reader has understood what the transformation does.}
+
+
+
+
+
+
+
+
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Persisting the Data Representation Information}
+\subsection{Data Representation Transformation}
+\label{sec:ildl:ldl}
+
+Unlike existing data representation transformations, like value class inlining and specialization, which have a fixed semantic and occur in sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercions semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. This section will present the composition property stemming from the concurrent nature of ADR transformation scopes.
+
+The ADR transformation relies on a very useful Late Data Layout property: selectivity. This allows values in |adrt| scopes to be annotated for transformation, without affecting the representations outside. Yet, since each |adrt| scope has its own semantics, we had to extend LDL to allow annotations parameterized on the description object. Essentially, this makes annotated types self-sufficient by encoding the entire transformation semantics in the annotation. This, in turn, allows each value to be individually transformed.
+
+% To this end, during the \inject{} phase, the |adrt| markers are removed while the scopes have their values annotated for the LDL transformation. Following the \inject{} phase, our |adrt| scope will be transformed to:
+%
+% \begin{lstlisting-nobreak}
+% def gcd(
+%     n1: `@repr(IntPairComplexToLongComplex)` (Int, Int),
+%     n2: `@repr(IntPairComplexToLongComplex)` (Int, Int)
+%   ): `@repr(IntPairComplexToLongComplex)` (Int, Int) = {
+%
+%     val remainder: `@repr(IntPairComplexToLongComplex)` (Int, Int) = n1 % n2
+%     if (remainder.norm == 0) n2 else gcd(n2, remainder)
+%   }
+% \end{lstlisting-nobreak}
+
+% The representation type is then introduced according to the LDL mechanism, using the instructions from the description object. Instead of following each step of the transformation, it is more interesting
+
+The result is the ability of different (and even nested) |adrt| scopes to correctly pass values, a property we call composition. Let us look at two instances of composition:
+
+\begin{itemize}
+  \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
+  \item |adrt| scopes isolate each high-level type, barring unsound value leaks through the representation type;
+\end{itemize}
+
+\subsubsection{A high-level type can have different representations in different scopes.} This goes according to the scoped nature of the ADR transformation, which allows programmers to safely use the most efficient data representation for each task. Yet, this raises the question of whether values can be safely passed across scopes that use different representations:
+
+\begin{lstlisting-nobreak}
+adrt(IntPairToLong)   { var x: (Int, Int) = (3, 5) }
+adrt(IntPairToDouble) { val y: (Int, Int) = (2, 6); `x = y` }
+\end{lstlisting-nobreak}
+
+At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
+
+The scope begins by being type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
+
+\begin{lstlisting-nobreak}
+var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
+val y: `@repr(IntPairToDouble)` (Int, Int) = (2, 6)
+`x = y`
+\end{lstlisting-nobreak}
+
+The \coerce{} phase then notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, it is correct to use the high-level type as a middle ground:
+
+\begin{lstlisting-nobreak}
+var x: @repr(IntPairToLong) (Int, Int) = `toRepr`(IntPairToLong, (3, 5))
+val y: @repr(IntPairToDouble) (Int, Int) = `toRepr`(IntPairToDouble, (2, 6))
+x = `toRepr`(IntPairToLong, `fromRepr`(IntPairToDouble, y))
+\end{lstlisting-nobreak}
+
+Finally, the \commit{} phase will transform the example to:
+
+\begin{lstlisting-nobreak}
+var x: `Long` = IntPairToLong.toRepr((3, 5))
+val y: `Double` = IntPairToDouble.toRepr((2, 6))
+x = IntPairToLong.toRepr(IntPairToDouble.fromRepr(y)) // Double => Long
+\end{lstlisting-nobreak}
+
+Therefore, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at another scenario:
+
+% \yannis{Isn't this something we get for free from following the IDL analysis? I'm afraid I see no new idea below.} \vlad{I don't claim it as a novel insight, but it's a non-obvious result of building on top of LDL.}
+\subsubsection{Different transformation scopes can be safely nested} in order to optimize multiple high-level types in the same piece of code:
+
+\begin{lstlisting-nobreak}
+adrt(FloatPairAsLong) {
+  adrt(IntPairAsLong) {
+    val x: (Float, Float) = (1f, 0f)
+    var y: (Int, Int) = (0, 1)
+    // y = x
+    // y = 123l
+  }
+}
+\end{lstlisting-nobreak}
+
+Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. A question that may occur, since both the integer and the float pairs are encoded as long integers, is whether values can leak through the representations between the high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different higl-level type, making the transformation unsound.
+
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to transform it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allowed the unsound assignments to take place.
+
+\subsubsection{However, barring programmer access to the representation type may seem limiting.} For example, a performance-consious programmer might want to transform the high-level integer pair into a floating-point pair without actually allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
+
+This is not the only solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a change in the transformation description object. This is the price to pay for an automated and principled transformation.
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Extending Composition across Separate Compilation}
 \label{sec:ildl:signatures}
 
 
@@ -235,19 +341,7 @@ val res: (Int, Int) =
 %paragraphs will show the properties that stem from this decision:
 %composability and safety.
 
-\subsubsection{Composability. }
-Persisting transformation information in signatures allows full composability
-of the transformation:
-%Persisting transformation information in signatures brings three advantages:
-\begin{enumerate}
-  \item a single high-level type can use multiple representations;
-  \item code from different scopes can compose across separate compilations;
-  \item ADR transformations that do not target the same high-level type can be safely nested, regardless of their representation types.
-\end{enumerate}
-
-We illustrate the first of these advantages with an example:
-
-%% The first advantage is that code from a different source file or even from a separate compilation can use the ADR transformation to optimize a call to method |gcd| in a separate compilation:
+We illustrate each of these cases with an example:
 
 %% \begin{lstlisting-nobreak}
 %% `adrt(IntPairComplexToLongComplex)` {
@@ -278,59 +372,6 @@ We illustrate the first of these advantages with an example:
 %Let us now look at the second advantage: allowing a high-level type
 %to use different representations. This can be shown in another
 %example:
-
-\begin{lstlisting-nobreak}
-adrt(IntPairAsLong)   { var x: (Int, Int) = (3, 5) }
-adrt(IntPairAsDouble) { val y: (Int, Int) = (2, 6); x = y }
-\end{lstlisting-nobreak}
-
-At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? The high-level types match, but the representation types do not. The first step is to inline the two |adrt| scopes and \inject{} annotations:
-
-\begin{lstlisting-nobreak}
-var x: `@repr(IntPairAsLong)` (Int, Int) = (3, 5)
-val y: `@repr(IntPairAsDouble)` (Int, Int) = (2, 6)
-x = y
-\end{lstlisting-nobreak}
-
-The \coerce{} phase will observe the mismatching signatures in the last line:
-
-\begin{lstlisting-nobreak}
-var x: @repr(IntPairAsLong) (Int, Int) = `toRepr`(IntPairAsLong, (3, 5))
-val y: @repr(IntPairAsDouble) (Int, Int) = `toRepr`(IntPairAsDouble, (2, 6))
-x = `toRepr`(IntPairAsLong, `fromRepr`(IntPairAsDouble, y))
-\end{lstlisting-nobreak}
-
-What happens is that, in the \coerce{} phase, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This allows \textbf{composing scopes that use the same high-level type even across different representations}. Finally, the \commit{} phase will transform the example to:
-
-\begin{lstlisting-nobreak}
-var x: `Long` = IntPairAsLong.toRepr((3, 5))
-val y: `Double` = IntPairAsDouble.toRepr((2, 6))
-x = IntPairAsLong.toRepr(IntPairAsDouble.fromRepr(y)) // Double => Long
-\end{lstlisting-nobreak}
-
-%% Finally, a last composability question is whether several ADR transformations can be nested. This is indeed the case, as long as they don't target the same high-level type:
-
-%% \begin{lstlisting-nobreak}
-%% adrt(FloatPairAsLong) {
-%%   adrt(IntPairAsLong) {
-%%     ...
-%%   }
-%% }
-%% \end{lstlisting-nobreak}
-
-%% This is another very important property, since it allows \textbf{transformation scope nesting} in a safe way, without running the risk of interactions between high-level types or their representations.
-
-
-%% \yannis{Isn't this something we get for free from following the IDL analysis? I'm afraid I see no new idea below.}
-%% \subsubsection{Safety.} Let us now focus on a safety problem: assuming two high-level types that share the representation type, could data flow across the representation type from one high-level type to another? Of course, this would be incorrect, as it would interpret the data using an incorrect semantic:
-
-%% \begin{lstlisting-nobreak}
-%% adrt(IntPairAsLong) { def foo(p: (Int, Int)) = ... }
-%% adrt(FloatPairAsLong) { foo((1f, 2f)) }
-%% foo(123l)
-%% \end{lstlisting-nobreak}
-
-%% The answer is no: the high-level type-checking will reject both calls to the |foo| method based on the mismatching high-level types: the first call passes a floating-point pair while the second one passes a long integer. Yet, the high-level signature of method |foo| expects a pair of integers. Thus persisting the high-level signatures provides an important safety guarantee, namely that data cannot flow from one high-level type to another by way of the representation type.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
