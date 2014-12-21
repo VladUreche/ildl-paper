@@ -18,7 +18,7 @@ res0: (Int, Int) = (-1, 0)
 % Interface okay, what about the object layout?
 Unlike evolving the interface, no general mechanism in modern
 languages is capable of evolving an object's encapsulated data. The
-data representation is assumed fixed. Compiled code contains hard
+data representation is assumed fixed so the compiled code contains hard
 references to the encapsulated data, encoded according to a convention
 known as the \emph{object layout}. For example, methods encapsulated
 by the generic pair class, such as |swap| and |toString|, rely on the
@@ -32,16 +32,16 @@ completely sidestepping the need to allocate memory and to collect it
 later. Additionally, what if we could also add
 functionality, such as arithmetic operations, to our ad hoc complex
 numbers, all without any overhead? Finally, what parts of this
-transformation can be automated and what parts need domain-specific
-programmer intervention?
+transformation could be automated? %and what parts need domain-specific
+%programmer intervention?
 
 % Object layout transformations in dynamic language vms => slow (due to profiling and recompilation)
 Object layout transformations are common in dynamic language virtual
 machines, such as V8 and Truffle. These virtual machines profile
 values at run-time and make optimistic assumptions about the shape of
-objects. This allows them to automatically optimize the object layout,
-but forces the recompilation of all the code that references the old
-object layout.
+objects. This allows them to automatically optimize the object layout
+in the heap, at the cost of recompiling of all the code that references
+ the old object layout.
 %However, in practice, the effort pays off.
 If later in the execution, the assumptions prove too optimistic, the
 virtual machine needs to revert to the more general (and less
@@ -126,10 +126,11 @@ with automatically computed bridge code that ensures correctness
 relative to overriding and dynamic dispatch and (3) persisting
 the necessary metadata to allow transformed program scopes in
 different source files and compilation runs to communicate using
-the optimized representation. Thus, our approach adheres to
-the principle of separating the reusable, general and provably
-correct mechanism from the programmer-driven policy, which may
-contain errors \cite{lampson-mechanism-policy}.
+the optimized representation, a property we call composition.
+Thus, our approach adheres to the principle of separating the
+reusable, general and provably correct mechanism from the
+programmer-driven policy, which may contain incorrect
+decisions \cite{lampson-mechanism-policy}.
 %(\S\ref{sec:ildl:discussion}).
 
 Our main contributions are:
