@@ -51,7 +51,7 @@ def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
 
 %% \yannis{The ``no virtual machine optimizations'' claim sounds weak. Maybe ``a stock VM''?}
 Unfortunately, as the algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm without any compiler
-%% and virtual machine
+and virtual machine %% \vlad{yes, otherwise aggressive inlining (due to the monomorphic code) and escape analysis reduce the gap to < 50%}
 optimizations, each GCD operation takes around 130
 microseconds (on the same setup as used for our full experiments):
 %%\yannis{on what machine setup?}:
@@ -115,7 +115,7 @@ def gcd(n1: `Long`, n2: `Long`): `Long` = {
 }
 \end{lstlisting-nobreak}
 
-There are many questions one could ask about this naive translation. For example, does the |%| (modulo) operator maintain the semantics of complex numbers when using the implementation for long integers? Or, is |norm| defined for long integers? Unfortunately, the response is negative on both questions. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:semantics}).
+There are many questions one could ask about this naive translation. For example, does the |%| (modulo) operator maintain the semantics of complex numbers when using the implementation for long integers? Or, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:semantics}).
 
 Moreover, we could ask what happens if |gcd| was overriding another method? Would the new signature still override it? The answer is no (\S\ref{sec:ildl:generics}):
 
@@ -144,5 +144,5 @@ gcd((55,2), (17, 13))
 How does the compiler know what encoding/decoding procedures to use to convert the pairs of integers to the long integer representation? Even worse, what if the code is compiled separately, in a different compilation unit (\S\ref{sec:ildl:signatures})?
 
 %%\yannis{``Next section'' is not accurate. This doesn't come until later.}
-%We answer these questions in the next section, which presents the Ad hoc Data 
+%We answer these questions in the next section, which presents the Ad hoc Data
 %Representation Transformation mechanism.
