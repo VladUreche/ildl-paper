@@ -2,14 +2,14 @@
 \label{sec:ildl}
 
 Our Ad hoc Data Representation (ADR) transformation adds two new
-elements to existing data representation transformations: first, it
-enables custom, programmer-defined alternative representations; and
-second, it allows the transformation to take place in limited scopes,
+elements to existing data representation transformations (1) it
+enables custom, programmer-defined alternative representations and
+(2) it allows the transformation to take place in limited scopes,
 ranging from expressions all the way to full class or package
 definitions. In this way, we can support a locally correct
 transformation that may be incorrect for code outside the given scope.
 
-\subsection{Ad hoc Data Representation Transformation Overview}
+\subsection{Overview}
 \label{sec:ildl:user-story}
 
 Section \ref{sec:automating} showed how the ADR transformation is triggered, using the |adrt| marker. The running example is reproduced below for quick
@@ -36,18 +36,18 @@ object IntPairComplexToLongComplex extends TransformationDescription {
 }
 \end{lstlisting-nobreak}
 
-Effectively, the programmer specifies the data representation transformation: the high-level type and its representation, the coercions between them and the extension methods that allow translating operations on the high-level type directly to its representations.
+Effectively, the programmer specifies the data representation transformation: the high-level type, its representation and the coercions between them. The description object optionally includes extension methods, which allow the transformation to replace dynamic dispatch on receivers of the high-level type by static calls that take the receiver as an argument, in the encoded representation.
 
 Once the transformation description object is defined, our technique relieves the programmer from the rest of the refactoring necessary to transform the code:
 
 \begin{compactitem}
 \item the transformation from the high-level type to its representation and the optimal introduction of coercions when interacting with outside code (\S\ref{sec:ildl:ldl});
-\item the ability for separately transformed scopes to communicate via the representation type, even across separate source files and compilation runs (\S\ref{sec:ildl:sepatate-compilation});
+\item the ability for separately transformed scopes to safely communicate via the representation type, even across separate compilation runs (\S\ref{sec:ildl:sepatate-compilation});
 \item the correct handling of the object model and of generics in the presence of the transformation (\S\ref{sec:ildl:generics})
 \item the optimal handling of methods on the optimized representation (\S\ref{sec:ildl:semantics})
 \end{compactitem}
 
-Importantly, the programmer is responsible for ensuring the correctness of the transformation description object and of the scopes under the |adrt| marker. We will further explore this after presenting the transformation (\S\ref{sec:ildl:discussion}).
+Importantly, the programmer is responsible for ensuring the correctness of the transformation description object with regard to the scopes under the |adrt| marker. We will further explore this after presenting the transformation (\S\ref{sec:ildl:discussion}).
 
 
 
@@ -64,11 +64,11 @@ Importantly, the programmer is responsible for ensuring the correctness of the t
 \subsection{Data Representation Transformation}
 \label{sec:ildl:ldl}
 
-Unlike existing data representation transformations, like value class inlining and specialization, which have a fixed semantic and occur in sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercions semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. This section will present the composition property stemming from the concurrent nature of ADR transformation scopes.
+Unlike existing data representation transformations, like value class inlining and specialization, which have a fixed semantic and occur in a sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercion semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. We leverage the type system and the signature persistence facilities to provide correct concurrent scope transformations and to allow scopes to efficiently pass values among themselves, using the representation type, a property we call composibility.
 
-The ADR transformation relies on a very useful Late Data Layout property: selectivity. This allows values in |adrt| scopes to be annotated for transformation, without affecting the representations outside. Yet, since each |adrt| scope has its own semantics, we had to extend LDL to allow annotations parameterized on the description object. Essentially, this makes annotated types self-sufficient by encoding the entire transformation semantics in the annotation. This, in turn, allows each value to be individually transformed.
+The key to the composibility property is shifting the focus from the scope to the individual values within that scope. The LDL selectivity provides us with the ability to annotate each value in the |adrt| scope for transformation, all without affecting the code outside. And, in order to allow each value transformation to occur independently according to the scope semantics, we extended the LDL mechanism to allow annotations parameterized on the transformation description object. Essentially, this makes annotated types self-sufficient, allowing each value transformation to progress independently, assuring optimal value passing and ruling out entire classes of unsoundness.
 
-The result is the ability of different (and even nested) |adrt| scopes to correctly pass values, a property we call composition. Let us look at two instances of composition:
+In this secion we look at two instances of composibility:
 
 \begin{itemize}
   \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
@@ -84,7 +84,7 @@ adrt(IntPairToDouble) { val y: (Int, Int) = (2, 6); `x = y` }
 
 At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
 
-The scope begins by being type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
+The scope is first type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
@@ -113,25 +113,26 @@ Therefore, the value |x| is converted from a double to a pair of integers, which
 \subsubsection{Different transformation scopes can be safely nested} in order to optimize multiple high-level types in the same piece of code:
 
 \begin{lstlisting-nobreak}
-adrt(FloatPairAsLong) {
-  adrt(IntPairAsLong) {
-    val x: (Float, Float) = (1f, 0f)
-    var y: (Int, Int) = (0, 1)
+adrt(`FloatPairAsLong`) {
+  adrt(`IntPairAsLong`) {
+    val x: `(Float, Float)` = (1f, 0f)
+    var y: `(Int, Int)` = (0, 1)
     // y = x
     // y = 123l
   }
 }
 \end{lstlisting-nobreak}
 
-Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. A question that may occur, since both the integer and the float pairs are encoded as long integers, is whether values can leak through the representations between the high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different higl-level type, making the transformation unsound.
+Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, making the transformation unsound.
 
-The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to transform it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allowed the unsound assignments to take place.
-
-\subsubsection{However, barring programmer access to the representation type may seem limiting.} For example, a performance-consious programmer might want to transform the high-level integer pair into a floating-point pair without actually allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
-
-This is not the only solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a change in the transformation description object. This is the price to pay for an automated and principled transformation.
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would open the door to unsound assignments.
 
 
+\subsubsection{However, prohibiting access to the representation type may seem limiting.} For example, a performance-consious programmer might want to transform the high-level integer pair into a floating-point pair without allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
+
+There is a better solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principaled change in the transformation description object. This is the price to pay for a safe and automated representatio transformation.
+
+Although so far we mentioned only values, method parameters also have types, so they can be annotated the same way as values. The next section shows an example where methods are transformed and later called.
 
 
 
@@ -367,64 +368,59 @@ val n: Long = ...
 println(IntPairComplexToLongComplex.`extension_toString`(n))
 \end{lstlisting-nobreak}
 
-We augmented the LDL extension method rewiring mechanism to also work for methods that are added through implicit conversions. This allows the high-level types in |adrt| scopes to have optimized implicit methods, such as the |*| and |%| operator for pairs of integers, that are implemented directly on their long integer encoding.
-%
-%
-%
-%
-% This avoids the costly pair object creation that slows down execution and inflates the heap requirements. In practice, the ADR transformation will look up the |extension_toString| method, and, in case it is not present, will warn the programmer and proceed with decoding the representation type so the dynamically dispatched method can be used.
-%
-% % implicitly added methods + parameters
-% \subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
-%
-% \begin{lstlisting-nobreak}
-% adtr(`IntPairComplexToLongComplex`) {
-%   val n1 = (0, 1)
-%   val n2 = n1 * n1
-% }
-% \end{lstlisting-nobreak}
-%
-% First, they wrap the original value in a new object, which exposes the multiplication operator, and then invoke this method:
-%
-% \begin{lstlisting-nobreak}
-% adtr(IntPairComplexToLongComple) {
-%   val n1: (Int, Int) = (0, 1)
-%   val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
-% }
-% \end{lstlisting-nobreak}
-%
-% Clearly, this is a costly pattern, creating at least the pair and the wrapper object. To optimize it, the ADR transformation looks for an extension method in the transformation description object that corresponds to combining the implicit method and the operator. In practice, the name of the extension method will encode the implicit conversion and the operator, but, for simplicity, let us assume its name is |extension_*|.
-%
-% There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would produce the signature:
-%
-% \begin{lstlisting-nobreak}
-% def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
-% \end{lstlisting-nobreak}
-%
-% However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
-%
-% \begin{lstlisting-nobreak}
-% def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
-% \end{lstlisting-nobreak}
-%
-% Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
-%
-% \begin{lstlisting-nobreak}
-% val n1: Long = IntPairComplexToLongComplex.toRepr((0, 1))
-% val n2: Long = `extension_*(n1, n1)`
-% \end{lstlisting-nobreak}
-%
-% This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
-%
-% % constructors
-% \subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
-%
-% \begin{lstlisting-nobreak}
-% val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
-% val n2: Long = extension_*(n1, n1)
-% \end{lstlisting-nobreak}
+This avoids the costly pair object creation that slows down execution and inflates the heap requirements. In practice, the ADR transformation will look up the |extension_toString| method, and, in case it is not present, will warn the programmer and proceed with decoding the representation type so the dynamically dispatched method can be used.
 
-% Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
+% implicitly added methods + parameters
+\subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
+
+\begin{lstlisting-nobreak}
+adtr(`IntPairComplexToLongComplex`) {
+  val n1 = (0, 1)
+  val n2 = n1 * n1
+}
+\end{lstlisting-nobreak}
+
+First, they wrap the original value in a new object, which exposes the multiplication operator, and then invoke this method:
+
+\begin{lstlisting-nobreak}
+adtr(IntPairComplexToLongComple) {
+  val n1: (Int, Int) = (0, 1)
+  val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
+}
+\end{lstlisting-nobreak}
+
+Clearly, this is a costly pattern, creating at least the pair and the wrapper object. To optimize it, the ADR transformation looks for an extension method in the transformation description object that corresponds to combining the implicit method and the operator. In practice, the name of the extension method will encode the implicit conversion and the operator, but, for simplicity, let us assume its name is |extension_*|.
+
+There are a two restrictions on the |extension_*| method: it is required to take exactly one extra parameter compared to the |*| operator, which acts as the receiver of the extension method call, and the types of its parameters must match the types of the |*| parameters. This would produce the signature:
+
+\begin{lstlisting-nobreak}
+def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
+\end{lstlisting-nobreak}
+
+However, this is clearly inefficient: it requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. To avoid this, we relax the parameter type constraint: |extension_*|'s parameter types need to match the |*| parameter types, modulo the |@repr| annotation:
+
+\begin{lstlisting-nobreak}
+def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
+\end{lstlisting-nobreak}
+
+Replacing this method in the compiled tree, after the \commit{} phase, produces the following code:
+
+\begin{lstlisting-nobreak}
+val n1: Long = IntPairComplexToLongComplex.toRepr((0, 1))
+val n2: Long = `extension_*(n1, n1)`
+\end{lstlisting-nobreak}
+
+This code is much more efficient: the complex multiplication does not require any object allocation at all! Yet, there is still a snag.
+
+% constructors
+\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
+
+\begin{lstlisting-nobreak}
+val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
+val n2: Long = extension_*(n1, n1)
+\end{lstlisting-nobreak}
+
+Notice that the integers are now passed as arguments to the extension |toRepr_ctor| method, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 
 
