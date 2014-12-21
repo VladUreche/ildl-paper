@@ -68,7 +68,7 @@ source code for the program abstract syntax trees (ASTs) after each of
 these phases.
 
 % Inject
-\subsubsection{The \inject{} phase} is responsible for marking each value with its desired representation. In the case of primitive integer unboxing, the annotation is |@unboxed|, and it signals that a value should be stored in the unboxed |int| representation. As an optimization, instead of adding another |@boxed| annotation, values that are not marked are automatically considered boxed. Following the \inject{} phase, the previous example will be transformed to:
+\subsubsection{The \inject{} phase} is responsible for marking each value with its desired representation. In the case of primitive integer unboxing, the annotation is |@unboxed|, and it signals that a value should be stored in the unboxed |int| representation. As an optimization, instead of adding a |@boxed| annotation for the corresponding cases, values that are not marked are automatically considered boxed. Following the \inject{} phase, the previous example will be transformed to:
 
 \begin{lstlisting-nobreak}
 val i: `@unboxed` Int = 1 // Int can be unboxed => add @unboxed annotation
