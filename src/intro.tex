@@ -43,7 +43,7 @@ objects. This allows them to automatically optimize the object layout
 in the heap, at the cost of recompiling of all the code that references
  the old object layout.
 %However, in practice, the effort pays off.
-If later in the execution, the assumptions prove too optimistic, the
+If, later in the execution, the assumptions prove too optimistic, the
 virtual machine needs to revert to the more general (and less
 efficient) object layout, again recompiling all the code that contains
 hard references to the optimized layout. As expected, this comes with
@@ -75,7 +75,7 @@ inheritance and generics.
 % Object layout transformations in statically typed languages => not ad hoc
 Therefore, although transformations in statically typed languages can
 optimize the object layout, they do not meet the ad hoc criterion:
-they cannot be retrofitted later and have a global, all-or-nothing
+they cannot be retrofitted later, and they have a global, all-or-nothing
 nature. For instance, in Scala, the generic pair class is specialized
 but not marked as a value class. As a result, the representation is
 not fully optimized, still requiring a heap object per pair. Even

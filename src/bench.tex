@@ -1,11 +1,26 @@
 \section{Benchmarks}
 \label{sec:benchmarks}
 
-This section describes the benchmarks we ran on transformed programs, to evaluate whether the transformation is worthwhile.
+%This section describes the benchmarks we ran on transformed programs,
+%to evaluate whether the transformation is worthwhile.
 
-We executed all benchmarks on a laptop computer with an Intel |i7-4702HQ| quad-core processor with the frequency fixed at |2.2GHz|. The RAM memory available to the benchmarks was |2GB| of RAM. The benchmarks were ran either by executing the benchmark 1000 times and measuring the total time, for the first benchmark target, or by using the dedicated JHM benchmarking and performance analysis platform \cite{aleksey_shipilev_openjdk:_????} for the second benchmark target. The numbers presented are preliminary, as we plan to re-execute all benchmarks using JMH on a dedicated server machine for the camera-ready version of the paper.
+We next evaluate the benefit of the ADR transformation experimentally.
 
-We developed two Scala compiler plugins based on the ADR transformation principles: the ADR plugin itself and an extension to the miniboxing plugin \cite{miniboxing} that transforms the function representation. We will present the benchmarks for each of these transformations individually.
+\paragraph{Setup.} We executed all benchmarks on an Intel |i7-4702HQ| quad-core processor
+machine with the frequency fixed at |2.2GHz|. The RAM available to the
+benchmarks was |2GB|. The benchmarks were ran either by executing the
+benchmark 1000 times and measuring the total time, for the first
+benchmark target, or by using the dedicated JHM benchmarking and
+performance analysis platform \cite{aleksey_shipilev_openjdk:_????}
+for the second benchmark target. The numbers presented are
+preliminary, as we plan to re-execute all benchmarks using JMH on a
+dedicated server machine for the camera-ready version of the paper.
+
+We developed two Scala compiler plugins based on the ADR
+transformation principles: the ADR plugin itself and an extension to
+the miniboxing plugin \cite{miniboxing} that transforms the function
+representation. We will present the benchmarks for each of these
+transformations individually.
 
 \subsection{Ad hoc Data Representation Transformations}
 \label{sec:benchmarks:ad-hoc}
