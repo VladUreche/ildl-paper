@@ -3,9 +3,9 @@
 
 This section describes the benchmarks we ran on transformed programs, to evaluate whether the transformation is worthwhile.
 
-We executed all benchmarks on a laptop computer with an Intel |i7-4702HQ| quad-core processor with the frequency fixed at |2.2GHz|. The RAM memory available to the benchmarks was |2GB| of RAM. The benchmarks were ran either by executing the benchmark 1000 times and averaging the total time, for the first benchmark target, or by using the dedicated JHM benchmarking and performance analysis platform \cite{aleksey_shipilev_openjdk:_????} for the second benchmark target. We would like our readers to assume the numbers presented are preliminary. We plan to execute all benchmarks using JMH on a dedicated server machine.
+We executed all benchmarks on a laptop computer with an Intel |i7-4702HQ| quad-core processor with the frequency fixed at |2.2GHz|. The RAM memory available to the benchmarks was |2GB| of RAM. The benchmarks were ran either by executing the benchmark 1000 times and measuring the total time, for the first benchmark target, or by using the dedicated JHM benchmarking and performance analysis platform \cite{aleksey_shipilev_openjdk:_????} for the second benchmark target. The numbers presented are preliminary, as we plan to re-execute all benchmarks using JMH on a dedicated server machine for the camera-ready version of the paper.
 
-We developed two transformations for the tests: the ADR plugin itself and an extension to the miniboxing plugin \cite{miniboxing} that transforms the function representation. We will present the benchmarks for each of these transformations individually.
+We developed two Scala compiler plugins based on the ADR transformation principles: the ADR plugin itself and an extension to the miniboxing plugin \cite{miniboxing} that transforms the function representation. We will present the benchmarks for each of these transformations individually.
 
 \subsection{Ad hoc Data Representation Transformations}
 \label{sec:benchmarks:ad-hoc}
@@ -34,16 +34,13 @@ For the Hamming numbers benchmark, we took the algorithm from the Rosetta Code w
 adrt(QueueOfIntAsFunnyQueue) {
   class Hamming extends Iterator[Long] {
     import scala.collection.mutable.Queue
-    val q2 = new Queue[Long]
-    val q3 = new Queue[Long]
-    val q5 = new Queue[Long]
-    def enqueue(n: Long) =
+    val q2 = new Queue[Long]; val q3 = new Queue[Long]; val q5 = new Queue[Long]
+    def enqueue(n: Long) = {
       q2 enqueue n * 2; q3 enqueue n * 3; q5 enqueue n * 5
+    }
     def next = {
       val n = q2.head min q3.head min q5.head
-      if (q2.head == n) q2.dequeue
-      if (q3.head == n) q3.dequeue
-      if (q5.head == n) q5.dequeue
+      if (q2.head == n) q2.dequeue; if (q3.head == n) q3.dequeue; if (q5.head == n) q5.dequeue
       enqueue(n); n
     }
     def hasNext = true
@@ -52,9 +49,7 @@ adrt(QueueOfIntAsFunnyQueue) {
 }
 \end{lstlisting-nobreak}
 
-Then, just to prove the point, we used the ADR transformation to replace the mutable |Queue[Long]| by a very simple circular buffer implemented using an array and two indices. The transformation is clearly incorrect in the general case, as mutable containers should not be duplicated and, furthermore, in our very simplified implementation, we throw an exception if the buffer overflows. Yet, the very aggressive transformation makes the program 4x faster.
-
-We tested the programs in two scenarios: unsing the
+Then, just to prove the point, we used the ADR transformation to replace the mutable |Queue[Long]| by a very simple circular buffer implemented using an array and two indices. The transformation is clearly incorrect in the general case, since converting mutable containers breaks aliasing and, furthermore, since in our very naive implementation, we throw an exception if the buffer overflows. Yet, the aggressive assumptions about the code, backed up by exceptions that prevent incorrect behavior from passing unnoticed allow us to improve the performance by a factor of 4x.
 
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
@@ -67,7 +62,7 @@ We tested the programs in two scenarios: unsing the
     Gaussian GCD, interpreter &                      127 &                       32 &                   3.9x \\
     Gaussian GCD, with JIT    &                       39 &                       22 &                   1.7x \\ \hline
   \end{tabularx}
-  \caption{Running time for the benchmarks, in $\mu$seconds}
+  \caption{Running time for the transformation benchmarks, in $\mu$seconds.}
   \label{table:adrt}
   \vspace{-10mm}
 \end{table}
@@ -90,134 +85,45 @@ We tested the programs in two scenarios: unsing the
 % }
 % \end{lstlisting-nobreak}
 
+The results in Table \ref{table:adrt} show the ADR transformation is both useful in practice and can speed up programs significantly.
+
 \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
 
 % subset of the adrt, missing frontend features -- value annotation and signature persistance are there.
 % motivation: miniboxing specialization + function encoding
-
+A second Scala compiler plugin we implemented formed the basis of the ADR transformation idea. Although it hardcodes the transformation, it is scope-based, it persists annotations in the signatures and introduces bridge methods to maintain the object model. The motivation for this plugin is transforming the anonymous functions emitted by the Scala compiler in order to optimize their invocation from miniboxing-specialized code. We will briefly explain miniboxing and the Scala anonymous functions.
 
 % miniboxing transformation - show def apply(...) = ...
-
+The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to be used with unboxed primitive types. But, unlike the current specialization transformation in Scala \cite{iuli-thesis}, which duplicates and adapts the generic code for every primitive type, the miniboxing transformation only duplicates the code once, and uses a long integer to encode all primitive types. This allows it to scale much better than specialization \cite{miniboxing-linkedlist} while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the early specialization scheme, which is not compatible to miniboxing.
 
 % object oriented function representation
+The Scala compiler offers first-class functions in the language. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the compiler has to transform them to anonymous classes extending a functional interface. The following example shows the desugaring for function $x => x + 1$:
 
+\begin{lstlisting-nobreak}
+class $anon extends Function1[Int, Int] {
+  def apply(x: Int): Int = x + 1
+}
+new $anon()
+\end{lstlisting-nobreak}
 
 % not transformed according to miniboxing. What we'd like to have is ...
-
+The |Function1| trait is specialized using the existing transformation in the Scala compiler. This means that the function will expose more versions of the |apply| method, including one which accepts an unboxed integer and returns an unboxed integer. However, it will not expose a version that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown of boxing or define thir own |MiniboxedFunction1| class, marked for miniboxing transformation, and perform all desugaring by hand. Neither is a good solution.
 
 % retrofitting the function representation - after the fact, as parts of the
-
+What we would like to have is a way to transform the references to |Fucntion1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. Instead of having to box to call a method, the miniboxed code should be able to invoke it directly. Modulo the hardcoded semantics, the transformation is an ah-hoc, scope-based representation transformation. And, indeed, this was the first transformation we implemented, before working on the programmer-driven ADR transformation plugin.
 
 % the benchmark: scala streams, based on ...
+\subsubsection{The benchmark} we used for the function representation transformation is based on a stream library\footnote{Available at \url{https://github.com/biboudis/scala-streams}.} described in \cite{biboudis_clash_2014}. The main design choice is to introduce lazy, continuation-based stream transformations, inspired by Nessos Streams \cite{nessos_streams} and the newly added Java 8 streams. Being continuation-based, each stream combinator provides a function that is registered in the stream. These functions are stacked together to form a transformation pipeline. When the consumer wants to read a value, it starts from the original stream source, which is usually an array or another collection, and executes all the stacked functions one after another. For example:
 
+\begin{lstlisting-nobreak}
+val x = Stream(numbers).map(_*2).fold(0)(_+_)
+val y = Stream(lines).flatMap(line => Stream(line split "\\W+")).toArray
+\end{lstlisting-nobreak}
 
-% measure 5 different benchmarks ...
+On the implementation side, the |Stream| class has a single constructor, which takes a loop-function as parameter. Instead of the expected type |T => Unit|, the type of the loop function is |(T => Boolean) => Unit|. This allows it to indicate whether the next consumer should see the value or not, in turn enabling combinators such as |filter|, |take| and |takeWhile|:
 
-
-% results ...
-
-
-% conclusion ...
-
-\paragraph{Methodology: } In this work, we use 4 main microbenchmarks inspired
-by~\cite{biboudis_clash_2014}. We focus our efforts on measuring iteration
-throughput for a library that implements push-style streams in scala called
-\emph{scala-streams}~\footnote{https://github.com/biboudis/scala-streams .}. In
-all of our benchmarks we produce scalar values as the result of a terminal
-operation. We measure the performance of:
-
-\begin{itemize}
- \item \textbf{sum} iteration speed with no lambdas, just a single iteration.
- \item \textbf{sumOfSquares} a small pipeline with one map operation.
- \item \textbf{sumOfSquaresEven} a bigger pipeline with a filter and map chain..
- \item \textbf{cart} a nested pipeline with a \verb|flatMap| and an inner
-   operation, again with a \verb|flatMap| (capturing a variable), to encode a
-   Cartesian product.
-\end{itemize}
-
-For micro-benchmarks we use the Java Microbenchmark Harness
-(JMH)~\cite{aleksey_shipilev_openjdk:_????} tool: a benchmarking tool for
-JVM-based languages that is part of the OpenJDK.
-
-\paragraph{Input:} All tests were run with the same input set. For the
-\textbf{sum}, \textbf{sumOfSquares} and \textbf{sumOfSquaresEven} we used an
-array of $N = 10,000,000$ long integers, produced by $N$ integers with a
-\verb|Array.tabulate| function. The \textbf{cart} test iterates over two
-arrays. An outer one of $1,000,000$ long integers and an inner one of $10$.
-
-The scala-streams library introduces lazy streams as a potential alternative to
-scala-views and its design is inspired by Nessos Streams~\cite{nessos_streams},
-a library that implements push-style streams for F\# and C\#. Nessos Streams
-implemented streams according to the Java 8 stream library design. In Java 8,
-streams are fundamentaly continuation-based instead of iterator-based. The main
-difference between the two methodologies is that although both are lazy, the
-former is lazy for producers and the latter is lazy for consumers (who can
-control the iteration through the methods of the iterator). A term often used to
-describe such an internal iteration scheme is ``\emph{Push
-  iteration}''~\cite{obsidian,defuncpush}.  The consumer of a Push stream will
-provide a consumer function of type \verb|T => Boolean| that is instantiated
-into the iteration block of the stream. The loop internally is controlled by the
-return value of this function and also by the existance of more elements to be
-processed. The dual of a Push stream is a~\emph{Pull stream}. Every combinator
-of a Pull stream will build an iterator that will propagate some effect (e.g.,
-apply a function \verb|f| if this combinator is \verb|map|) to each next
-element. C\#, F\# and Scala implement deferred execution over pipelines as Pull
-streams. The performance implications of each different design decision in
-stream libraries was assessed in Biboudis et al.~\cite{biboudis_clash_2014}.
-
-\begin{lstlisting}[language=Scala, caption=Example uses of scala-streams.]
-var y = Stream(xs).filter(_*2==0).toArray()
-var y = Stream(xs).map(_*2).fold(0)(_+_)
-var y = Stream(lines).flatMap(line => Stream(line split "\\W+")).toArray
-\end{lstlisting}
-
-The implementation of scala-streams relies on deep nesting of loop-functions in
-continuation-passing style. This makes scala-streams a very good candidate to
-present the performance benefits of the automated data representation
-transformation of function types for pipelines that perform number crunching.
-
-\paragraph{Description of the library. }
-A Push stream type has a single constructor. The \verb|Stream| constructor takes
-as a parameter a loop-function which takes as a parameter another function with
-type \verb|T => bool|.
-
-In words, a stream holds a function that represents the entire iteration over
-elements of an array, with another function applied to each one.  The
-\verb|bool| return value serves to indicate whether the next consumer down the
-operator chain should be called on the element or not.
-
-The iteration itself is encoded as a loop (hereafter: the \verb|iterf|
-function). The \verb|Stream| class constructs such a stream with the initial
-looping function passed as the \verb|iterf| function. Note the correspondence
-with the Java iteration scheme. Much like the Java method \verb|Stream.of|, the
-scala-streams method apply yields a consumer that contains a predefined
-iteration block (\verb|iterf|) and returns a new stream of that function. In
-Listing~\ref{lst:operators} we present the construction of a stream and two
-operators, an intermediate \verb|map| and a terminal \verb|foldLeft|. \verb|map|
-takes as a parameter the mapping function and returns a new stream that has
-updated the looping function (the consumer of the stream) by first applying
-\verb|f| before passing the value to the next transformation function.
-\aggelos{TODO2: I can produce figures but I use LibreOffice for my charts and
-  all figures should be of the same style: my results are here:
-  https://github.com/VladUreche/ildl-paper/blob/master/scala-streams-results.ods}
-
-\begin{lstlisting-nobreak}[language=scala, caption=Creation of a stream \& examples of
-  operators., label=lst:operators]
-object Stream {
-  @inline def apply[@miniboxed T: ClassTag](xs: Array[T]) = {
-    val gen = (iterf: T => Boolean) => {
-      var counter = 0
-      var cont = true
-      val size = xs.length
-      while (counter < size && cont) {
-        cont = iterf(xs(counter))
-        counter += 1
-      }
-    }
-  }
-  new Stream(gen)
-}
+\begin{lstlisting-nobreak}
 final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) {
   def map[@miniboxed R: ClassTag](f: T => R): Stream[R] =
     new Stream(iterf => streamf(value => iterf(f(value))))
@@ -232,24 +138,36 @@ final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) 
   }
 }
 \end{lstlisting-nobreak}
-\begin{figure}
-  \centering
-%  \includegraphics[width=.95\linewidth]{scala-streams.pdf}
-  \caption{Microbenchmark of scala-streams. Y-axis in milliseconds / iteration (average of 10).}
-  \label{fig:stream_benchmarks}
-\end{figure}
-\paragraph{Discussion: }  It is of high importance to provide an implementation
-that works well under both reference types and primitives and ildl-plugin has
-proven highly beneficial in scala-streams. Although scala-streams seem to
-outperform Scala views, by using the \verb|@specialized| annotation we get
-\aggelos{todo}x speedup and by using the ildl-plugin we get \aggelos{todo}x
-speedup. In Figure~\ref{fig:stream_benchmarks}, we present the execution times
-of our microbenchmarks. By running our experiments with the \verb|-perf perfasm|
-flag of JMH, we are able to see that no internal boxing occurs. Instead, the
-mapping function \verb|f| has been bridged with functions that use primitive
-types as parameters and return types.
 
-\aggelos{TODO3: Should we explain more the output of "-Xprint:minibox-commit"?: https://gist.github.com/biboudis/00b22abea986e496f060}
+% measure 5 different benchmarks ...
+The implementation of scala-streams relies on deep nesting of loop-functions in continuation-passing style. This makes it a very good candidate to benchmark the benefits of transforming the function representation. To this end, we measure four operations:
 
-\aggelos{TODO4: Should we examine closely sumOfSquares JMH trace: no boxing occured!: https://gist.github.com/biboudis/1684edf24bb646450f3d}
+\begin{compactitem}
+ \item sum -- single iteration with no lambdas;
+ \item sumOfSquares -- a small pipeline with one map operation;
+ \item sumOfSquaresEven -- a bigger pipeline with a filter and map chain;
+ \item cart -- a complex nested pipeline using |flatMap| to encode Cartesian product.
+\end{compactitem}
+
+The input for the \textem{sum}, \textem{sumOfSquares} and \textem{sumOfSquaresEven} benchmarks is an array of $N = 10,000,000$ long integers. The \textem{cart} benchmark iterates over two arrays: An outer one of $1,000,000$ long integers and an inner one of $10$.
+
+\begin{table}[t]
+  \begin{tabularx}{\textwidth}{|g *{3}{|Y}|} \hline
+    \rowcolor{Gray}
+    \textbf{Benchmark}        &  \textbf{Generic}  & \textbf{Miniboxed} & \textbf{Miniboxed} \\
+    \rowcolor{Gray}
+                              &                    & without function support& with function support \\ \hline
+    sum              &              100.6 &              355.9 &             12.0 \\
+    sumOfSquares     &              188.3 &              450.9 &             13.0 \\
+    sumOfSquaresEven &              130.8 &              300.4 &             52.2 \\
+    cart             &              220.6 &              560.2 &             55.3 \\ \hline
+  \end{tabularx}
+  \caption{Running time for the streams benchmarks, in milliseconds.}
+  \label{table:streams}
+  \vspace{-10mm}
+\end{table}
+
+% results ...
+The results in Table \ref{table:streams} show the impact of the function transformation, which is at the heart of the streams library performance. We can see that using the miniboxing transformation for the |Stream| class without the function transformation degrades the performance by factors between 2.3 and 3.5x. Yet, when the miniboxing transformation is complemented by our function representation transformation, the performance increases compared to the generic case by factors between between 2.5x and 14.5x. This improves our confidence that
+
 
