@@ -18,16 +18,16 @@ res0: (Int, Int) = (-1, 0)
 % Interface okay, what about the object layout?
 Unlike evolving the interface, no general mechanism in modern
 languages is capable of evolving an object's encapsulated data. The
-data representation is assumed fixed so the compiled code contains hard
-references to the encapsulated data, encoded according to a convention
-known as the \emph{object layout}. For example, methods encapsulated
+encapsulated data is assumed to be fixed, allowing the compiled
+code to contain hard references to data, encoded according to a convention known as the
+\emph{object layout}. For example, methods encapsulated
 by the generic pair class, such as |swap| and |toString|, rely on the
 existence of two generic fields, erased to |Object|. This leads to
 an inefficient storage in our case, as the integers need to be boxed, producing as many as
 3 heap objects for each ``complex number'': the two boxed integers and
 the pair container. What if, for a part of  our program, instead of the pair, we
 concatenated the two 32-bit integers into a 64-bit long integer, that
-would represent the ``complex number''? We could pass it by value,
+would represent the ``complex number''? We could pass complex numbers by value,
 completely sidestepping the need to allocate memory and to collect it
 later. Additionally, what if we could also add
 functionality, such as arithmetic operations, to our ad hoc complex
@@ -48,8 +48,8 @@ virtual machine needs to revert to the more general (and less
 efficient) object layout, again recompiling all the code that contains
 hard references to the optimized layout. As expected, this comes with
 important overheads. Thus, runtime system decisions to change the
-low-level object layout are both global, affecting all code that
-assumes a certain layout, and expensive, due to recompilation.
+low-level object layout are both expensive, due to recompilation and
+have a global nature, affecting all code that assumes a certain layout.
 
 %%\yannis{I don't think it's accurate to put the slowness down to that.}
 %This makes dynamic languages several times slower than
@@ -82,10 +82,11 @@ not fully optimized, still requiring a heap object per pair. Even
 worse, specialization and value class inlining are mutually exclusive,
 making it impossible to optimally represent our ``complex numbers''
 as values even if we had complete control over the Scala library.
+Furthermore, a change of data representation may only be applicable for
+specific parts of the client code.
 
 % secret ingredient => the domain-specific information provided by the programmer
-Furthermore, a change of data representation may only be applicable in
-specific client code. In our ``complex numbers'' abstraction, we only
+In our ``complex numbers'' abstraction, we only
 use a fraction of the flexibility provided by the library tuples, and
 yet we have to give up all the code optimality. Even worse, for our
 limited domain and scope, we are aware of a better representation, but
@@ -93,7 +94,7 @@ the only solution is to transform the code by hand, essentially having
 to choose between an obfuscated or a slow version of the code. What is
 missing is a largely automated and safe transformation that allows us
 to use domain-specific knowledge in order to mark a scope where the
-``complex numbers'' use an alternative object layout, effectively
+``complex numbers'' can use an alternative object layout, effectively
 specializing that part of our program.
 
 % Coincidentally, this is what we're proposing in this paper...
@@ -141,7 +142,7 @@ Our main contributions are:
   \item Presenting the extensions that allow global data
     representation transformations (\S\ref{sec:drt}) to be used as
     ad hoc programmer-driven transformations (\S\ref{sec:ildl});
-  \item Benchmarking two Scala compiler plugins based on our solution
+  \item Benchmarking two Scala compiler plugins based on our approach
     and showing they can speed up user programs by factors between 2
     to 14x (\S\ref{sec:benchmarks}).
 \end{compactitem}
