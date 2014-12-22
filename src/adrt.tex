@@ -96,7 +96,7 @@ adrt(IntPairToDouble) { val y: (Int, Int) = (2, 6); `x = y` }
 
 At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
 
-The scope is first type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
+The scope is first type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the parameterized |@repr| annotation:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
@@ -328,7 +328,7 @@ adrt(IntPairAsLong) {
 In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the container only applies to the immutable list, and not to other generic classes that may be encountered in the signature.
 
 % Furthermore, there is an entire class of mutable containers which cannot be transformed
-Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the cointainer. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. We will further discuss mutable containers in \S\ref{sec:ildl:discussion}.
+Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. We will further discuss mutable containers in \S\ref{sec:ildl:discussion}.
 
 % We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegan and general solution.
 The approach we follow in the ADR transformation is to
