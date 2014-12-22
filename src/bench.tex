@@ -17,8 +17,7 @@ We tested the |adrt| Scala compiler plugin (\S\ref{sec:impl}) using two differen
 \item the algorithm for computing the first 2000 Hamming numbers.
 \end{compactitem}
 
-For the Gaussian integer benchmark, we replaced the pair-based Gaussian integer representation by a long integer. Furthermore, we encoded all the operations, such as |+|, |-|, |/|, |%|
-and others as extension methods:
+For the Gaussian integer benchmark, we replaced the pair-based Gaussian integer representation by a long integer. Furthermore, we encoded all the operations, such as |+|, |-|, |/|, |%| and others as extension methods:
 
 \begin{lstlisting-nobreak}
 adrt(IntPairComplexToLongComplex) {
@@ -29,7 +28,7 @@ adrt(IntPairComplexToLongComplex) {
 }
 \end{lstlisting-nobreak}
 
-For the Hamming numbers benchmark, we took the code from the Rosetta Code repository\footnote{Available at: \url{http://rosettacode.org/wiki/Hamming_numbers#Scala}.} and transformed all reference to |BigInt| by |Long|:
+For the Hamming numbers benchmark, we took the algorithm from the Rosetta Code website\footnote{Available at: \url{http://rosettacode.org/wiki/Hamming_numbers#Scala}.} and manually replaced all references to |BigInt| by |Long|:
 
 \begin{lstlisting-nobreak}
 adrt(QueueOfIntAsFunnyQueue) {
@@ -53,7 +52,7 @@ adrt(QueueOfIntAsFunnyQueue) {
 }
 \end{lstlisting-nobreak}
 
-Then, just to prove the point, we used the ADR transformation to replace the mutable |Queue[Long]| by a very simple circular buffer implemented using an array and two indices. The transformation is clearly incorrect in the general case, as mutable containers should not be duplicated and, furthermore, in our very simplified implementation, we throw an exception if the buffer overflows. Yet, the many levels of optimization make the transformed program 4x faster.
+Then, just to prove the point, we used the ADR transformation to replace the mutable |Queue[Long]| by a very simple circular buffer implemented using an array and two indices. The transformation is clearly incorrect in the general case, as mutable containers should not be duplicated and, furthermore, in our very simplified implementation, we throw an exception if the buffer overflows. Yet, the very aggressive transformation makes the program 4x faster.
 
 We tested the programs in two scenarios: unsing the
 
@@ -91,12 +90,35 @@ We tested the programs in two scenarios: unsing the
 % }
 % \end{lstlisting-nobreak}
 
-This is an outrageous transformation, since we do not protect against buffer overflows and we transform a mutable container. Yet, since the queue does not escape, it is a valid transformation that brings 5x speed improvements on average.
-
- for the general case, but is proves the point that, for our given transformation, it works perfectly.
-
 \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
+
+% subset of the adrt, missing frontend features -- value annotation and signature persistance are there.
+% motivation: miniboxing specialization + function encoding
+
+
+% miniboxing transformation - show def apply(...) = ...
+
+
+% object oriented function representation
+
+
+% not transformed according to miniboxing. What we'd like to have is ...
+
+
+% retrofitting the function representation - after the fact, as parts of the
+
+
+% the benchmark: scala streams, based on ...
+
+
+% measure 5 different benchmarks ...
+
+
+% results ...
+
+
+% conclusion ...
 
 \paragraph{Methodology: } In this work, we use 4 main microbenchmarks inspired
 by~\cite{biboudis_clash_2014}. We focus our efforts on measuring iteration
