@@ -1,7 +1,7 @@
 \section{Data Representation Transformations}
 \label{sec:drt}
 
-As necessary background for our approach, we review data representation transformations in general and, in particular, the Late Data Layout (LDL) transformation mechanism, which we later extend to our ad hoc data representation transformation (\S\ref{sec:ildl}). The LDL transformation is neither programmer-driven, since the data representation has to be known a priori, nor applicable to limited scopes inside a program.
+As necessary background for our approach, we review data representation transformations in general and, in particular, the Late Data Layout (LDL) transformation mechanism, which we later extend to our ad hoc data representation transformation (\S\ref{sec:ildl}). The LDL transformation is neither programmer-driven, since the data representation has to be known a priori, nor directly applicable to limited scopes inside a program.
 
 
 % DRT - when the data has more than one representation - generally, the representation can be either more flexible or more efficient
@@ -17,7 +17,7 @@ type for each representation, as Java does, or fully hide the difference and pre
 
 % DRTs- two steps: decide on the representation of each value and introduce coercions
 % Choosing the representation -- simple, but mind the generics -- for our case, we need to select the values
-Exposing a single high-level type in the language is more popular among programmers for its simplicity, but it puts more burden on the compiler, which has to do two additional steps: first, it needs to choose the data representation of each value; and second, it needs to introduce coercions that switch between representations where necessary. For example, since only boxed integers can instantiate generics, any unboxed integer going into a generic container, such as a list, needs to be converted to the boxed representation. This work is done in the compiler pipeline, in so-called data representation transformations.
+Exposing a single high-level type in the language is more popular among programmers for its simplicity, but it puts more burden on the compiler, which has to do two additional steps: first, it needs to choose the data representation of each value; and second, it needs to introduce coercions that switch between representations where necessary. For example, since only boxed integers can instantiate generics, any unboxed integer going into a generic container, such as a list, needs to be \textem{coerced} to the boxed representation. This work is done in the compiler pipeline, in so-called data representation transformations.
 
 % Introducing LDL
 The Late Data Layout mechanism, presented next, is a powerful data
@@ -107,10 +107,10 @@ It is clear that the two definitions will always produce the same
 result. Still, the first one is markedly better: it does not execute
 any coercions, compared to second definition, which executes 2
 coercions regardless of the value of |c|. These subtle
-sub-optimalities can slow down program execution, increase heap
-footprint and bytecode size. This is why the \coerce{} phase needs
+sub-optimalities can slow down program execution, increase the heap
+footprint and the bytecode size. This is why the \coerce{} phase needs
 to be optimal. The LDL paper \cite{ldl} makes the following
-(intuition-based but not proven) claim: in any given terminating
+(intuition-based but not proven) claim: ``in any given terminating
 execution trace through the transformed program, the number of
 coercions executed is minimal,
 %modulo
@@ -119,7 +119,7 @@ coercions executed is minimal,
 %% way to express it}
 for given sets of annotations introduced by
 the \inject{} phase and transformations performed in the \commit{}
-phase. What this means for us is that, given a set of annotations,
+phase''. What this means for us is that, given a set of annotations,
 we are guaranteed that the \coerce{} phase will introduce the minimum
 overhead.
 
@@ -158,7 +158,7 @@ val a: @unboxed Int = 1
 println(`box`(a).toString)
 \end{lstlisting-nobreak}
 
-To improve performance, the LDL mechanism also supports extension methods. For example, if the |extension_toString| method is available for the unboxed |int| representation, there is no need to convert it to the boxed representation just to call |toString| on it. Instead, the call takes place without a representation conversion:
+To improve performance, the LDL mechanism also supports extension methods. For example, if the static |extension_toString| method is available for the unboxed |int| representation, there is no need to convert it to the boxed representation just to call |toString| on it. Instead, the call takes place without a representation conversion:
 
 \begin{lstlisting-nobreak}
 val a: @unboxed Int = 1
