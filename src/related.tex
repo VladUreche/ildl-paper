@@ -69,3 +69,8 @@ a transformed method or read a transformed value. Instead, the transformation
 scope is closed and nothing is assumed to be part of the interface.
 Hopefully, this will be improved by techniques such as the Yin-Yang
 staging front-end \cite{vojin-yy}, based on Scala macros \cite{eugene-macros}.
+Another type-directed transformation in the Scala compiler is the
+pickling framework \cite{heather-pickers}, also based on macros.
+Instead of transforming the data representation in-place, pickler combinators
+create serialization code that allows can efficiently convert an object to a wide
+range of formats.
