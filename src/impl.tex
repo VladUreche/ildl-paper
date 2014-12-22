@@ -4,7 +4,7 @@
 %   \item implementation - lexical scope transformation
 % \end{itemize}
 
-% Two implementations in Scala, as a compiler plugins, starting from the LDL compiler plugins alreasdy available on the net. The rest will describe the important changes
+% Two implementations in Scala, as a compiler plugins, starting from the LDL compiler plugins already available on the net. The rest will describe the important changes
 We implemented the ADR transformation as a Scala compiler plugin, by
 extending the open-source multi-stage programming transformation
 provided with the Lata Data Layout \cite{ldl}
@@ -77,10 +77,10 @@ object IntPairToLong extends TransformationDescription {
 \end{lstlisting-nobreak}
 
 This mechanism allows programmers to both define and use the transformation description objects in the same compilation run. Considering the difficult nature of bootstrapping transformations, we are  content with the current solution.
-% - transformation description object  => depedency of the code => change it => recompile!
+% - transformation description object  => dependency of the code => change it => recompile!
 Another advantage we get for free, thanks to referencing the transformation description object in the type annotation, is the explicit dependency between all transformed values and their description objects. This allows the Scala incremental compiler to automatically recompile all scopes when the description object in their |adrt| marker has changed.
 
-% - bridge - warinings
+% - bridge - warnings
 % - coerce - the main work was around using the extension methods and providing a good solution for them
 % - commit -- very simple
 The LDL phases underwent the following transformations:

@@ -311,7 +311,7 @@ class Z(t: `Double`) extends Y(...) {
 
 %This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden.
 
-Although the resulting object layout is consistent, |@brige| methods use coercions to transform between the representations, making them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. To make the programmer aware, the \bridge{} phase issues warnings whenever two or more different representations need to be bridged.
+Although the resulting object layout is consistent, |@bridge| methods use coercions to transform between the representations, making them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. To make the programmer aware, the \bridge{} phase issues warnings whenever two or more different representations need to be bridged.
 
 \subsubsection{Generics.}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
@@ -330,7 +330,7 @@ In the specific case of the Scala immutable list, it would be possible to conver
 % Furthermore, there is an entire class of mutable containers which cannot be transformed
 Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. We will further discuss mutable containers in \S\ref{sec:ildl:discussion}.
 
-% We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegan and general solution.
+% We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegant and general solution.
 The approach we follow in the ADR transformation is to
 preserve the high-level type inside generics.\footnote{An interesting
   future direction would be to allow the transformation description
