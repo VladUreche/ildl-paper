@@ -1,6 +1,7 @@
 \section{Benchmarks}
 \label{sec:benchmarks}
 
+<<<<<<< HEAD
 %This section describes the benchmarks we ran on transformed programs,
 %to evaluate whether the transformation is worthwhile.
 
@@ -10,7 +11,7 @@ We next evaluate the benefit of the ADR transformation experimentally.
 machine with the frequency fixed at |2.2GHz|. The RAM available to the
 benchmarks was |2GB|. The benchmarks were ran either by executing the
 benchmark 1000 times and measuring the total time, for the first
-benchmark target, or by using the dedicated JHM benchmarking and
+benchmark target, or by using the dedicated JMH benchmarking and
 performance analysis platform \cite{aleksey_shipilev_openjdk:_????}
 for the second benchmark target. The numbers presented are
 preliminary, as we plan to re-execute all benchmarks using JMH on a
@@ -138,7 +139,7 @@ The |Function1| trait is specialized using the early scheme in the Scala compile
 What we would like to have is a way to transform the references to |Fucntion1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is the miniboxed code needs to interoperate with library-defined code out there, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the function representation transformation!
 
 % the benchmark: scala streams, based on ...
-\subsubsection{The benchmark} we used for the function representation transformation is based on a stream library\footnote{Available at \url{https://github.com/biboudis/scala-streams}.} described in \cite{biboudis_clash_2014}. The main design choice is to introduce lazy, continuation-based stream transformations, inspired by Nessos Streams \cite{nessos_streams} and the newly added Java 8 streams. Being continuation-based, each stream combinator provides a function that is registered in the stream. These functions are stacked together to form a transformation pipeline. When the consumer wants to read a value, it starts from the original stream source, which is usually an array or another collection, and executes all the stacked functions one after another. For example:
+\subsubsection{The benchmark} we used for the function representation transformation is based on a stream library\footnote{Available at \url{https://github.com/biboudis/scala-streams} .} described in \cite{biboudis_clash_2014}. The main design choice is to introduce lazy, continuation-based stream transformations, inspired by Nessos Streams \cite{nessos_streams} and the newly added Java 8 streams. Being continuation-based, each stream combinator provides a function that is registered in the stream. These functions are stacked together to form a transformation pipeline. When the consumer wants to read a value, it starts from the original stream source, which is usually an array or another collection, and executes all the stacked functions one after another. For example:
 
 \begin{lstlisting-nobreak}
 val x = Stream(numbers).map(_*2).fold(0)(_+_)
