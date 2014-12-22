@@ -124,7 +124,7 @@ x = IntPairToLong.toRepr(IntPairToDouble.fromRepr(y)) // Double => Long
 
 Therefore, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at the second scenario.
 
-\subsubsection{Different transformation scopes can be safely nested} in order to optimize multiple high-level types in the same piece of code:
+\subsubsection{Different transformation scopes can be safely nested} while the high-level types are correctly isolated:
 
 \begin{lstlisting-nobreak}
 adrt(`FloatPairAsLong`) {
@@ -139,7 +139,7 @@ adrt(`FloatPairAsLong`) {
 
 Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, making the transformation unsound.
 
-The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer that the types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would open the door to unsound assignments.
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer that the types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allow such unsound assignments.
 
 
 \subsubsection{Prohibiting access to the representation type inside the transformation scope is limiting.} For example, a performance-conscious programmer might want to transform the high-level integer pair into a floating-point pair without allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
