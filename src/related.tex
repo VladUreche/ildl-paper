@@ -25,7 +25,9 @@ representation transformations and receive limited programmer input
 (e.g., a class annotation).
 
 Virtual machine optimizations often also manage to produce efficient
-low-level representations. Modern VMs, such as
+low-level representations through tracing \cite{tracemonkey} or
+inlining and escape analysis \cite{escape-analysis-first-paper,
+stadler-escape-analysis}. Furthermore, modern VMs, such as V8,
 Truffle~\cite{Wurthinger:2013:OVR:2509578.2509581} and
 PyPy~\cite{PyPyTracing} attempt specialization and inference of
 optimized layouts. However, the ability to perform complex inferences
@@ -42,7 +44,9 @@ with Leroy~\cite{leroy-unboxed-objects} presenting a transformation
 for unboxing objects, with the help of the type system. Later work
 extends~\cite{thiemann-unboxed-objects-cps} and
 generalizes~\cite{shao-flexible-representation-analysis} such
-transformations.
+transformations. In terms of transformations runtime-dispatched
+generics, we refer to the work on Napier88 \cite{morrison-napier88}
+and the TIL compiler \cite{tarditi-til} \cite{harper-intensional-type-analysis}.
 
 In the specific setting of data structure specialization, the CoCo
 approach~\cite{Xu:2013:CSA:2524984.2524986} adaptively replaces uses
@@ -55,36 +59,11 @@ library. An adaptive storage strategy for Python collections
 representations once collections become polymorphic or once they
 acquire many elements.
 
-
-
-\vlad{this is the dropping ground for different related work we're aware of}
-
-
-
-\begin{itemize}
-%  \item dynamic language vms V8,
-%  Truffle~\cite{Wurthinger:2013:OVR:2509578.2509581},
-%  PyPy~\cite{PyPyTracing}: shape analysis, begone tagging, hidden
-%  classes
-
-  \item inlining + escape analysis + allocation sinking in virtual machines can also change the representation
-
-%  \item ldl \cite{ldl}, haskell transformations
-%  \cite{spj-unboxed-values} \cite{thiemann-unboxed-objects-cps}
-%  \cite{shao-flexible-representation-analysis}, unboxed objects and
-%  polymorphism \cite{leroy-unboxed-objects}
-
-  \item til \cite{tarditi-til} \cite{harper-intensional-type-analysis}, napier88 \cite{morrison-napier88}, etc...
-
-%  \item value classes\cite{sip-value-classes}, specialization
-%  \cite{iuli-thesis} \cite{miniboxing} -- global data representation
-%  transformations -- could also be implemented in the virtual machine
-%  \cite{goetz-specialization}, \cite{rose-value-classes-vm}
-%  \cite{rose-value-classes-tearing}
-
-%  \item relation to partial evaluation -- in the best case they can
-%  unpack objects, inline them, but can't propose an alternative
-%  representation that has nothing to do with the original program
-\end{itemize}
-
-Multi-stage programming => can optimize scopes of code, but this is (1) expensive and (2) scopes do not compose -- values defined in a scope cannot be optimized across.
+Multi-stage programming \cite{taha-intro} is another technique that
+optimizes the data representation and can even re-target parts of a
+program to GPUs \cite{tiark-lms, delite}. Yet, multi-stage programming
+scopes are not accessible from outside, making it impossible to call
+a transformed method or read a transformed value. Instead, the transformation
+scope is closed and nothing is assumed to be part of the interface.
+Hopefully, this will be improved by techniques such as the Yin-Yang
+staging front-end \cite{vojin-yy}, based on Scala macros \cite{eugene-macros}.

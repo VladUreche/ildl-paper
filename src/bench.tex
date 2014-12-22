@@ -70,9 +70,10 @@ Then, just to prove the point, we used the ADR transformation to replace the mut
     Gaussian GCD, interpreter &                      127 &                       32 &                   3.9x \\
     Gaussian GCD, with JIT    &                       39 &                       22 &                   1.7x \\ \hline
   \end{tabularx}
+  \vspace{1mm}
   \caption{Running time for the transformation benchmarks, in $\mu$seconds.}
   \label{table:adrt}
-  \vspace{-10mm}
+  \vspace{-9mm}
 \end{table}
 % \begin{lstlisting-nobreak}
 % class FunnyQueue {
@@ -93,7 +94,7 @@ Then, just to prove the point, we used the ADR transformation to replace the mut
 % }
 % \end{lstlisting-nobreak}
 
-The results in Table \ref{table:adrt} show the ADR transformation is both useful in practice and can speed up programs significantly.
+The results in Table \ref{table:adrt} suggest the ADR transformation can speed up container-based code by factors between 1.7 and 4.9x.
 
 \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
@@ -168,9 +169,10 @@ The input for the \textsc{sum}, \textsc{sumOfSquares} and \textsc{sumOfSquaresEv
     \textsc{SumOfSquaresEven} &              130.8 &              300.4 &             52.2 \\
     \textsc{Cart}             &              220.6 &              560.2 &             55.3 \\ \hline
   \end{tabularx}
+  \vspace{1mm}
   \caption{Running time for the streams benchmarks, in milliseconds.}
   \label{table:streams}
-  \vspace{-10mm}
+  \vspace{-9mm}
 \end{table}
 
 % results ...
