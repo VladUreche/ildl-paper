@@ -2,7 +2,7 @@
 \label{sec:ildl}
 
 Our Ad hoc Data Representation (ADR) transformation adds two new
-elements to existing data representation transformations (1) it
+elements to existing data representation transformations: (1) it
 enables custom, programmer-defined alternative representations and
 (2) it allows the transformation to take place in limited scopes,
 ranging from expressions all the way to full class or package
@@ -64,11 +64,23 @@ Importantly, the programmer is responsible for ensuring the correctness of the t
 \subsection{Data Representation Transformation}
 \label{sec:ildl:ldl}
 
-Unlike existing data representation transformations, such as value class inlining and specialization, which have a fixed semantics and occur in a sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercion semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. We leverage the type system and the signature persistence facilities to provide correct concurrent scope transformations and to allow scopes to efficiently pass values among themselves, using the representation type---a property we call composibility.
+Unlike existing data representation transformations, such as value class inlining and specialization, which have a fixed semantics and occur in a sequence, the ADR transformation handles many transformation scopes concurrently, each with its own different target, representation and coercion semantics. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, requires a very disciplined transformation. We leverage the type system and the signature persistence facilities to provide correct concurrent scope transformations and to allow scopes to efficiently pass values among themselves, using the representation type---a property we call composability.
 
-The key to the composibility property is shifting the focus from the scope to the individual values within that scope. The LDL selectivity provides us with the ability to annotate each individual value in the |adrt| scope for transformation, all without affecting the code outside. And, in order to allow each value transformation to occur independently according to the scope semantics, we extended the LDL mechanism to allow annotations parameterized on the transformation description object. Essentially, this makes annotated types self-sufficient, allowing each value transformation to progress independently, assuring optimal value passing and ruling out entire classes of unsoundness.
+%%% \yannis{To me this is incomprehensible.}
+%The key to the composability property is shifting the focus from the
+%scope to the individual values within that scope. The LDL selectivity
+%provides us with the ability to annotate each individual value in the
+%|adrt| scope for transformation, all without affecting the code
+%outside. And, in order to allow each value transformation to occur
+%independently according to the scope semantics, we extended the LDL
+%mechanism to allow annotations parameterized on the transformation
+%description object. Essentially, this makes annotated types
+%self-sufficient, allowing each value transformation to progress
+%independently, assuring optimal value passing and ruling out entire
+%classes of unsoundness.
 
-In this section we look at two instances of composibility:
+%In this section w
+We look at two instances of composability:
 
 \begin{compactitem}
   \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
@@ -125,12 +137,12 @@ adrt(`FloatPairAsLong`) {
 
 Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, making the transformation unsound.
 
-The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would open the door to unsound assignments.
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing to the programmer that their types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would open the door to unsound assignments.
 
 
 \subsubsection{Prohibiting access to the representation type inside the transformation scope is limiting.} For example, a performance-conscious programmer might want to transform the high-level integer pair into a floating-point pair without allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
 
-There is a better solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principaled change in the transformation description object. This is the price to pay for a safe and automated representatio transformation.
+There is a better solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
 
 The take-away of this section is that focusing on individual values and storing the transformation semantics in the annotated type allows the ADR transformation to progress correctly even in the presence of values mixing between scopes, thus leading to safe scope composition. The next section talks about efficient scope composition. Also, although so far we mentioned only values, method parameters also have types, so they can be annotated the same way as values. The next section shows an example where methods are transformed and later called.
 
@@ -349,7 +361,7 @@ This will introduce an extra indirection when accessing an element of the list, 
 When choosing a generic container, such as a pair or a list, programmers are usually motivated by the very flexible interface, which allows them to quickly achieve their goal by invoking the container's many convenience methods. The presentation so far focused on optimizing the data representation, but to obtain peak performance, the method invocations need to be transformed as well:
 
 \begin{lstlisting-nobreak}
-adtr(`IntPairComplexToLongComplex`) {
+adrt(`IntPairComplexToLongComplex`) {
   val n = (0, 1)
   println(n.toString)
 }
@@ -375,7 +387,7 @@ This avoids the costly pair object creation that slows down execution and inflat
 \subsubsection{Methods added via implicit conversions,} such as the multiplication operator |*| in the original example, add another layer of complexity:
 
 \begin{lstlisting-nobreak}
-adtr(`IntPairComplexToLongComplex`) {
+adrt(`IntPairComplexToLongComplex`) {
   val n1 = (0, 1)
   val n2 = n1 * n1
 }
@@ -384,7 +396,7 @@ adtr(`IntPairComplexToLongComplex`) {
 The initial type-checking phase in the compiler front-end makes the implicit conversion that adds the |*| operator explicit:
 
 \begin{lstlisting-nobreak}
-adtr(IntPairComplexToLongComple) {
+adrt(IntPairComplexToLongComple) {
   val n1: (Int, Int) = (0, 1)
   val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
 }
@@ -398,7 +410,7 @@ There are a two restrictions on the |extension_*| method: it is required to take
 def extension_*(recv: `@repr(...) (Int, Int)`, n2: `(Int, Int)`): `(Int, Int)`
 \end{lstlisting-nobreak}
 
-Applyint the above signature requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. We can do better: by relaxing the parameter type constraint, |extension_*|'s parameters need to match the |*| parameter types, modulo the |@repr| annotation: % This allows calling the extension method without decoding the arguments:
+Applying the above signature requires decoding the second parameter and encoding the result of the computation, producing two redundant pairs of integers on the heap. We can do better: by relaxing the parameter type constraint, |extension_*|'s parameters need to match the |*| parameter types, modulo the |@repr| annotation: % This allows calling the extension method without decoding the arguments:
 
 \begin{lstlisting-nobreak}
 //def extension_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
@@ -433,7 +445,7 @@ Notice that the integers are now passed as arguments to the extension method |to
 The Ad hoc Data Representation Transformation is centered around exposing the encapsulated object structure. The encapsulated data is extracted and encoded in the representation type, while methods are torn apart from the object and stored as static extension methods. In this context, how can the ADR transformation be called a ``safe'' transformation?
 
 % De-encapsulation of containers, which are essentially value types, without a significant object identity
-The explanation needs to take into account the target of the ADR transformation: immutable containers with essentially value semantics and without object identity. There are entire classes of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this is nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing inheritance outside the collections hierarchy. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
+The explanation needs to take into account the target of the ADR transformation: \emph{immutable containers with essentially value semantics and without object identity}. There are numerous cases of such containers, from database rows, records, tuples, immutable collections etc. Although these objects can be involved in referential equality checks, this is nothing more than a fast-path guarding the slow-path that checks structural equality. Furthermore, many of these containers are final, not allowing inheritance outside the collections hierarchy. And in case they are not final, they are required to adhere to the Liskov Substitution Principle \cite{liskov-substitution-principle}, which dictates that their interface methods should behave identically in any subclass of the original type.
 
 % Bad performance
 Containers are usually meant to cover a very broad spectrum of use-cases, thus requiring generic data and many utility methods for accessing and transforming it. While this speeds up development, it makes these containers impossible to use in performance-oriented applications, not only due to the significant indirection overhead but also due to the massive amounts of garbage generated, which require the Java Virtual Machine garbage collector to regularly revisit the heap objects and collect the unused ones, adding significant jitter to the application response time.
