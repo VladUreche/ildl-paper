@@ -61,7 +61,8 @@ representations once collections become polymorphic or once they
 acquire many elements.
 
 Multi-stage programming \cite{taha-intro} is another technique that
-optimizes the data representation and can even re-target parts of a
+optimizes the data representation. Its Scala implementation, dubbed
+lightweight modular staging and can both optimize and even re-target parts of a
 program to GPUs \cite{tiark-lms,delite}. Yet, multi-stage programming
 scopes are not accessible from outside, making it impossible to call
 a transformed method or read a transformed value. Instead, the transformation

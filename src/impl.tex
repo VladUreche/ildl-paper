@@ -10,7 +10,7 @@ extending the open-source multi-stage programming transformation
 provided with the Lata Data Layout \cite{ldl}
 artifact\footnote{Available at \url{https://github.com/miniboxing/staging-plugin}.}.
 %
-%The development went smoothly, with a few exceptions that we explain here, 
+%The development went smoothly, with a few exceptions that we explain here,
 We next describe aspects of our implementation that, although
 technically specific, may aid re-implementation for other
 languages.\footnote{Should the paper be accepted, we plan to submit our Scala
@@ -22,7 +22,7 @@ The programmer front-end consists of the |adrt| marker, which acts as a transfor
 % - |adrt| macro => inject phase; very close to the semantics of the multi-stage programming transformation for LDL
 The |adrt| scope is responsible for accepting a block of statements
 and expressions and injecting the annotations that later drive the
-representation transformation. 
+representation transformation.
 %
 %% \yannis{I'm not sure we have the space, or that it adds much.}
 %Initially, we implemented |adrt| as a
@@ -48,7 +48,7 @@ along with their new |@repr| annotations.
 
 % - transformation description objects => bootstrapping problem => annotation
 For the transformation description objects, we use the
-|TransformationDescription| abstract marker class, which declares the
+abstract marker class |TransformationDescription|, which declares the
 high-level and representation types and the coercions between them
 (\S\ref{sec:ildl:user-story}). The programmer is then free to add
 extension methods, in order to avoid decoding the representation type
