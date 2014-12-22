@@ -5,7 +5,8 @@
 % \end{itemize}
 
 % Two implementations in Scala, as a compiler plugins, starting from the LDL compiler plugins alreasdy available on the net. The rest will describe the important changes
-We implemented the ADR transformation as a Scala compiler plugin, by extending the open-source multi-stage programming transformation provided with the Lata Data Layout artifact\footnote{Available at address:\\ \url{https://github.com/miniboxing/staging-plugin}} \cite{ldl}. The development went smoothly, with a few exceptions that we explain here, in hope of aiding implementations for other languages. We plan to submit our Scala implementation as an artifact and open-source it as soon as the paper is accepted.
+We implemented the ADR transformation as a Scala compiler plugin, by extending the open-source multi-stage programming transformation provided with the Lata Data Layout artifact\footnote{Available at address:\\ \url{https://github.com/miniboxing/staging-plugin}} \cite{ldl}. The development went smoothly, with a few exceptions that we explain here, in hope of aiding implementations for other languages. Should the paper be accepted, we plan to submit our Scala implementation as an artifact and open-source it.
+% as soon as the paper is accepted.
 
 The programmer front-end consists of the |adrt| marker, which acts as a transformation trigger and the abstract |TransformationDescription| class, which the transformation description objects need to implement. These programmer-facing constructs were shown in the Problem Statement (\S\ref{sec:problem}) and the Overview of the ADR transformation (\S\ref{sec:ildl:user-story}). We next present each of them in detail.
 
