@@ -68,7 +68,7 @@ Unlike existing data representation transformations, such as value class inlinin
 
 The key to the composibility property is shifting the focus from the scope to the individual values within that scope. The LDL selectivity provides us with the ability to annotate each individual value in the |adrt| scope for transformation, all without affecting the code outside. And, in order to allow each value transformation to occur independently according to the scope semantics, we extended the LDL mechanism to allow annotations parameterized on the transformation description object. Essentially, this makes annotated types self-sufficient, allowing each value transformation to progress independently, assuring optimal value passing and ruling out entire classes of unsoundness.
 
-In this section we look at two instances of composibility:
+In this section we look at two instances of composability:
 
 \begin{compactitem}
   \item a high-level type can have different representations in different scopes, but the scopes can pass values among themselves;
@@ -84,7 +84,7 @@ adrt(IntPairToDouble) { val y: (Int, Int) = (2, 6); `x = y` }
 
 At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
 
-The scope is first type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the paramterized |@repr| anntotation:
+The scope is first type-checked against the high-level types in the compiler front-end. Among other things, the compiler front-end also resolves implicits and infers all missing type annotations. Then, the  \inject{} phase takes over, removing the |adrt| markers and annotating values using the parameterized |@repr| annotation:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
@@ -130,7 +130,7 @@ The answer is no: the code is first type-checked against the high-level types ev
 
 \subsubsection{Prohibiting access to the representation type inside the transformation scope is limiting.} For example, a performance-conscious programmer might want to transform the high-level integer pair into a floating-point pair without allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
 
-There is a better solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principaled change in the transformation description object. This is the price to pay for a safe and automated representatio transformation.
+There is a better solution. As we will later see, the programmer can use extension methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
 
 The take-away of this section is that focusing on individual values and storing the transformation semantics in the annotated type allows the ADR transformation to progress correctly even in the presence of values mixing between scopes, thus leading to safe scope composition. The next section talks about efficient scope composition. Also, although so far we mentioned only values, method parameters also have types, so they can be annotated the same way as values. The next section shows an example where methods are transformed and later called.
 
@@ -316,7 +316,7 @@ adrt(IntPairAsLong) {
 In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| and call the |use1| method. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the container only applies to the immutable list, and not to other generic classes that may be encountered in the signature.
 
 % Furthermore, there is an entire class of mutable containers which cannot be transformed
-Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the cointainer. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. We will further discuss mutable containers in \S\ref{sec:ildl:discussion}.
+Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. We will further discuss mutable containers in \S\ref{sec:ildl:discussion}.
 
 % We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegan and general solution.
 The approach we follow in the ADR transformation is to
