@@ -34,17 +34,25 @@ For the Hamming numbers benchmark, we took the algorithm from the Rosetta Code w
 adrt(QueueOfIntAsFunnyQueue) {
   class Hamming extends Iterator[Long] {
     import scala.collection.mutable.Queue
-    val q2 = new Queue[Long]; val q3 = new Queue[Long]; val q5 = new Queue[Long]
+    val q2 = new Queue[Long]
+    val q3 = new Queue[Long]
+    val q5 = new Queue[Long]
     def enqueue(n: Long) = {
-      q2 enqueue n * 2; q3 enqueue n * 3; q5 enqueue n * 5
+      q2 enqueue n * 2
+      q3 enqueue n * 3
+      q5 enqueue n * 5
     }
     def next = {
       val n = q2.head min q3.head min q5.head
-      if (q2.head == n) q2.dequeue; if (q3.head == n) q3.dequeue; if (q5.head == n) q5.dequeue
+      if (q2.head == n) q2.dequeue
+      if (q3.head == n) q3.dequeue
+      if (q5.head == n) q5.dequeue
       enqueue(n); n
     }
     def hasNext = true
-    q2 enqueue 1; q3 enqueue 1; q5 enqueue 1
+    q2 enqueue 1
+    q3 enqueue 1
+    q5 enqueue 1
   }
 }
 \end{lstlisting-nobreak}
@@ -53,7 +61,7 @@ Then, just to prove the point, we used the ADR transformation to replace the mut
 
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
-\begin{table}
+\begin{table}[t!]
   \begin{tabularx}{\textwidth}{|g *{3}{|Y}|} \hline
     \rowcolor{Gray}
     \textbf{Benchmark}        &  \textbf{Original}  & \textbf{Transformed} &      \textbf{Speedup} \\ \hline
@@ -92,13 +100,13 @@ The results in Table \ref{table:adrt} show the ADR transformation is both useful
 
 % subset of the adrt, missing frontend features -- value annotation and signature persistance are there.
 % motivation: miniboxing specialization + function encoding
-A second Scala compiler plugin we implemented formed the basis of the ADR transformation idea. Although it hardcodes the transformation, it is scope-based, it persists annotations in the signatures and introduces bridge methods to maintain the object model. The motivation for this plugin is transforming the anonymous functions emitted by the Scala compiler in order to optimize their invocation from miniboxing-specialized code. We will briefly explain miniboxing and the Scala anonymous functions.
+A second Scala compiler plugin we implemented formed the basis of the ADR transformation idea. Although it fixes the transformation, it is scope-based, it persists annotations and it uses bridges to maintain the overriding status. The motivation for this plugin is transforming the anonymous functions emitted by the Scala compiler in order to optimize their invocation from miniboxing-specialized code. We will briefly explain miniboxing and the Scala functions.
 
 % miniboxing transformation - show def apply(...) = ...
-The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to be used with unboxed primitive types. But, unlike the current specialization transformation in Scala \cite{iuli-thesis}, which duplicates and adapts the generic code for every primitive type, the miniboxing transformation only duplicates the code once, and uses a long integer to encode all primitive types. This allows it to scale much better than specialization \cite{miniboxing-linkedlist} while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the early specialization scheme, which is not compatible to miniboxing.
+The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to work efficiently with unboxed primitive types. Unlike the current specialization transformation in the Scala compiler \cite{iuli-thesis}, which duplicates and adapts the generic code once for every primitive type, the miniboxing transformation only duplicates the code once, and encodes all primitive types inside the long integer. This allows it to scale much better than specialization \cite{miniboxing-linkedlist} in terms of bytecode size while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the early specialization scheme, which is not compatible to miniboxing. For example, interacting with functions and tuples incurs significant overhead.
 
 % object oriented function representation
-The Scala compiler offers first-class functions in the language. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the compiler has to transform them to anonymous classes extending a functional interface. The following example shows the desugaring for function $x => x + 1$:
+The Scala programming language offers functions as first-class citizens. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the compiler has to transform them to anonymous classes extending a functional interface. The following example shows the desugaring of function |(x: Int) => x + 1|:
 
 \begin{lstlisting-nobreak}
 class $anon extends Function1[Int, Int] {
@@ -108,10 +116,10 @@ new $anon()
 \end{lstlisting-nobreak}
 
 % not transformed according to miniboxing. What we'd like to have is ...
-The |Function1| trait is specialized using the existing transformation in the Scala compiler. This means that the function will expose more versions of the |apply| method, including one which accepts an unboxed integer and returns an unboxed integer. However, it will not expose a version that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown of boxing or define thir own |MiniboxedFunction1| class, marked for miniboxing transformation, and perform all desugaring by hand. Neither is a good solution.
+The |Function1| trait is specialized using the early scheme in the Scala compiler. This means that the function will expose more versions of the |apply| method, including one which accepts an unboxed integer and returns an unboxed integer. However, it will not expose a version that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown of boxing or define their own |MiniboxedFunction1| class, and perform the desugaring by hand. Neither of these is a good solution.
 
 % retrofitting the function representation - after the fact, as parts of the
-What we would like to have is a way to transform the references to |Fucntion1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. Instead of having to box to call a method, the miniboxed code should be able to invoke it directly. Modulo the hardcoded semantics, the transformation is an ah-hoc, scope-based representation transformation. And, indeed, this was the first transformation we implemented, before working on the programmer-driven ADR transformation plugin.
+What we would like to have is a way to transform the references to |Fucntion1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is the miniboxed code needs to interoperate with library-defined code out there, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the function representation transformation!
 
 % the benchmark: scala streams, based on ...
 \subsubsection{The benchmark} we used for the function representation transformation is based on a stream library\footnote{Available at \url{https://github.com/biboudis/scala-streams}.} described in \cite{biboudis_clash_2014}. The main design choice is to introduce lazy, continuation-based stream transformations, inspired by Nessos Streams \cite{nessos_streams} and the newly added Java 8 streams. Being continuation-based, each stream combinator provides a function that is registered in the stream. These functions are stacked together to form a transformation pipeline. When the consumer wants to read a value, it starts from the original stream source, which is usually an array or another collection, and executes all the stacked functions one after another. For example:
@@ -124,43 +132,41 @@ val y = Stream(lines).flatMap(line => Stream(line split "\\W+")).toArray
 On the implementation side, the |Stream| class has a single constructor, which takes a loop-function as parameter. Instead of the expected type |T => Unit|, the type of the loop function is |(T => Boolean) => Unit|. This allows it to indicate whether the next consumer should see the value or not, in turn enabling combinators such as |filter|, |take| and |takeWhile|:
 
 \begin{lstlisting-nobreak}
-final class Stream[@miniboxed T: ClassTag](val streamf: (T => Boolean) => Unit) {
+final class Stream[@miniboxed T](val streamf: (T => Boolean) => Unit) {
+
   def map[@miniboxed R: ClassTag](f: T => R): Stream[R] =
     new Stream(iterf => streamf(value => iterf(f(value))))
 
-  def foldLeft[@miniboxed A](a: A)(op: (A, T) => A): A = {
-    var acc = a
-    streamf(value => {
-      acc = op(acc, value)
-      true
-    })
-    acc
-  }
+  def filter(p: T => Boolean): Stream[T] =
+    new Stream(iterf => streamf(value => !p(value) || iterf(value)))
+
+  def takeWhile(p: T => Boolean): Stream[T] =
+    new Stream(iterf => streamf(value => if (p(value)) iterf(value) else false))
 }
 \end{lstlisting-nobreak}
 
 % measure 5 different benchmarks ...
-The implementation of scala-streams relies on deep nesting of loop-functions in continuation-passing style. This makes it a very good candidate to benchmark the benefits of transforming the function representation. To this end, we measure four operations:
+The implementation of scala-streams relies on deep nesting of loop-functions in continuation-passing style, making it a very good candidate to benchmark the function representation transformation. To this end, we measure four operations:
 
 \begin{compactitem}
- \item sum -- single iteration with no lambdas;
- \item sumOfSquares -- a small pipeline with one map operation;
- \item sumOfSquaresEven -- a bigger pipeline with a filter and map chain;
- \item cart -- a complex nested pipeline using |flatMap| to encode Cartesian product.
+ \item \textsc{Sum} -- single iteration with no lambdas;
+ \item \textsc{SumOfSquares} -- a small pipeline with a |map| operation;
+ \item \textsc{SumOfSquaresEven} -- a bigger pipeline with a |filter| and |map| chain;
+ \item \textsc{Cartesian} -- a nested pipeline using |flatMap| to encode Cartesian products.
 \end{compactitem}
 
-The input for the \textem{sum}, \textem{sumOfSquares} and \textem{sumOfSquaresEven} benchmarks is an array of $N = 10,000,000$ long integers. The \textem{cart} benchmark iterates over two arrays: An outer one of $1,000,000$ long integers and an inner one of $10$.
+The input for the \textsc{sum}, \textsc{sumOfSquares} and \textsc{sumOfSquaresEven} benchmarks is an array of 10 million long integers. The \textsc{cart} benchmark iterates over two arrays: An outer one of 10M long integers and an inner one of just 10.
 
 \begin{table}[t]
   \begin{tabularx}{\textwidth}{|g *{3}{|Y}|} \hline
     \rowcolor{Gray}
-    \textbf{Benchmark}        &  \textbf{Generic}  & \textbf{Miniboxed} & \textbf{Miniboxed} \\
+                              &                    & \textbf{Miniboxing}& \textbf{Miniboxing} \\
     \rowcolor{Gray}
-                              &                    & without function support& with function support \\ \hline
-    sum              &              100.6 &              355.9 &             12.0 \\
-    sumOfSquares     &              188.3 &              450.9 &             13.0 \\
-    sumOfSquaresEven &              130.8 &              300.4 &             52.2 \\
-    cart             &              220.6 &              560.2 &             55.3 \\ \hline
+    \textbf{Benchmark}        &  \textbf{Generic}  &  without function support & with function support \\ \hline
+    \textsc{Sum}              &              100.6 &              355.9 &             12.0 \\
+    \textsc{SumOfSquares}     &              188.3 &              450.9 &             13.0 \\
+    \textsc{SumOfSquaresEven} &              130.8 &              300.4 &             52.2 \\
+    \textsc{Cart}             &              220.6 &              560.2 &             55.3 \\ \hline
   \end{tabularx}
   \caption{Running time for the streams benchmarks, in milliseconds.}
   \label{table:streams}
@@ -168,6 +174,6 @@ The input for the \textem{sum}, \textem{sumOfSquares} and \textem{sumOfSquaresEv
 \end{table}
 
 % results ...
-The results in Table \ref{table:streams} show the impact of the function transformation, which is at the heart of the streams library performance. We can see that using the miniboxing transformation for the |Stream| class without the function transformation degrades the performance by factors between 2.3 and 3.5x. Yet, when the miniboxing transformation is complemented by our function representation transformation, the performance increases compared to the generic case by factors between between 2.5x and 14.5x. This improves our confidence that
+The results in Table \ref{table:streams} show the impact of the function transformation, which is at the heart of the streams library performance. We can see that using the miniboxing transformation for the |Stream| class without the function transformation degrades the performance by factors between 2.3 and 3.5x. Yet, when the miniboxing transformation is complemented by our function representation transformation, the performance increases compared to the generic case by factors between between 2.5x and 14.5x.
 
 

@@ -21,16 +21,17 @@
 \usepackage{latexsym}
 \usepackage[T1]{fontenc}
 \usepackage{tabularx}
+\usepackage{array,booktabs}
 \setcounter{tocdepth}{3}
 
 % Short verbatim
 \DefineShortVerb{\|}
-\fvset{fontsize=\small}
+\fvset{fontsize=\footnotesize}
 
 % Colors and table colors
 \definecolor{Gray}{gray}{0.9}
 \definecolor{LightGray}{gray}{0.4}
-\newcolumntype{g}{>{\columncolor{Gray}}l}
+\newcolumntype{g}{>{\columncolor{Gray}}c}
 
 % Lstlisting highlight
 % http://tex.stackexchange.com/a/49309
@@ -118,13 +119,13 @@
 %%% http://tex.stackexchange.com/questions/10141/how-to-prevent-lstlisting-from-splitting-code-between-pages
 \lstnewenvironment{lstlisting-nobreak}[1][]%
 {
-  \vspace{-0.1em}
+  \vspace{-0.15em}
   \noindent
   \minipage{\linewidth}
 }
 {
   \endminipage
-  \vspace{-0.35em}
+  \vspace{-0.4em}
 }
 
 % Review tools
@@ -155,7 +156,7 @@
 \renewcommand{\subsubsection}[1]{\vspace{0.5em}\noindent\textbf{#1}}
 
 % Paper hacks:
-\setstretch{0.97}
+\setstretch{0.965}
 % \renewcommand{\bibfont}{\scriptsize}
 \renewcommand*{\UrlFont}{\ttfamily\scriptsize\relax}
 
