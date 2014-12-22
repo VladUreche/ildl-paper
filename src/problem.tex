@@ -50,10 +50,10 @@ def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
 \end{lstlisting-nobreak}
 
 %% \yannis{The ``no virtual machine optimizations'' claim sounds weak. Maybe ``a stock VM''?}
-Unfortunately, as the algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm without any compiler
+Unfortunately, as our algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm without any compiler
 and virtual machine %% \vlad{yes, otherwise aggressive inlining (due to the monomorphic code) and escape analysis reduce the gap to < 50%}
 optimizations, each GCD operation takes around 130
-microseconds (on the same setup as used for our full experiments):
+microseconds (on the same setup as used for our full experiments in \S\ref{sec:benchmarks}):
 %%\yannis{on what machine setup?}:
 
 \begin{lstlisting-nobreak}
@@ -81,8 +81,8 @@ Representation (ADR) Transformation technique, which can be triggered
 by the |adrt| marker method. This method accepts two parameters: the
 first parameter is a \emph{transformation description object} and the
 second is a block of code that forms the transformation scope. This
-scope can contain expressions, but also classes, traits, objects and
-methods:
+scope can contain anything from expressions all the way to method, class,
+trait, object and package definitions:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -141,7 +141,7 @@ Last but not least, consider a piece of code that calls |gcd|:
 gcd((55,2), (17, 13))
 \end{lstlisting-nobreak}
 
-How does the compiler know what encoding/decoding procedures to use to convert the pairs of integers to the long integer representation? Even worse, what if the code is compiled separately, in a different compilation unit (\S\ref{sec:ildl:separate-compilation})?
+How does the compiler know what encoding/decoding procedures to use to convert the pairs of integers to the long integer representation (\S\ref{sec:ildl:ldl})? Even worse, what if the code is compiled separately, in a different compiler run (\S\ref{sec:ildl:separate-compilation})?
 
 %%\yannis{``Next section'' is not accurate. This doesn't come until later.}
 %We answer these questions in the next section, which presents the Ad hoc Data
