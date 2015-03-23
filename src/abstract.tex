@@ -1,22 +1,28 @@
 \begin{abstract}
-To maximize run-time performance, programmers specialize their
+To maximize the run-time performance, programmers specialize their
 code by hand, replacing library collections and containers by
 custom objects in which the data is restructured for efficient access.
 However, this is a tedious and error-prone process that makes it
-hard to test, maintain and evolve the source code. \\
+hard to test, maintain and evolve the source code.
 
 We present an automated and composable approach that allows programmers to
 safely change the data representation in delimited scopes
-containing anything from expressions to entire class definitions. \\
+containing anything from expressions to entire class definitions.
+% not sure whether to leave this or not -- we cover Scoped but not Custom and Optimizing
+The transformation itself is defined by programmers and can cover a wide range of use cases.
 
 Our technique leverages the type system in order to infer where
-the data representation needs to be converted, while keeping a
-strong correctness guarantee in the interaction with other
+the data representation needs to be converted, while offering a
+strong correctness guarantee on the interaction with other
 object-oriented language features, such as dynamic dispatch,
-inheritance and generics. \\
+inheritance and generics.
 
-We have embedded this technique in two Scala compiler plugins,
-obtaining speedups between 2x and 14x on user programs and libraries.
+We have embedded this technique in a Scala compiler plugin and tested
+it in four different scenarios: (1) improving the data representation,
+(2) performing deforestation and specialization, (3) converting arrays
+of structs to structs of arrays and (4) replacing the collections used
+in a program. In our benchmarks, we obtained speedups between 1.9x and 13x on user
+programs.
 
 \keywords{data representation, jvm, bytecode, compatibility, transformation, optimization}
 \end{abstract}
