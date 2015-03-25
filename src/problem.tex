@@ -49,7 +49,7 @@ def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
 }
 \end{lstlisting-nobreak}
 
-Unfortunately, as our algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm with the heap allocations and no optimizations, computing the GCD takes around 3 microseconds (on the same setup as used for our full experiments in \S\ref{sec:benchmarks}):
+Unfortunately, as our algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them on the heap. If we run this algorithm with no optimizations, computing the GCD takes around 3 microseconds (on the same setup as used for our full experiments in \S\ref{sec:benchmarks}):
 
 \begin{lstlisting-nobreak}
 scala> timed(() => gcd((544, 185), (131, 181)))
@@ -65,7 +65,7 @@ The operation took `0.23 us` (based on 10000 executions).
 The result was (10, 3).
 \end{lstlisting-nobreak}
 
-This makes the data representation transformation highly desirable. Still, making the programmer transform the code by hand is tedious and error-prone, so a natural question to ask is whether the transformation could be automated?
+This makes a data representation transformation highly desirable. Still, making the programmer transform the code by hand is tedious and error-prone, so a natural question to ask is whether the transformation could be automated.
 
 \subsection{Automating the Transformation}
 \label{sec:automating}
@@ -112,9 +112,9 @@ def gcd(n1: `Long`, n2: `Long`): `Long` = {
 
 There are many questions one could ask about this naive translation. For example, how does the compiler know which parameters and values to transform to the long integer representation (\S\ref{sec:ildl:custom})? How and when to encode and decode values, and what to do about values that are visible outside the scope (\S\ref{sec:ildl:scoped})? Even worse, what if parts of the code are compiled separately, in a different compiler run (\S\ref{sec:ildl:separate-compilation})?
 
-Going into the semantics of the program, we can ask if the |%| (modulo) operator maintains the semantics of complex numbers when used for long integers? Also, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:method}).
+Going into the semantics of the program, we can ask if the |%| (modulo) operator maintains the semantics of complex numbers when used for long integers. Also, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:method}).
 
-We could also ask what would happen if |gcd| was overriding another method? Would the new signature still override it? The answer is no, so the naive translation would break the object model (\S\ref{sec:ildl:language-features}):
+We could also ask what would happen if |gcd| was overriding another method, as in the code fragment below. Would the new signature still override it? The answer is no, so the naive translation would break the object model (\S\ref{sec:ildl:language-features}).
 
 \begin{lstlisting-nobreak}
 trait WithGCD[`T`] {
@@ -128,5 +128,6 @@ class Complex extends WithGCD[`(Int, Int)`] {
 }
 \end{lstlisting-nobreak}
 
-Our approach, the Ad hoc Data Representation Transformation, answers all these questions and preserves semantics. %But before presenting our approach, we need some background on data representation transformations.
+Our approach, the Ad hoc Data Representation Transformation, addresses these questions.
+% and preserves semantics. %But before presenting our approach, we need some background on data representation transformations.
 
