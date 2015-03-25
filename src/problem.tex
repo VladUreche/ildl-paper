@@ -2,7 +2,7 @@
 \label{sec:problem}
 
 % Executive summary + vision
-This section presents a motivating example based on complex numbers, which we use throughout the paper. It then shows how the data representation transformation is triggered and introduces its terminology. Finally, it shows a naive transformation, allowing us to see the difficulties lying ahead.
+This section presents the full motivating example featuring the complex number tranformation, which we use throughout the paper. It then shows how the data representation transformation is triggered and introduces the terminology. Finally, it shows a naive transformation, hinting at the difficulties lying ahead.
 
 \subsection{Motivating Example}
 
@@ -11,9 +11,9 @@ pairs of integers. Complex numbers with integers as both their real
 and imaginary parts are known as Gaussian integers, and are a
 countable subset of all complex numbers. The operations defined on
 Gaussian integers are similar to complex number operations, with one
-exception: division is not precise, as it rounds the result to the
-nearest Gaussian integer, meaning that both the real and imaginary
-axes will contain integers. This is similar to integer division, which
+exception: to satisfy the abelian closure property, division is not precise,
+but instead rounds the result to the nearest Gaussian integer, with both the real and imaginary
+axes containing integers. This is similar to integer division, which
 also rounds the result, so that, for example, |5/2| produces value
 |2|.
 
@@ -49,28 +49,23 @@ def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
 }
 \end{lstlisting-nobreak}
 
-%% \yannis{The ``no virtual machine optimizations'' claim sounds weak. Maybe ``a stock VM''?}
-Unfortunately, as our algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm without any compiler
-and virtual machine %% \vlad{yes, otherwise aggressive inlining (due to the monomorphic code) and escape analysis reduce the gap to < 50%}
-optimizations, each GCD operation takes around 130
-microseconds (on the same setup as used for our full experiments in \S\ref{sec:benchmarks}):
-%%\yannis{on what machine setup?}:
+Unfortunately, as our algorithm recursively computes the result, it creates linearly many pairs of integers, allocating them in the heap memory. If we run this algorithm with the heap allocations and no optimizations, computing the GCD takes around 3 microseconds (on the same setup as used for our full experiments in \S\ref{sec:benchmarks}):
 
 \begin{lstlisting-nobreak}
-scala>   println(timed(() => gcd((544, 185), (131, 181))))
-The operation took `127 us`.
-(10,3)
+scala> timed(() => gcd((544, 185), (131, 181)))
+The operation took `3.05 us` (based on 10000 executions).
+The result was (10, 3).
 \end{lstlisting-nobreak}
 
-However, if we encode the Gaussian integers into 64-bit long integers, we improve the time by a factor of 4x:
+However, if we encode the Gaussian integers into 64-bit long integers, we improve the time by a factor of 13x:
 
 \begin{lstlisting-nobreak}
-scala> println(timed(() => gcd((544, 185), (131, 181))))
-The operation took `32 us`.
-(10,3)
+scala> timed(() => gcd((544, 185), (131, 181)))
+The operation took `0.23 us` (based on 10000 executions).
+The result was (10, 3).
 \end{lstlisting-nobreak}
 
-This makes the data representation transformation highly desirable. Still, letting the programmer transform the code by hand is tedious and error-prone, and sacrifices code maintainability. This begs the question: can this transformation be automated?
+This makes the data representation transformation highly desirable. Still, making the programmer transform the code by hand is tedious and error-prone, so a natural question to ask is whether the transformation could be automated?
 
 \subsection{Automating the Transformation}
 \label{sec:automating}
@@ -82,14 +77,14 @@ by the |adrt| marker method. This method accepts two parameters: the
 first parameter is a \emph{transformation description object} and the
 second is a block of code that forms the transformation scope. This
 scope can contain anything from expressions all the way to method, class,
-trait, object and package definitions:
+trait and object definitions:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
-  def gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int) = {
-    val remainder = n1 % n2
-    if (remainder.norm == 0) n2 else gcd(n2, remainder)
-  }
+ def gcd(n1: (Int, Int), n2: (Int, Int)):(Int, Int)={
+   val remainder = n1 % n2
+   if (remainder.norm == 0) n2 else gcd(n2, remainder)
+ }
 }
 \end{lstlisting-nobreak}
 
@@ -106,7 +101,7 @@ the code.
 \subsection{A Naive Transformation}
 
 % It's important that's not a trivial transformation -- users will transform their input ... we'll look at this aspect again when rev
-Despite its interface, the Ad hoc Data Representation Transformation mechanism is by no means simple. For example, knowing that the |adrt| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
+Despite its simple interface, the Ad hoc Data Representation Transformation mechanism is by no means simple. For example, knowing that the |adrt| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
 
 \begin{lstlisting-nobreak}
 def gcd(n1: `Long`, n2: `Long`): `Long` = {
@@ -115,34 +110,23 @@ def gcd(n1: `Long`, n2: `Long`): `Long` = {
 }
 \end{lstlisting-nobreak}
 
-There are many questions one could ask about this naive translation. For example, does the |%| (modulo) operator maintain the semantics of complex numbers when using the implementation for long integers? Or, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:semantics}).
+There are many questions one could ask about this naive translation. For example, how does the compiler know which parameters and values to transform to the long integer representation (\S\ref{sec:ildl:custom})? How and when to encode and decode values, and what to do about values that are visible outside the scope (\S\ref{sec:ildl:scoped})? Even worse, what if parts of the code are compiled separately, in a different compiler run (\S\ref{sec:ildl:separate-compilation})?
 
-Moreover, we could ask what happens if |gcd| was overriding another method? Would the new signature still override it? The answer is no (\S\ref{sec:ildl:generics}):
+Going into the semantics of the program, we can ask if the |%| (modulo) operator maintains the semantics of complex numbers when used for long integers? Also, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, the transformation needs to preserve semantics, which is not trivial (\S\ref{sec:ildl:method}).
+
+We could also ask what would happen if |gcd| was overriding another method? Would the new signature still override it? The answer is no, so the naive translation would break the object model (\S\ref{sec:ildl:language-features}):
 
 \begin{lstlisting-nobreak}
 trait WithGCD[`T`] {
   def gcd(n1: `T`, n2: `T`): `T`
 }
-
 class Complex extends WithGCD[`(Int, Int)`] {
-  def gcd(n1: `Long`, n2: `Long`): `Long` = ...
-  // expected: gcd(n1: (Int, Int), n2: (Int, Int)): (Int, Int)
+  // expected: gcd(n1: (Int, Int), n2: (Int, Int)) ...
   // found:    gcd(n1: Long, n2: Long): Long
-  // (which does not override method gcd in trait WithGCD)
+  // (which does not implement gcd in trait WithGCD)
+  def gcd(n1: `Long`, n2: `Long`): `Long` = ...
 }
 \end{lstlisting-nobreak}
-% \end{lstlisting-nobreak}
-%
-% \begin{lstlisting-nobreak}
 
-Last but not least, consider a piece of code that calls |gcd|:
+Our approach, the Ad hoc Data Representation Transformation, answers all these questions and preserves semantics. %But before presenting our approach, we need some background on data representation transformations.
 
-\begin{lstlisting-nobreak}
-gcd((55,2), (17, 13))
-\end{lstlisting-nobreak}
-
-How does the compiler know what encoding/decoding procedures to use to convert the pairs of integers to the long integer representation (\S\ref{sec:ildl:ldl})? Even worse, what if the code is compiled separately, in a different compiler run (\S\ref{sec:ildl:separate-compilation})?
-
-%%\yannis{``Next section'' is not accurate. This doesn't come until later.}
-%We answer these questions in the next section, which presents the Ad hoc Data
-%Representation Transformation mechanism.

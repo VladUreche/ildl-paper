@@ -1,28 +1,12 @@
 \begin{abstract}
-To maximize the run-time performance, programmers specialize their
-code by hand, replacing library collections and containers by
-custom objects in which the data is restructured for efficient access.
-However, this is a tedious and error-prone process that makes it
-hard to test, maintain and evolve the source code.
 
-We present an automated and composable approach that allows programmers to
-safely change the data representation in delimited scopes
-containing anything from expressions to entire class definitions.
-% not sure whether to leave this or not -- we cover Scoped but not Custom and Optimizing
-The transformation itself is defined by programmers and can cover a wide range of use cases.
+To maximize the run-time performance, programmers specialize their code by hand, replacing library collections and containers by custom objects in which the data is restructured for efficient access. However, this is a tedious and error-prone process that makes it hard to test, maintain and evolve the source code.
 
-Our technique leverages the type system in order to infer where
-the data representation needs to be converted, while offering a
-strong correctness guarantee on the interaction with other
-object-oriented language features, such as dynamic dispatch,
-inheritance and generics.
+We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation itself is defined by programmers and can cover a wide range of use cases.
 
-We have embedded this technique in a Scala compiler plugin and tested
-it in four different scenarios: (1) improving the data representation,
-(2) performing deforestation and specialization, (3) converting arrays
-of structs to structs of arrays and (4) replacing the collections used
-in a program. In our benchmarks, we obtained speedups between 1.9x and 13x on user
-programs.
+Our technique leverages the type system in order to infer where the data representation needs to be converted, while offering a strong correctness guarantee on the interaction with other object-oriented language features, such as dynamic dispatch, inheritance and generics.
 
-\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization}
+We have embedded this technique in a Scala compiler plugin and used it in four very different transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and to collection deforestation. These transformations obtain speedups between 1.9 and 13x on user programs.
+
+\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization, safety, semantics}
 \end{abstract}
