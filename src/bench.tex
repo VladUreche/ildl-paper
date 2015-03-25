@@ -2,16 +2,18 @@
 \label{sec:benchmarks}
 \label{sec:benchmarks:ad-hoc}
 
-This section evaluates the experimental benefits of ADR transformations and shows four different usage scenarios.
-
-\subsection{Setup}
-
+This section evaluates the experimental benefits of ADR transformations in targeted micro-benchmarks and larger
+applications.
+% and shows four different usage scenarios.
+%
+%\subsection{Setup}
+%
 We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|. The RAM available to the benchmarks was |2GB| and the running times were measured using the scalameter benchmarking platform \cite{scalameter}, to avoid noise.
 
 
-\subsection{ADRT Scope Benchmarks}
+\subsection{ADRT Micro-Benchmarks}
 
-We chose the benchmarks in order to cover a wide range of transformations using the |adrt| scope:
+We chose representative micro-benchmarks in order to cover a wide range of transformations using the |adrt| scope:
 
 \begin{compactitem}
 \item the greatest common divisor algorithm, presented in \S\ref{sec:problem};
@@ -29,7 +31,7 @@ The benchmarks were optimized using our implementation of the |adrt| scope at \c
 % How we optimized it?
 is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric and CPU-bound benchmark, where the main slowdown is caused by heap allocations.
 
-The |adrt| transformation surrounds the tail-recursive |gcd| method and optimizes the pair of integer representation of Gaussian integers by encoding them in long integers. From this point of view, we can think of the transformation as retrofitting the value class status to the pair of integers. The benchmark results in Table \ref{table:adrt} show a 13x speed improvement and we checked that no object allocations occur in the transformed version of the |gcd| method. The transformation description object is 30 lines of code.
+The |adrt| transformation surrounds the tail-recursive |gcd| method and optimizes the pair of integer representation of Gaussian integers by encoding them in long integers. From this point of view, we can think of the transformation as retrofitting the value class status to the pair of integers. The benchmark results in Table \ref{table:adrt} show a 13x speed improvement and we checked that no object allocations occur in the transformed version of the |gcd| method. The transformation description object is 30 lines of code long.
 
 \subsubsection{The Least Squares Method} takes a list of points in two dimensions and computes the slope and offset of a straight line that best approximates the input data. The benchmark performs multiple traversals over the input data and thus benefits from deforestation \cite{wadler-deforestation}, which avoids the creation of intermediate collections after each |map| operation:
 
@@ -57,7 +59,7 @@ object ListAsLazyList extends TransformationDescription {
 }
 \end{lstlisting-nobreak}
 
-The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on it or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection. This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
+The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on the collection or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection. This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
 
 Yet, using the |LazyList| collection we can also benefit from specialization \cite{iuli-thesis}. Using a specialized version of the |LazyList| collection we obtained a 5x speed improvement thanks to a combination of deforestation and specialization. Therefore, we used the |adrt| transformation both to transform the collection semantics and to retrofit specialization in a localized scope. The transformation description object has 30 lines of code and the |LazyList| has 70 lines of code.
 
