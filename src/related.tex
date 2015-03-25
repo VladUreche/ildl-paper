@@ -9,7 +9,7 @@ languages and often target low-level data representations. However,
 our technique is distinguished by its automatic determination of when
 data representations should be transformed, while giving the
 programmer control of how to perform this transformation and on which
-scope it is applicable. We survey some recent related work.
+scope it is applicable. %We survey some recent related work.
 
 As discussed earlier, the standard optimizations that are closest to
 our approach are value classes~\cite{sip-value-classes} and class
@@ -45,7 +45,7 @@ with Leroy~\cite{leroy-unboxed-objects} presenting a transformation
 for unboxing objects, with the help of the type system. Later work
 extends~\cite{thiemann-unboxed-objects-cps} and
 generalizes~\cite{shao-flexible-representation-analysis} such
-transformations. In terms of transformations runtime-dispatched
+transformations. In terms of runtime-dispatched
 generics, we refer to the work on Napier88 \cite{morrison-napier88}
 and the TIL compiler \cite{tarditi-til} \cite{harper-intensional-type-analysis}.
 
@@ -53,12 +53,18 @@ In the specific setting of data structure specialization, the CoCo
 approach~\cite{Xu:2013:CSA:2524984.2524986} adaptively replaces uses
 of Java collections with optimized representations.  CoCo has a
 similar high-level goal as our techniques, yet focuses explicitly on
-collections only.  Approaches that only target a finite number of
+collections only. Approaches that only target a finite number of
 classes (data structure implementations) can be realized entirely in a
 library. An adaptive storage strategy for Python collections
 \cite{Bolz:2013:SSC:2509136.2509531}, for instance, switches
 representations once collections become polymorphic or once they
-acquire many elements.
+acquire many elements. The Scala Blitz optimizer uses macros to
+improve collection performance \cite{scalablitz-paper, scalablitz}.
+
+Among mechanisms for extending an interface, such as extension methods,
+implicit conversions \cite{oliveira-implicit-calculus} and
+type classes \cite{wadler-typeclasses} we can also mention
+views, which allow data abstraction and extraction through pattern matching \cite{wadler-views}.
 
 Multi-stage programming \cite{taha-intro} is another technique that
 optimizes the data representation. Its Scala implementation, dubbed
