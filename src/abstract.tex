@@ -2,7 +2,7 @@
 
 To maximize run-time performance, programmers often specialize their code by hand, replacing library collections and containers by custom objects in which the data are restructured for efficient access. However, this is a tedious and error-prone process that makes it hard to test, maintain and evolve the source code.
 
-We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation itself is programmer-defined and can cover a wide range of use cases.
+We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation itself is programmer-defined and covers a wide range of use cases.
 
 Our technique leverages the type system in order to infer where the data representation needs to be converted, while offering a strong correctness guarantee on the interaction with object-oriented language features, such as dynamic dispatch, inheritance and generics.
 
@@ -10,5 +10,5 @@ We have embedded this technique in a Scala compiler plugin and used it in four v
 % on user programs.
 
 %% remove if extra space needed
-\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization, safety, semantics}
+%\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization, safety, semantics}
 \end{abstract}
