@@ -130,7 +130,7 @@ An observation is that, for the first 10000 Hamming numbers, there is no need to
     Sensor Readings (5M) &             50.8 ms &           23.1 ms &                    2x \\
     Hamming 10000th      &             4.35 ms &           0.55 ms &                    8x \\ \hline
   \end{tabularx}
-  \vspace{1mm}
+  \vspace{-2mm}
   \caption{Benchmark running time for each use case.}
   \label{table:adrt}
   \vspace{-1em }
@@ -161,32 +161,32 @@ This function desugaring does not expose a version of the |apply| method that en
 
 % retrofitting the function representation - after the fact, as parts of the
 What we would like to have is a way to transform the references to |Function1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|.
+We will now focus on two published benchmarks that exercise the function and tuple optimization. % done using our |adrt| precursor transformation.
 
 \begin{table}[t]
   \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
     \rowcolor{Gray}
-    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxing}& \textbf{Miniboxing} \\
+    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
     \rowcolor{Gray}
-                       &                  &  without function support & with function support \\ \hline
+                       &                  &                   & +functions \\ \hline
     Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
     SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
     SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
     Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
   \end{tabularx}
-  \vspace{1mm}
+  \vspace{-2mm}
   \caption{Scala Streams pipelines for 10M elements.}
   \label{table:streams}
   \vspace{-1em}
 \end{table}
 
-We will now focus on two published benchmarks that exercise the function and tuple optimization/ % done using our |adrt| precursor transformation.
 
-\subsubsection{The Scala-Streams library} draws its inspiration from Java 8 streams. It has been described in the literature \cite{biboudis_clash_2014} and is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline. This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
+\subsubsection{The Scala-Streams library} draws its inspiration from Java 8 streams and other libraries. It has been described in the literature \cite{biboudis_clash_2014} and is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline. This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
 
 Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
 
 
-\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark performed by a commercial specialization/miniboxing user in the Scala community. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is replaced by our |adrt| precursor.
+\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark performed by a commercial specialization/miniboxing user in the Scala community. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized.
 
 % normal exec:
 % [info] Benchmark                                       Mode  Samples        Score  Score error  Units
@@ -207,7 +207,7 @@ Without going into the details of the benchmarks, which are covered in \cite{bib
     Miniboxing without functions   &         3.080 $\mu$s \\
     Generic                        &        13.409 $\mu$s \\ \hline
   \end{tabularx}
-  \vspace{1mm}
+  \vspace{-2mm}
   \caption{Mapping a 1K vector.}
   \label{table:framian}
   \vspace{-1em}
