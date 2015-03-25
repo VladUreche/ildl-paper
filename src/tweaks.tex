@@ -31,7 +31,10 @@
 % Colors and table colors
 \definecolor{Gray}{gray}{0.9}
 \definecolor{LightGray}{gray}{0.4}
-\newcolumntype{g}{>{\columncolor{Gray}}c}
+\definecolor{VeryLightGray}{gray}{0.8}
+\newcolumntype{g}{>{\columncolor{Gray}}l}
+\newcolumntype{h}{>{\columncolor{Gray}}c}
+\newcolumntype{i}{>{\columncolor{Gray}}r}
 
 % Lstlisting highlight
 % http://tex.stackexchange.com/a/49309
@@ -70,8 +73,8 @@
     new,null,object,override,package,%
     private,protected,requires,return,sealed,%
     super,this,throw,trait,true,try,%
-    type,val,var,while,with,yield},
-  otherkeywords={=>,<-,<\%,<:,>:,\#,@},
+    type,val,var,while,with,yield,scala},
+  otherkeywords={=>,<-,<\,<:,>:,\#},
   sensitive=true,
   morecomment=[l]{//},
   morecomment=[n]{/*}{*/},
@@ -92,7 +95,7 @@
   columns=flexible,
   basicstyle={\scriptsize \ttfamily},
   numbers=left,
-  numberstyle=\tiny\color{gray},
+  numberstyle=\tiny\color{VeryLightGray},
   keywordstyle=\bfseries,
   commentstyle=\em\color{ggray},
   stringstyle=\em,
@@ -105,12 +108,12 @@
 %% Line numbers inside frame:
 %% http://tex.stackexchange.com/questions/30504/how-can-i-properly-align-the-line-numbers-of-a-source-code-listing-with-the-marg
 \makeatletter
-\newlength{\linenumwidth} \setlength{\linenumwidth}{1.5em}% Redefine as required
+\newlength{\linenumwidth} \setlength{\linenumwidth}{0.9em}% Redefine as required
 \newlength{\numwidth}%
-\setlength{\numwidth}{\widthof{\normalfont{\lst@numberstyle{99}}}}% Up to 2-digit (99) line numbers
+\setlength{\numwidth}{\widthof{\normalfont\tiny{\-\lst@numberstyle{99}}}}% Up to 2-digit (99) line numbers
 \def\lst@PlaceNumber{%
   \makebox[\linenumwidth][l]{%
-    \makebox[\numwidth][r]{\normalfont\lst@numberstyle{\thelstnumber}}%
+    \makebox[\numwidth][r]{\normalfont\tiny\lst@numberstyle{\thelstnumber}}%
   }%
 }
 \makeatother
@@ -119,13 +122,13 @@
 %%% http://tex.stackexchange.com/questions/10141/how-to-prevent-lstlisting-from-splitting-code-between-pages
 \lstnewenvironment{lstlisting-nobreak}[1][]%
 {
-  \vspace{-0.2em}
+  \vspace{-0.25em}
   \noindent
   \minipage{\linewidth}
 }
 {
   \endminipage
-  \vspace{-0.45em}
+  \vspace{-0.5em}
 }
 
 % Review tools
@@ -140,23 +143,25 @@
 \newcommand{\newterm}[1]{{\em #1}}
 
 % Separators and paper-specific definitions
-\newcommand{\inject}[0]{\textsc{inject}}
-\newcommand{\bridge}[0]{\textsc{bridge}}
-\newcommand{\coerce}[0]{\textsc{coerce}}
-\newcommand{\commit}[0]{\textsc{commit}}
+\newcommand{\inject}[0]{\textsc{Inject}}
+\newcommand{\bridge}[0]{\textsc{Bridge}}
+\newcommand{\coerce}[0]{\textsc{Coerce}}
+\newcommand{\commit}[0]{\textsc{Commit}}
+\newcommand{\postparser}[0]{\textsc{PostParser}}
 \newcommand{\Inject}[0]{\textsc{Inject}}
 \newcommand{\Bridge}[0]{\textsc{Bridge}}
 \newcommand{\Coerce}[0]{\textsc{Coerce}}
 \newcommand{\Commit}[0]{\textsc{Commit}}
+\newcommand{\PostParser}[0]{\textsc{PostParser}}
 \newcommand{\inv}[1]{{\color{White}#1}}
 
-\newcommand{\keywords}[1]{\par\addvspace\baselineskip
-\noindent\keywordname\enspace\ignorespaces#1}
+% \newcommand{\keywords}[1]{\par\addvspace\baselineskip
+% \noindent\keywordname\enspace\ignorespaces#1}
 
 \renewcommand{\subsubsection}[1]{\vspace{0.5em}\noindent\textbf{#1}}
 
 % Paper hacks:
-\setstretch{0.970}
+\setstretch{0.97}
 % \renewcommand{\bibfont}{\scriptsize}
 \renewcommand*{\UrlFont}{\ttfamily\scriptsize\relax}
 

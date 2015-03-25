@@ -1,4 +1,4 @@
-ildl-ecoop
+ildl paper
 ==========
 
-Incremental Late Data Layout ECOOP paper repostiory
+Depending on the conference that accepts it, it will take that name :)
