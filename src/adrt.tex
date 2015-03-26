@@ -192,7 +192,7 @@ The main insight of this section is that focusing on individual values and stori
 \subsection{Separate Compilation}
 \label{sec:ildl:separate-compilation}
 
-Annotating the high-level type by the transformation semantics allows different |adrt| scopes to seamlessly pass encoded values. To reason about composing scopes across different compilation runs, let us assume we already compiled the |gcd| method in the motivating example:
+Annotating the high-level type with the transformation semantics allows different |adrt| scopes to seamlessly pass encoded values. To reason about composing scopes across different compilation runs, let us assume we already compiled the |gcd| method in the motivating example:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -217,7 +217,7 @@ def gcd(n1: `long`, n2: `long`): `long` = ...
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
-When compiling source code that refers to existing low-level code, such as object code or bytecode compiled in a previous run, compilers need to load the high-level signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume it accepts two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts longs and is not able to handle pairs of integers.
+When compiling source code that refers to existing low-level code, such as object code or bytecode compiled in a previous run, compilers need to load the signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume it accepts two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts longs and is not able to handle pairs of integers.
 
 The simplest solution is to create two versions for each transformed method: the transformed method itself and a bridge, which corresponds to the high-level signature. The bridge method would acccept pairs of integers and encode them as longs before calling the transformed version of the |gcd| method. It would also decode the result of |gcd| back to a pair of integers. This approach allows calling |gcd| from separately compiled files without being aware of the transformation. Still, we can do better.
 
@@ -231,11 +231,11 @@ The simplest solution is to create two versions for each transformed method: the
 }
 \end{lstlisting-nobreak}
 
-In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, so they would have to be decoded before calling the bridge method, which would then encode them back. This is suboptimal. Instead, what we want is to let the |adrt| scopes become part of the high-level signature, but without making the transformation a first-class language feature. To do this, instead of persisting the scope, we persist the injected annotations, including the reference to the transformation description object. They become part of the signature of |gcd|:
+In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, so they would have to be decoded before calling the bridge method, which would then encode them back. This is suboptimal. Instead, what we want is to let the |adrt| scopes become part of the high-level signature, but without making the transformation a first-class language feature. To do this, instead of persisting the scope, we persist the injected annotations, including the reference to the transformation description object. They become part of the signature of |gcd|: % (the description object is abbreviated as |.|):
 
 \begin{lstlisting-nobreak}
-// loaded signature for method gcd:
-// def gcd(n1: @repr(.) (Int, Int),n2: @repr(.) (Int, Int)):@repr(.) (Int, Int)
+// loaded signature (description object abbreviated):
+def gcd(n1: @repr(.) (Int, Int),n2: @repr(.) (Int, Int)):@repr(.) (Int, Int)
 \end{lstlisting-nobreak}
 
 The annotations are loaded just before the \inject{} phase, which transforms our code to:
@@ -267,7 +267,7 @@ val res: (Int, Int) = `toHigh`(...,
   gcd(`toRepr`(..., (55, 2)), `toRepr`(..., (17, 13))))
 \end{lstlisting-nobreak}
 
-The main insight in this section is that persisting the description object within each value's annotated type allows efficient scope composition across separate compilation runs.%and eliminates the need for inefficient bridge methods.
+The main insight in this section is that persisting references to the description objects in each value's signature allows scope composition across separate compilation runs.%and eliminates the need for inefficient bridge methods.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -301,7 +301,7 @@ println(IntPairComplexToLongComplex.`bypass_toString`(n))
 The bypass method can operate directly on the encoded version of the integer pair, avoiding a heap allocation. In practice, when the receiver of a method call is annotated, our modified LDL transformation looks up the |bypass_toString| method in the transformation description object, and, if nothing is found, warns the programmer and proceeds with generating the dynamically-dispatched call.
 
 % implicitly added methods + parameters
-\subsubsection{Methods added via implicit conversions,} or other enrichment techniques, such as extension methods or type classes add another layer or complexity. Let us look at the the multiplication operator |*| in the first example in the paper, which is added via an implicit conversion (we will further analyze the interaction with implicit conversions in \S\ref{sec:ildl:language-implicit-conversions}):
+\subsubsection{Methods added via implicit conversions} and other enrichment techniques, such as extension methods or type classes add another layer or complexity, only handled in the ADR transformation. For example, we can see the multiplication operator |*|, added via an implicit conversion (we will further analyze the interaction with implicit conversions in \S\ref{sec:ildl:language-implicit-conversions}):
 
 \begin{lstlisting-nobreak}
 adrt(`IntPairComplexToLongComplex`) {
@@ -314,10 +314,10 @@ Type-checking the program introduces an explicit call to the implicit conversion
 
 \begin{lstlisting-nobreak}
 val n1: (Int, Int) = (0, 1)
-val n2: (Int, Int) = `intPairIsComplex(n1)` * n1
+val n2: (Int, Int) = `intPairAsComplex(n1)` * n1
 \end{lstlisting-nobreak}
 
-This is a costly pattern, requiring |n1| to be decoded into a pair and passed to the |intPairIsComplex| method, which itself creates a wrapper object that exposes the |*| operator. To optimize this pattern, the ADR transformation looks for a bypass method in the transformation description object that corresponds to a mangled name that combines the implicit method and the operator. For simplicity, let us assume its name is |implicit_*|:
+This is a costly pattern, requiring |n1| to be decoded into a pair and passed to the |intPairAsComplex| method, which itself creates a wrapper object that exposes the |*| operator. To optimize this pattern, the ADR transformation looks for a bypass method in the transformation description object that corresponds to a mangled name combining the implicit method name and the operator. For simplicity, if we assume the name is |implicit_*| and the bypass exists, we get:
 
 \begin{lstlisting-nobreak}
 val n1: Long = IntPairComplexToLongComplex.toRepr(0, 1)
@@ -339,7 +339,7 @@ Therefore, during the \coerce{} phase, which introduces extension methods, the |
 def implicit_*(recv: `@repr (Int, Int)`,  n2: `@repr (Int, Int)`): `@repr (Int, Int)`
 \end{lstlisting-nobreak}
 
-Since the method is free to choose the encoding of its arguments, the following signature would also be accepted, but would be suboptimal:
+Since the programmer defining the description object is free to choose the encoding of the bypass arguments, the following (suboptimal) signature would be equally accepted:
 
 \begin{lstlisting-nobreak}
 def implicit_*(recv:`(Int,Int)`, n2:`(Int,Int)`):`(Int,Int)`
