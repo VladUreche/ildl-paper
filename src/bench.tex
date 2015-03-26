@@ -8,7 +8,7 @@ the setting of a library and its clients.
 %
 %\subsection{Setup}
 %
-We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|. The RAM available to the benchmarks was |2GB| and the running times were measured using the scalameter benchmarking platform \cite{scalameter}, to avoid noise.
+We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|. The RAM available to the benchmarks was |2GB| and the running times were measured using the scalameter benchmarking platform \cite{scalameter}, to avoid jitter from the garbage collector and just-in-time compiler.
 
 
 \subsection{ADRT Micro-Benchmarks}
@@ -19,7 +19,7 @@ We chose representative micro-benchmarks in order to cover a wide range of trans
 \item the greatest common divisor algorithm, presented in \S\ref{sec:problem};
 \item least squares benchmark + deforestation \cite{wadler-deforestation};
 \item averaging sensor readings + array of struct;
-\item computing the first 2000 Hamming numbers.
+\item computing the first 10000 Hamming numbers.
 \end{compactitem}
 
 \noindent
@@ -67,7 +67,7 @@ Although the Least Squares Method benchmark is a specialized micro-benchmark, th
 
 
 
-\subsubsection{The Sensor Readings} benchmark was inspired by the Sparkle visualization tool \cite{sparkle}, which is able to quickly display, zoom, transform and filter sensor readings. To obtain nearly real-time results, Sparkle combines several optimizations such as streaming and array-of-struct to struct-of-array conversions, all currently implemented by hand. In our benchmark, we implemented a mock-up of the processing core in Sparkle and automated the array-of-struct transform:
+\subsubsection{The Sensor Readings} benchmark was inspired by the Sparkle visualization tool \cite{sparkle}, which is able to quickly display, zoom, transform and filter sensor readings. To obtain nearly real-time results, Sparkle combines several optimizations such as streaming and array-of-struct to struct-of-array conversions, all currently implemented by hand. In our benchmark, we implemented a mock-up of the processing core of Sparkle and automated the array-of-struct transform:
 
 \begin{lstlisting-nobreak}
 type SensorReadings = Array[(Long, Long, Double)]
@@ -122,7 +122,8 @@ adrt(BigIntToLong) {
 }
 \end{lstlisting-nobreak}
 
-An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are enough. This is an example of using local domain-specific knowledge to optimize the program. Should the optimistic assumption fail, the transformed code will produce exceptions that announce that the optimistic assumptions are invalidated. For this example, the size of the transformation description objects is 100 LOC.
+An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception. For this example, the transformation has 100 LOC.
+
 
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
@@ -174,23 +175,22 @@ class $anon extends Function1[Int, Int] {
 new $anon()
 \end{lstlisting-nobreak}
 
-This function desugaring does not expose a version of the |apply| method that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown caused by converting the represenation or define their own |MiniboxedFunction1| class, and perform the function desugaring by hand. Neither of these is a good solution.
+This function desugaring does not expose a version of the |apply| method that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown caused by converting the representation or define their own miniboxed |Function1| class, and perform the function desugaring by hand. Neither of these is a good solution.
 
 % retrofitting the function representation - after the fact, as parts of the
 %What we would like to have is a way to transform the references to |Function1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|.
+
 Our data representation transformation converts the references to
-|Function1| in miniboxed code: instead of extending |Function1|,
-anonymous functions should extend |MiniboxedFunction1|. The
+|Function1| in miniboxed code to the optimized |MiniboxedFunction1|,
+which allows calls to use the miniboxed representation, thus being more efficient. The
 problem is that the miniboxed code needs to interoperate with
 library-defined code, or with other libraries that were not
 transformed. Thus the miniboxed code acts
 as a scope for the \emph{function and tuple representation
   transformation}, i.e., the ADR transformation of |Function| and
 |Tuple|.
-
 %We will now focus on two published benchmarks that exercise the function and tuple optimization. % done using our |adrt| precursor transformation.
-
-The above transformation has significant impact in published library benchmarks.
+This transformation has a significant impact in library benchmarks.
 
 \begin{table}[t]
   \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
@@ -229,7 +229,7 @@ representation optimization is nearly 35x!
 %Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
 
 
-\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a commercial entity using the Scala programming language. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized.
+\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a commercial entity using the Scala programming language. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows the ADR-transformed function code lies within a 10\% margin compared to the fully specialized and manually optimized code.
 
 % normal exec:
 % [info] Benchmark                                       Mode  Samples        Score  Score error  Units

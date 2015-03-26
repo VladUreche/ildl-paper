@@ -53,7 +53,7 @@ The coercions serve a double purpose: (1) the signatures match the high-level ty
 
 Since the coercion signatures ``match'' the high-level type and return the corresponding representation type, a value of type |List[Int]| will be matched by the |adrt| transformation and subsequently encoded as a |LazyList[Int]|. This allows the |adrt| scopes to transform collections, containers and function representations. The benchmarks section (\S\ref{sec:benchmarks}) shows two examples of generic transformations.
 
-\subsubsection{Target Sematics.} It is worth noting that coercions defined in transformation objects must maintain the semantics of the high-level type. In particular, semantics such as mutability and referential identity must be preserved if the program relies on them. For example, correctly handling referential identity requires the coercions to return the exact same object (the exact same reference) when interleaved:
+\subsubsection{Target Semantics.} It is worth noting that coercions defined in transformation objects must maintain the semantics of the high-level type. In particular, semantics such as mutability and referential identity must be preserved if the program relies on them. For example, correctly handling referential identity requires the coercions to return the exact same object (the exact same reference) when interleaved:
 
 \begin{lstlisting-nobreak}
 assert(toHigh(toRepr(x)) eq x) // referential equality
@@ -224,7 +224,7 @@ def gcd(n1: `long`, n2: `long`): `long` = ...
 %  -- keeping track of transformed methods (do I have a transformed version?)
 When compiling source code that refers to existing low-level code, such as object code or bytecode compiled in a previous run, compilers need to load the signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume it accepts two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts longs and is not able to handle pairs of integers.
 
-The simplest solution is to create two versions for each transformed method: the transformed method itself and a bridge, which corresponds to the high-level signature. The bridge method would acccept pairs of integers and encode them as longs before calling the transformed version of the |gcd| method. It would also decode the result of |gcd| back to a pair of integers. This approach allows calling |gcd| from separately compiled files without being aware of the transformation. Still, we can do better.
+The simplest solution is to create two versions for each transformed method: the transformed method itself and a bridge, which corresponds to the high-level signature. The bridge method would accept pairs of integers and encode them as longs before calling the transformed version of the |gcd| method. It would also decode the result of |gcd| back to a pair of integers. This approach allows calling |gcd| from separately compiled files without being aware of the transformation. Still, we can do better.
 
 \subsubsection{Persisting transformation annotations.} Let us assume we want to call the |gcd| method from a scope transformed using the same transformation description object as we used when compiling |gcd|, but in a different compilation run:
 
