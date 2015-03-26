@@ -2,7 +2,7 @@
 \label{sec:ildl}
 
 %% Overview
-The Ad hoc Data Representation (ADR) transformation adds two new elements over existing data representation transformations: (1) it enables custom, programmer-defined alternative representations and (2) it allows the transformation to take place in limited scopes, ranging from expressions all the way to method and class definitions. This allows programmers to use locally correct transformations that may be incorrect for code outside their given scope.
+The Ad hoc Data Representation (ADR) transformation adds two new elements to existing data representation transformations: (1) it enables custom, programmer-defined alternative representations and (2) it allows the transformation to take place in limited scopes, ranging from expressions all the way to method and class definitions. This allows programmers to use locally correct transformations that may be incorrect for code outside their given scope.
 
 %% Example
 Section \ref{sec:automating} showed how the ADR transformation is triggered by the |adrt| marker. The running example is reproduced below for quick reference:
@@ -43,7 +43,7 @@ The coercions serve a double purpose: (1) the signatures match the high-level ty
 
 \subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type but operate on encoded values in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is explained later, in section \S\ref{sec:ildl:method}.
 
-\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the |adrt| transformation is used to target library collections regardless of the type of their elements. Although we studied multiple approaches to defining the transformation description objects, we converged on the current approach, which has the merit of being concise and naturally extending to generic high-level and representation types, by allowing the coercions to be generic themselves:
+\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. Although we analyzed multiple approaches to allowing genericity in the transformation description objects, we converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any arity:
 
 % Example of a generic transformation
 \begin{lstlisting-nobreak}
@@ -69,7 +69,7 @@ Once the transformation description object is defined, it can be used in |adrt| 
 \subsection{Transformation Scopes and Composability}
 \label{sec:ildl:scoped}
 
-Unlike existing data representation transformations, such as value class inlining and specialization, which have fixed semantics and occur in a sequence, the ADR transformation handles all transformation scopes in the source code concurrently, each with its own high-level target, representation type and coercions. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, demands a highly disciplined treatment.
+Existing data representation transformations, such as value class inlining and specialization, have fixed semantics and occur in a sequence. Instead, the ADR transformation handles all transformation scopes in the source code concurrently, each with its own high-level target, representation type and coercions. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, demands a highly disciplined treatment.
 
 %%% \yannis{To me this is incomprehensible.}
 %The key to the composability property is shifting the focus from the
@@ -85,7 +85,7 @@ Unlike existing data representation transformations, such as value class inlinin
 %classes of unsoundness.
 
 %% \vlad{hopefully this one is better...}
-The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantic with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we call composability.
+The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantic with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we refer to as composability.
 
 We look at four instances of composability:
 
@@ -96,9 +96,9 @@ We look at four instances of composability:
   \item passing values between high-level types in the encoded (representation) format;
 \end{compactitem}
 
-Although the four examples cover the most interesting corner cases of the transformation, should the readers be interested, all cases of scope overlapping and nesting are described on the project wiki \cite{ildl-plugin-wiki}, on the ``Scope Nesting'' page. Furthermore, the scope composition is tested with each commit, as part of the project's test suite.
+Although the four examples cover the most interesting corner cases of the transformation, the interested reader may consult the ``Scope Nesting'' page on the project wiki \cite{ildl-plugin-wiki}, which describes all cases of scope overlapping, collaboration and nesting. Furthermore, the scope composition is tested with each commit, as part of the project's test suite.
 
-\subsubsection{A high-level type can have different representations in different scopes.} This goes according to the scoped nature of the ADR transformation, which allows programmers to safely use the most efficient data representation for each task. Yet, this raises the question of whether values can be safely passed across scopes using different representations:
+\subsubsection{A high-level type can have different representations in different scopes.} This follows from to the scoped nature of the ADR transformation, which allows programmers to use the most efficient data representation for each task. But it raises the question of whether values can be safely passed across scopes that use different representations:
 
 \begin{lstlisting-nobreak}
 adrt(IntPairToLong)   { var x = (3, 5) }
@@ -107,25 +107,25 @@ adrt(IntPairToDouble) { val y = (2, 6); `x = y` }
 
 At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
 
-After parsing, the scope is inlined and the program is type-checked against the high-level types. Aside from checking the high-level types, the type checker also resolves implicits and infers all missing type annotations. During time, the description objects are kept as tree attachments:
+After parsing, the scope is inlined and the program is type-checked against the high-level types. Aside from checking the high-level types, the type checker also resolves implicits and infers all missing type annotations. During type checking, the descriptions objects are stored as invisible abstract syntax tree attachments (described in \S\ref{sec:impl}):
 
 \begin{lstlisting-nobreak}
-var x: (Int, Int) = (3, 5)
-val y: (Int, Int) = (2, 6)
+var x: (Int, Int) = (3, 5) /* att: IntPairToLong */
+val y: (Int, Int) = (2, 6) /* att: IntPairToDouble */
 `x = y`
 \end{lstlisting-nobreak}
 
-Then, during the \inject{} phase, for each defined value or method, the attached description objects are added to the |@repr| annotation, parameterized on the transformation description object:
+Then, during the \inject{} phase, each value or method definition that matches the description object's high-level type is annotated with the |@repr| annotation, parametrized on the transformation description object:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
 val y: `@repr(IntPairToDouble)` (Int, Int) = (2, 6)
-`x = y`
+x = y
 \end{lstlisting-nobreak}
 
-The |@repr| annotation is only attached if the value's type matches the high-level type in the description object. Therefore, programmers are free de define values of any type in the scope, but only those values whose type matches the transformation description object's target will be annotated.
+The |@repr| annotation is only attached if the value's type matches the high-level type in the description object. Therefore, programmers are free to define values of any type in the scope, but only those values whose type matches the transformation description object's target will be annotated.
 
-Based on the annotated types, the \coerce{} phase notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, the high-level type is used as a middle ground to transform between the two representation types:
+Based on the annotated types, the \coerce{} phase notices the mismatching transformation description objects in the last line: the left-hand side is on its way to be converted to a long integer (based on the description object |IntPairToLong|) while the right-hand side will become a floating point expression (based on the description object |IntPairToDouble|). However, both description objects have the same high-level type, the integer pair. Therefore, the high-level type is used as a middle ground to transform between the two representation types:
 
 \begin{lstlisting-nobreak}
 var x: @repr(IntPairToLong) (Int, Int) = `toRepr`(IntPairToLong, (3, 5))
@@ -141,7 +141,7 @@ val y: `Double` = IntPairToDouble.toRepr((2, 6))
 x = IntPairToLong.toRepr(IntPairToDouble.toHigh(y))
 \end{lstlisting-nobreak}
 
-Therefore, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at the second scenario.
+In the end, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at the second scenario.
 
 \subsubsection{Different transformation scopes can be safely nested} and the high-level types are correctly isolated:
 
@@ -158,7 +158,7 @@ adrt(`FloatPairAsLong`) {
 
 Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, introducing unsoundness.
 
-The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, announcing the programmer that the types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allow such unsound assignments.
+The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, informing the programmer that the types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which would allow such unsound assignments.
 
 \subsubsection{Handling conflicting nested transformation description objects} is another important property of composition:
 
