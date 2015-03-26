@@ -39,11 +39,11 @@ object IntPairComplexToLongComplex
 }
 \end{lstlisting-nobreak}
 
-The coercions serve a double purpose: (1) the signatures match the high-level type, in this case |(Int, Int)| and indicate its corresponding representation type, |Long| and vice-versa and (2) the implementations are called in the transformed scope to encode and decode values as necessary.
+The coercions serve a double purpose: (1) the signatures match the high-level type, in this case |(Int, Int)| and indicate the corresponding representation type, |Long| and vice-versa and (2) the implementations are called in the transformed scope to encode and decode values as necessary.
 
-\subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type but operate on encoded values in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is explained later, in section \S\ref{sec:ildl:method}.
+\subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type, but instead operate on encoded values in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is explained later, in section \S\ref{sec:ildl:method}.
 
-\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. Although we analyzed multiple approaches to allowing genericity in the transformation description objects, we converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any arity:
+\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. We analyzed multiple approaches to allowing genericity in the transformation description object and converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any arity:
 
 % Example of a generic transformation
 \begin{lstlisting-nobreak}
@@ -59,7 +59,7 @@ Since the coercion signatures ``match'' the high-level type and return the corre
 assert(toHigh(toRepr(x)) eq x) // referential equality
 \end{lstlisting-nobreak}
 
-These semantics reduce the benefit of the |adrt| transformation by imposing restrictions on the coercions. However, in most use cases, the targets, such as Scala collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it.
+These semantics reduce the benefit of the |adrt| transformation by imposing restrictions on the coercions. However, in most use cases, the targets, such as library collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it.
 
 Once the transformation description object is defined, it can be used in |adrt| scopes to optimize the user program.
 
@@ -85,7 +85,7 @@ Existing data representation transformations, such as value class inlining and s
 %classes of unsoundness.
 
 %% \vlad{hopefully this one is better...}
-The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantics with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we refer to as composability.
+The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantic with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we refer to as composability.
 
 We look at four instances of composability:
 
@@ -172,7 +172,7 @@ adrt(`PairAsMyPair`) {
 }
 \end{lstlisting-nobreak}
 
-In the code above, the type of |x| matches both transformation description objects, so it could be transformed to both representation types |MyPair[Int, Int]| and |Long|. However, during the \inject{} phase, if a value is matched by several nested transformation description objects, this can be reported to the programmer either as an error or, depending on the implementation, as a warning, followed by choosing one of the transformation description objects for the value:
+In the code above, the type of |x| matches both transformation description objects, so it could be transformed to both representation types |MyPair[Int, Int]| and |Long|. However, during the \inject{} phase, if a value is matched by several nested |adrt| scopes, this can be reported to the programmer either as an error or, depending on the implementation, as a warning, followed by choosing one of the transformation description objects for the value (current solution):
 
 \begin{lstlisting-nobreak}
 console:9:  warning: Several adrt scopes can be applied to value x. Picking the innermost one: `IntPairAsLong`
@@ -186,10 +186,10 @@ Furthermore, since the \inject{} phase annotates value |x| with the chosen trans
 
 There is a better solution. As we will later see, the programmer can use bypass methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
 
-%The main insight of this section is that 
-To recap: focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types 
+%The main insight of this section is that
+To recap: focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types
 %% Is there a reason this is not ``are''?
-%can be 
+%can be
 are annotated in exactly the same way. The next part extends scope composition across separate compilation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -214,7 +214,7 @@ def gcd(
   ): `@repr(IntPairComplexToLongComplex)` (Int, Int) = ...
 \end{lstlisting-nobreak}
 
-And, after the entire compilation pipeline transformed the code, the bytecode signature for method |gcd| becomes:
+And, after the \commit{} phase executed, the bytecode signature for method |gcd| is:
 
 \begin{lstlisting-nobreak}
 def gcd(n1: `long`, n2: `long`): `long` = ...
@@ -272,7 +272,7 @@ val res: (Int, Int) = `toHigh`(...,
   gcd(`toRepr`(..., (55, 2)), `toRepr`(..., (17, 13))))
 \end{lstlisting-nobreak}
 
-%The main insight in this section is that 
+%The main insight in this section is that
 Generally, persisting references to the description objects in each value's signature allows scope composition across separate compilation runs.%and eliminates the need for inefficient bridge methods.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -534,7 +534,7 @@ val a: Any = n // no coercion
 println(a)
 \end{lstlisting-nobreak}
 
-This resulting code changes semantics because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|. 
+This resulting code changes semantics because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|.
 %% Is this the right section? I thought there would be a sub-section of 4 here.
 As we saw in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation,
 % which is orthogonal to the type system of the host language.
