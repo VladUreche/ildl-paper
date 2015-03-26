@@ -394,7 +394,7 @@ class X {
 
 % Data representation transformations break dynamic dispatch and overriding
 % The solution is introducing bridges => add a phase to the LDL transformation
-In the low-level bytecode, the |identity| method in class |Y| no longer overrides method |identity| in class |X|, as its low-level signature expects a long integer instead of a pair of integers. This prompted us to extend the Late Data Layout mechanism, introducing a new \bridge{} phase, which runs just before \coerce{} and introduces bridge methods to enable correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
+After the ADR transformation, the |identity| method in class |Y| no longer overrides method |identity| in class |X|, since its signature expects a long integer instead of a pair of integers. This prompted us to extend the Late Data Layout mechanism, introducing a new \bridge{} phase, which runs just before \coerce{} and introduces bridge methods to enable correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
 
 \begin{lstlisting-nobreak}
 class Y extends X(t: `@repr(...)` (Int, Int)) {
@@ -423,7 +423,7 @@ class Y extends X(t: `Long`) {
 \end{lstlisting-nobreak}
 
 % The backwards problem is also true => bridge + warning
-If we now try to extend class |Y| in another |adrt| scope with the same transformation description object, overriding will take place correctly: the new class will define both the transformed method and the bridge, overriding both methods above. However, a more interesting case is extending class |Y| from a scope with a different description object:
+If we now try to extend class |Y| in another |adrt| scope with the same transformation description object, overriding will take place correctly: the new class will define both the transformed method and the bridge, overriding both methods above. However, a more interesting case occurs when extending class |Y| from a scope with a different description:
 
 \begin{lstlisting-nobreak}
 adrt(`IntPairAsDouble`) { // != IntPairAsLong
@@ -445,7 +445,7 @@ class Z(t: `Double`) extends Y(...) {
 
 %This more involved transformation, with two bridges and a total of 8 representation transformations (all of which were elided in the snippet), ensures the |identity| methods in both classes |X| and |Y| are correctly overridden.
 
-Although the resulting object layout is consistent, the |@bridge| methods use coercions to transform between the representations, which makes them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. To make the programmer aware, the \bridge{} phase issues warnings if more than one representation needs to be bridged.
+Although the resulting object layout is consistent, the |@bridge| methods have to transform between the representations, which makes them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. In such cases the \bridge{} phase issues warnings to notify the programmer of a possible slowdown caused by the coercions.
 
 \subsubsection{Generics}
 \label{sec:ildl:language-generics}
@@ -473,7 +473,7 @@ def use1(list: List[(Int, Int)]): Unit = ...
 def use2(list: List[(Int, Int)]): Unit = `use1(list)`
 \end{lstlisting-nobreak}
 
-Still, this does not prevent a programmer from defining another transformation description object that targets |List[(Int, Int)]| and replaces it by |List[Long]|:
+However, this does not prevent a programmer from defining another transformation description object that targets |List[(Int, Int)]| and replaces it by |List[Long]|:
 
 \begin{lstlisting-nobreak}
 def use1(list: List[(Int, Int)]): Unit = ...
@@ -499,7 +499,7 @@ Therefore |adrt| scopes are capable of targeting:
 \noindent
 Using these three cases and scope composition, programmers can conveniently target any type in their program.
 
-\subsubsection{Implicit Conversions}
+\subsubsection{Implicit conversions}
 \label{sec:ildl:language-implicit-conversions}
 interact in two ways with |adrt| scopes:
 % \begin{compactitem}
@@ -507,9 +507,11 @@ interact in two ways with |adrt| scopes:
 % \item Replacing the LDL backend by implicit conversions.
 % \end{compactitem}
 
-\textem{Extending the object functionality} through implicit conversions or any other means, such as extension methods or type classes must be taken into account by the bypass the method call rewiring in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signatures remain the same (\S\ref{sec:ildl:method}).
+\noindent
+\textem{Extending the object functionality} through implicit conversions and other means, such as extension methods or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signatures remain the same (\S\ref{sec:ildl:method}).
 
-\textem{Offering an alternative to the LDL-based backend}. Unfortunately, implicit conversions do not offer strong enough guarantees to replace the LDL backend. For example, assuming there are implicit methods in scope to transform pairs of integers to longs and back, we can try to transform:
+\noindent
+\textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions do not offer strong enough guarantees to replace the LDL backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
 
 \begin{lstlisting-nobreak}
 val n: (Int, Int) = (1, 0)
@@ -525,7 +527,7 @@ val a: Any = n // no coercion
 println(a)
 \end{lstlisting-nobreak}
 
-This resulting code changes semantic because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|. As we have seen in \S\ref{sec:drt}, the missing coercions is correctly inserted when annotations track the value representation,
+This resulting code changes semantic because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|. As we have seen in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation,
 % which is orthogonal to the type system of the host language.
 since annotations are orthogonal to the host language type system.
 
