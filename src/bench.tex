@@ -210,7 +210,7 @@ The above transformation has significant impact in published library benchmarks.
 \end{table}
 
 
-\subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for operations on lazy collections. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
+\subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for functional operations on data streams. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
 % This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
 
 Table \ref{table:streams} shows the result of applying our data

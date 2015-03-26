@@ -85,7 +85,7 @@ Existing data representation transformations, such as value class inlining and s
 %classes of unsoundness.
 
 %% \vlad{hopefully this one is better...}
-The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantic with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we refer to as composability.
+The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation to reference the description object, essentially carrying the entire transformation semantics with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, essentially allowing scopes to safely and efficiently pass values among themselves, using the representation type---a property we refer to as composability.
 
 We look at four instances of composability:
 
@@ -98,7 +98,7 @@ We look at four instances of composability:
 
 Although the four examples cover the most interesting corner cases of the transformation, the interested reader may consult the ``Scope Nesting'' page on the project wiki \cite{ildl-plugin-wiki}, which describes all cases of scope overlapping, collaboration and nesting. Furthermore, the scope composition is tested with each commit, as part of the project's test suite.
 
-\subsubsection{A high-level type can have different representations in different scopes.} This follows from to the scoped nature of the ADR transformation, which allows programmers to use the most efficient data representation for each task. But it raises the question of whether values can be safely passed across scopes that use different representations:
+\subsubsection{A high-level type can have different representations in different scopes.} This follows from the scoped nature of the ADR transformation, which allows programmers to use the most efficient data representation for each task. But it raises the question of whether values can be safely passed across scopes that use different representations:
 
 \begin{lstlisting-nobreak}
 adrt(IntPairToLong)   { var x = (3, 5) }
@@ -107,7 +107,7 @@ adrt(IntPairToDouble) { val y = (2, 6); `x = y` }
 
 At a high level, the code is correct: the variable |x| is set to the value of |y|, both of them having high-level type |(Int, Int)|. However, being in different scopes, these two values will be encoded differently, |x| as a long integer and |y| as a double-precision floating point number. In this situation, how will the assignment |x = y| be translated? Let us look at the transformation step by step.
 
-After parsing, the scope is inlined and the program is type-checked against the high-level types. Aside from checking the high-level types, the type checker also resolves implicits and infers all missing type annotations. During type checking, the descriptions objects are stored as invisible abstract syntax tree attachments (described in \S\ref{sec:impl}):
+After parsing, the scope is inlined and the program is type-checked against the high-level types. Aside from checking the high-level types, the type checker also resolves implicits and infers all missing type annotations. During type checking, the description objects are stored as invisible abstract syntax tree attachments (described in \S\ref{sec:impl}):
 
 \begin{lstlisting-nobreak}
 var x: (Int, Int) = (3, 5) /* att: IntPairToLong */
@@ -115,7 +115,7 @@ val y: (Int, Int) = (2, 6) /* att: IntPairToDouble */
 `x = y`
 \end{lstlisting-nobreak}
 
-Then, during the \inject{} phase, each value or method definition that matches the description object's high-level type is annotated with the |@repr| annotation, parametrized on the transformation description object:
+Then, during the \inject{} phase, each value or method definition that matches the description object's high-level type is annotated with the |@repr| annotation, parameterized on the transformation description object:
 
 \begin{lstlisting-nobreak}
 var x: `@repr(IntPairToLong)` (Int, Int) = (3, 5)
@@ -141,7 +141,8 @@ val y: `Double` = IntPairToDouble.toRepr((2, 6))
 x = IntPairToLong.toRepr(IntPairToDouble.toHigh(y))
 \end{lstlisting-nobreak}
 
-In the end, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. Let us now look at the second scenario.
+In the end, the value |x| is converted from a double to a pair of integers, which is subsequently converted to a long integer. This shows the disciplined way in which different |adrt| scopes compose, allowing values to flow across different representations, from one scope to another. As in the LDL transformation, the mechanism aims to employ a minimal number of conversions.
+%Let us now look at the second scenario.
 
 \subsubsection{Different transformation scopes can be safely nested} and the high-level types are correctly isolated:
 
@@ -185,7 +186,10 @@ Furthermore, since the \inject{} phase annotates value |x| with the chosen trans
 
 There is a better solution. As we will later see, the programmer can use bypass methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
 
-The main insight of this section is that focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types can be annotated in exactly the same way. The next part extends scope composition across separate compilation.
+The main insight of this section is that focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types 
+%% Is there a reason this is not ``are''?
+%can be 
+are annotated in exactly the same way. The next part extends scope composition across separate compilation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
