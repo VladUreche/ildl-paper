@@ -148,7 +148,7 @@ The \commit{} phase is responsible for the consistency of the transformation. Si
 \subsection{Support For Object-Oriented Programming}
 \label{sec:ldl:oo-patterns}
 
-The LDL mechanism is aimed at object-oriented programming languages, which pose unique challenges for data representation transformations. This section will describe the additional rules necessary in LDL to handle object-orientation.
+The LDL mechanism targets object-oriented programming languages, which pose unique challenges for data representation transformations. This section will describe the additional rules necessary in LDL to handle object-orientation.
 
 % Object-oriented support
 \subsubsection{Object-oriented Patterns.} Aside from introducing coercions, data representation transformations must handle object-oriented patterns, such as method calls and subtyping. Not all representations can be used with these patterns. For example, it is not possible to call the |toString| method on the unboxed |int| representation:
