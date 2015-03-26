@@ -381,12 +381,12 @@ It is interesting to notice that representation-specific method rewriting relies
 \subsection{Interaction with Other Language Features}
 \label{sec:ildl:language-features}
 
-This section presents the interaction between the ADR transformation and object-oriented inheritance, generics and implicit conversions, explaining what are the additional steps that must be taken to ensure correct program transformation and what are the limitations of our approach.
+This section presents the interaction between the ADR transformation and object-oriented inheritance, generics and implicit conversions, explaining the additional steps that should be taken to ensure correct program transformation and  the limitations of the approach.
 
 \subsubsection{Dynamic Dispatch and Overriding}
 \label{sec:ildl:language-overriding}
 % Part of the Object model => dynamic dispatch and overriding
-is an integral part of the object-oriented programming model, allowing objects to encapsulate code. The main approach to evolving this encapsulated code is extending the class and overriding its methods. However, changing the data representation can lead to situations where source-level overriding methods are no longer overriding in the low-level bytecode:
+are an integral part of the object-oriented programming model, allowing objects to encapsulate code. The main approach to evolving this encapsulated code is extending the class and overriding its methods. However, changing the data representation can lead to situations where source-level overriding methods are no longer overriding in the low-level bytecode:
 
 \begin{lstlisting-nobreak}
 class X {
@@ -401,7 +401,7 @@ class X {
 
 % Data representation transformations break dynamic dispatch and overriding
 % The solution is introducing bridges => add a phase to the LDL transformation
-After the ADR transformation, the |identity| method in class |Y| no longer overrides method |identity| in class |X|, since its signature expects a long integer instead of a pair of integers. This prompted us to extend the Late Data Layout mechanism, introducing a new \bridge{} phase, which runs just before \coerce{} and introduces bridge methods to enable correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
+After the ADR transformation, the |identity| method in class |Y| no longer overrides method |identity| in class |X|, since its signature expects a long integer instead of a pair of integers. To address this problem, we extend the Late Data Layout mechanism, to introduce a new \bridge{} phase, which runs just before \coerce{} and inserts bridge methods to enable correct overriding. After the \inject{} phase, the code corresponding to class |Y| is:
 
 \begin{lstlisting-nobreak}
 class Y extends X(t: `@repr(...)` (Int, Int)) {
@@ -454,10 +454,10 @@ class Z(t: `Double`) extends Y(...) {
 
 Although the resulting object layout is consistent, the |@bridge| methods have to transform between the representations, which makes them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. In such cases the \bridge{} phase issues warnings to notify the programmer of a possible slowdown caused by the coercions.
 
-\subsubsection{Generics}
+\subsubsection{Generics.}
 \label{sec:ildl:language-generics}
 % Another question that arises: Generics - whether the ADR transformation should transform generic containers. Example:
-Another problem that arises when performing ad hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example:
+Another question that arises when performing ad hoc programmer-driven transformations is how to transform the data representation in generic containers. Should the ADR transformation be allowed to change the data representation stored in a |List|? We can use an example:
 
 \begin{lstlisting-nobreak}
 def use1(list: List[(Int, Int)]): Unit = ...
@@ -515,7 +515,7 @@ interact in two ways with |adrt| scopes:
 % \end{compactitem}
 
 \noindent
-\textem{Extending the object functionality} through implicit conversions and other means, such as extension methods or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signatures remain the same (\S\ref{sec:ildl:method}).
+\textem{Extending the object functionality} through implicit conversions, extension methods, or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since, in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signatures remain the same (\S\ref{sec:ildl:method}).
 
 \noindent
 \textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions do not offer strong enough guarantees to replace the LDL backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
@@ -534,7 +534,9 @@ val a: Any = n // no coercion
 println(a)
 \end{lstlisting-nobreak}
 
-This resulting code changes semantic because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|. As we have seen in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation,
+This resulting code changes semantics because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, this makes the output |4294967296| instead of |(1, 0)|. 
+%% Is this the right section? I thought there would be a sub-section of 4 here.
+As we saw in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation,
 % which is orthogonal to the type system of the host language.
 since annotations are orthogonal to the host language type system.
 
