@@ -186,7 +186,8 @@ Furthermore, since the \inject{} phase annotates value |x| with the chosen trans
 
 There is a better solution. As we will later see, the programmer can use bypass methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
 
-The main insight of this section is that focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types 
+%The main insight of this section is that 
+To recap: focusing on individual values and storing the transformation semantics in the annotated type allows us to correctly handle values flowing across scopes, a property we call scope composition. Although we focused on values, method parameters and return types 
 %% Is there a reason this is not ``are''?
 %can be 
 are annotated in exactly the same way. The next part extends scope composition across separate compilation.
@@ -196,7 +197,7 @@ are annotated in exactly the same way. The next part extends scope composition a
 \subsection{Separate Compilation}
 \label{sec:ildl:separate-compilation}
 
-Annotating the high-level type with the transformation semantics allows different |adrt| scopes to seamlessly pass encoded values. To reason about composing scopes across different compilation runs, let us assume we already compiled the |gcd| method in the motivating example:
+Annotating the high-level type with the transformation semantics allows different |adrt| scopes to seamlessly pass encoded values. To reason about composing scopes across different compilation runs, let us assume we have already compiled the |gcd| method in the motivating example:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -235,7 +236,7 @@ The simplest solution is to create two versions for each transformed method: the
 }
 \end{lstlisting-nobreak}
 
-In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, so they would have to be decoded before calling the bridge method, which would then encode them back. This is suboptimal. Instead, what we want is to let the |adrt| scopes become part of the high-level signature, but without making the transformation a first-class language feature. To do this, instead of persisting the scope, we persist the injected annotations, including the reference to the transformation description object. They become part of the signature of |gcd|: % (the description object is abbreviated as |.|):
+In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, so they would have to be decoded before calling the bridge method, which would then encode them back. This is suboptimal. Instead, what we want is to let the |adrt| scopes become part of the high-level signature, but without making the transformation a first-class language feature. To do this, instead of persisting the scope, we persist the injected annotations, including the reference to the transformation description object. These become part of the signature of |gcd|: % (the description object is abbreviated as |.|):
 
 \begin{lstlisting-nobreak}
 // loaded signature (description object abbreviated):
@@ -250,7 +251,7 @@ val n2: `@repr(.)` (Int, Int) = ...
 val res: `@repr(.)` (Int, Int) = gcd(n1, n2)
 \end{lstlisting-nobreak}
 
-With the complete signature for |gcd|, the \coerce{} phase does not introduce any coercions, since the arguments of method |gcd| are going to be transformed the same way as the method parameters have been transformed in a previous compilation run. This allows |adrt| scopes to seamlessly compose even across separate compilation. After the \commit{} phase, the scope is compiled to:
+With the complete signature for |gcd|, the \coerce{} phase does not introduce any coercions, since the arguments of method |gcd| are going to be transformed in the same way as the method parameters were transformed in a previous compilation run. This allows |adrt| scopes to seamlessly compose even across separate compilation. After the \commit{} phase, the scope is compiled to:
 
 \begin{lstlisting-nobreak}
 val n1: `Long` = ...
@@ -271,7 +272,8 @@ val res: (Int, Int) = `toHigh`(...,
   gcd(`toRepr`(..., (55, 2)), `toRepr`(..., (17, 13))))
 \end{lstlisting-nobreak}
 
-The main insight in this section is that persisting references to the description objects in each value's signature allows scope composition across separate compilation runs.%and eliminates the need for inefficient bridge methods.
+%The main insight in this section is that 
+Generally, persisting references to the description objects in each value's signature allows scope composition across separate compilation runs.%and eliminates the need for inefficient bridge methods.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -288,7 +290,7 @@ adrt(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-When handling method calls where the receiver encoded, the default LDL behavior is very conservative: it decodes the value back to its high-level type, which exposes the original method and generates a dynamically-dispatched call (\S\ref{sec:ldl:oo-patterns}):
+When handling method calls on an encoded receiver, the default LDL behavior is very conservative: it decodes the value back to its high-level type, which exposes the original method and generates a dynamically-dispatched call (\S\ref{sec:ldl:oo-patterns}):
 
 \begin{lstlisting-nobreak}
 val n: Long = ...
@@ -302,10 +304,10 @@ val n: Long = ...
 println(IntPairComplexToLongComplex.`bypass_toString`(n))
 \end{lstlisting-nobreak}
 
-The bypass method can operate directly on the encoded version of the integer pair, avoiding a heap allocation. In practice, when the receiver of a method call is annotated, our modified LDL transformation looks up the |bypass_toString| method in the transformation description object, and, if nothing is found, warns the programmer and proceeds with generating the dynamically-dispatched call.
+The bypass method can operate directly on the encoded version of the integer pair, avoiding a heap allocation. In practice, when the receiver of a method call is annotated, our modified LDL transformation looks up the |bypass_toString| method in the transformation description object, and, if none is found, warns the programmer and proceeds with decoding the receiver and generating the dynamically-dispatched call.
 
 % implicitly added methods + parameters
-\subsubsection{Methods added via implicit conversions} and other enrichment techniques, such as extension methods or type classes add another layer or complexity, only handled in the ADR transformation. For example, we can see the multiplication operator |*|, added via an implicit conversion (we will further analyze the interaction with implicit conversions in \S\ref{sec:ildl:language-implicit-conversions}):
+\subsubsection{Methods added via implicit conversions} and other enrichment techniques, such as extension methods or type classes, add another layer or complexity, only handled in the ADR transformation. For example, we can see the multiplication operator |*|, added via an implicit conversion (we will further analyze the interaction with implicit conversions in \S\ref{sec:ildl:language-implicit-conversions}):
 
 \begin{lstlisting-nobreak}
 adrt(`IntPairComplexToLongComplex`) {
@@ -314,7 +316,7 @@ adrt(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-Type-checking the program introduces an explicit call to the implicit conversion that adds the |*| operator:
+Type-checking the program introduces an explicit call to the implicit conversion that adds the correct |*| operator:
 
 \begin{lstlisting-nobreak}
 val n1: (Int, Int) = (0, 1)
@@ -328,7 +330,8 @@ val n1: Long = IntPairComplexToLongComplex.toRepr(0, 1)
 val n2: Long = `implicit_*(n1, n1)`
 \end{lstlisting-nobreak}
 
-This allows the call to the |*| operator to go through without any heap object creation, which significantly improves the performance and the heap footprint. Yet, we glossed over some details in how bypass methods are implemented.
+This allows the call to the |*| operator to go through without any heap object creation, which significantly improves performance and heap footprint. We next see the implementation of bypass methods in detail.
+%Yet, we glossed over some details in how bypass methods are implemented.
 
 \subsubsection{Bypass methods.} Both normal and implicit bypass methods need to correspond to the method they are replacing and:
 \begin{compactitem}
@@ -349,7 +352,7 @@ Since the programmer defining the description object is free to choose the encod
 def implicit_*(recv:`(Int,Int)`, n2:`(Int,Int)`):`(Int,Int)`
 \end{lstlisting-nobreak}
 
-It is interesting to notice that representation-specific method rewriting relies on two previous design choices: (1) shifting focus from scopes to individual values and (2) carrying the entire transformation semantic in the signature of each encoded value. %The Implementation section (\S\ref{sec:impl}) further explains how these bypass methods are defined in the transformation description objects, but before that, there is a last set of interesting interactions of |adrt| scopes and language features.
+It is interesting to notice that representation-specific method rewriting relies on two previous design choices: (1) shifting focus from scopes to individual values and (2) carrying the entire transformation semantics in the signature of each encoded value. %The Implementation section (\S\ref{sec:impl}) further explains how these bypass methods are defined in the transformation description objects, but before that, there is a last set of interesting interactions of |adrt| scopes and language features.
 
 
 % This allows the method to accept the second operand and return the result in the encoded state. Yet, the source code of the method, which must be defined in the transformation description object, works on encoded values, bearing the representation type, in this case, |Long|. This is why, in the transformation description object, the definition of method |implicit_*| is:
