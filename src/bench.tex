@@ -144,19 +144,28 @@ An observation is that, for the first 10000 Hamming numbers, there is no need to
   \vspace{-1em }
 \end{table}
 
-\subsection{Scoped Library Replacement}
+\subsection{ADRT in Realistic Libraries}
 % \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
 
 % subset of the adrt, missing frontend features -- value annotation and signature persistence are there.
 % motivation: miniboxing specialization + function encoding
-Before the |adrt| scope was developed, we worked on a plugin that used a similar scoped approach: an extension used by the miniboxing transformation \cite{miniboxing-www, miniboxing} to replace library functions and tuples by custom optimized versions. Although this plugin was a precursor of the |adrt| transformation, being scoped but not programmer-driven, we present it because in the meantime it became part of the miniboxing plugin and has been used to transform large pieces of code, proving our approach scales not only to toy examples, but to actual code used in the industry.
+
+Our |adrt| facility is a conceptual generalization of a mechanism
+motivated by several usage scenarios is actual libraries. The
+resulting data representation transformation is used in conjunction
+with the miniboxing transformation \cite{miniboxing-www, miniboxing}.
+The ADR transformation replaces library \emph{functions} and
+\emph{tuples} by custom, optimized versions, and its application scope
+is all miniboxed code.
+
+%Before the |adrt| scope was developed, we worked on a plugin that used a similar scoped approach: an extension used by the miniboxing transformation \cite{miniboxing-www, miniboxing} to replace library functions and tuples by custom optimized versions. Although this plugin was a precursor of the |adrt| transformation, being scoped but not programmer-driven, we present it because in the meantime it became part of the miniboxing plugin and has been used to transform large pieces of code, proving our approach scales not only to toy examples, but to actual code used in the industry.
 
 % miniboxing transformation - show def apply(...) = ...
-The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to work efficiently with unboxed primitive types. Unlike the current specialization transformation in the Scala compiler \cite{iuli-thesis}, which duplicates and adapts the generic code once for every primitive type, the miniboxing transformation only duplicates the code once and encodes all primitive types in long integers. This allows miniboxing to scale much better than specialization \cite{miniboxing-linkedlist} in terms of bytecode size while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the built-in Scala specialization scheme, which is not compatible with miniboxing. Therefore, interacting with functions and tuples from miniboxed code incurs significant overhead.
+The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to work efficiently with unboxed primitive types. Unlike the current specialization transformation in the Scala compiler \cite{iuli-thesis}, which duplicates and adapts the generic code once for every primitive type, the miniboxing transformation only duplicates the code once and \emph{encodes all primitive types in long integers}. This allows miniboxing to scale much better than specialization \cite{miniboxing-linkedlist} in terms of bytecode size while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the built-in Scala specialization scheme, which is not compatible with miniboxing. Therefore, interacting with functions and tuples from miniboxed code incurs significant overhead.
 
 % object oriented function representation
-The Scala programming language offers functions as first-class citizens. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the Scala compiler desugars them to anonymous classes extending a functional interface. The following example shows the desugaring of function |(x: Int) => x + 1|:
+Consider, for example, functions. (Tuples raise similar issues.) Scala offers functions as first-class citizens. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the Scala compiler desugars them to anonymous classes extending a functional interface. The following example shows the desugaring of function |(x: Int) => x + 1|:
 
 \begin{lstlisting-nobreak}
 class $anon extends Function1[Int, Int] {
@@ -168,8 +177,20 @@ new $anon()
 This function desugaring does not expose a version of the |apply| method that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown caused by converting the represenation or define their own |MiniboxedFunction1| class, and perform the function desugaring by hand. Neither of these is a good solution.
 
 % retrofitting the function representation - after the fact, as parts of the
-What we would like to have is a way to transform the references to |Function1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|.
-We will now focus on two published benchmarks that exercise the function and tuple optimization. % done using our |adrt| precursor transformation.
+%What we would like to have is a way to transform the references to |Function1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|.
+Our data representation transformation converts the references to
+|Function1| in miniboxed code: instead of extending |Function1|,
+anonymous functions should extend |MiniboxedFunction1|. The
+problem is that the miniboxed code needs to interoperate with
+library-defined code, or with other libraries that were not
+transformed. Thus the miniboxed code acts
+as a scope for the \emph{function and tuple representation
+  transformation}, i.e., the ADR transformation of |Function| and
+|Tuple|.
+
+%We will now focus on two published benchmarks that exercise the function and tuple optimization. % done using our |adrt| precursor transformation.
+
+The above transformation has significant impact in published library benchmarks.
 
 \begin{table}[t]
   \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
@@ -189,12 +210,26 @@ We will now focus on two published benchmarks that exercise the function and tup
 \end{table}
 
 
-\subsubsection{The Scala-Streams library} draws its inspiration from Java 8 streams and other libraries. It has been described in the literature \cite{biboudis_clash_2014} and is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline. This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
+\subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for operations on lazy collections. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
+% This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
 
-Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
+Table \ref{table:streams} shows the result of applying our data
+representation transformation to the Scala-Streams published
+benchmarks. (The benchmarks are described in detail in prior
+literature \cite{biboudis_clash_2014}.) As can be seen, the miniboxing
+transformation is an enabler of our optimization but produces
+\emph{worse} results by itself (due to extra conversions). 
+
+Compared to the original library, the application of miniboxing and
+data representation optimization for functions achieves very high
+speedup---up to 14.5x for the SumOfSquares benchmark. In fact, the
+speedup relative to the miniboxed code without the function
+representation optimization is nearly 35x!
+
+%Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
 
 
-\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark performed by a commercial specialization/miniboxing user in the Scala community. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized.
+\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a commercial specialization/miniboxing user in the Scala community. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized.
 
 % normal exec:
 % [info] Benchmark                                       Mode  Samples        Score  Score error  Units
@@ -221,4 +256,4 @@ Without going into the details of the benchmarks, which are covered in \cite{bib
   \vspace{-1em}
 \end{table}
 
-We will close the section by concluding that the |adrt| scopes are capable of covering a broad range of custom and scoped transformations and the technique has been shown to scale to large programs, through the miniboxing plugin extension based on the |adrt| approach.
+%We will close the section by concluding that the |adrt| scopes are capable of covering a broad range of custom and scoped transformations and the technique has been shown to scale to large programs, through the miniboxing plugin extension based on the |adrt| approach.
