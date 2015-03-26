@@ -31,7 +31,7 @@ The benchmarks were optimized using our implementation of the |adrt| scope at \c
 % How we optimized it?
 is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric and CPU-bound benchmark, where the main slowdown is caused by heap allocations.
 
-The |adrt| transformation surrounds the tail-recursive |gcd| method and optimizes the pair of integer representation of Gaussian integers by encoding them in long integers. From this point of view, we can think of the transformation as retrofitting the value class status to the pair of integers. The benchmark results in Table \ref{table:adrt} show a 13x speed improvement and we checked that no object allocations occur in the transformed version of the |gcd| method. The transformation description object is 30 lines of code long.
+The |adrt| transformation surrounds the tail-recursive |gcd| method and optimizes the pair of integer representation of Gaussian integers by encoding them in long integers. From this point of view, we can think of the transformation as retrofitting the value class status to the pair of integers. The benchmark results in Table \ref{table:adrt} show a 13x speed improvement and we checked that no object allocations occur in the transformed version of the |gcd| method. The transformation description object is 30 lines of code (LOC) long.
 
 \subsubsection{The Least Squares Method} takes a list of points in two dimensions and computes the slope and offset of a straight line that best approximates the input data. The benchmark performs multiple traversals over the input data and thus benefits from deforestation \cite{wadler-deforestation}, which avoids the creation of intermediate collections after each |map| operation:
 
@@ -61,11 +61,13 @@ object ListAsLazyList extends TransformationDescription {
 
 The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on the collection or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection. This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
 
-Yet, using the |LazyList| collection we can also benefit from specialization \cite{iuli-thesis}. Using a specialized version of the |LazyList| collection we obtained a 5x speed improvement thanks to a combination of deforestation and specialization. Therefore, we used the |adrt| transformation both to transform the collection semantics and to retrofit specialization in a localized scope. The transformation description object has 30 lines of code and the |LazyList| has 70 lines of code.
+Yet, using the |LazyList| collection we can also benefit from specialization \cite{iuli-thesis}. Using a specialized version of the |LazyList| collection we obtain a 5x speed improvement thanks to a combination of deforestation and specialization. Therefore, we used the |adrt| transformation both to transform the collection semantics and to retrofit specialization in a localized scope. The transformation description object is 30 LOC and the |LazyList| is 70 LOC.
+
+Although the Least Squares Method benchmark is a specialized micro-benchmark, the techniques it uses are of wide applicability. For instance, deforestation can be applied in a variety of realistic settings. 
 
 
 
-\subsubsection{The Sensor Readings} benchmark was inspired by the Sparkle visualization tool \cite{sparkle} that is able to quickly display, zoom, transform and filter sensor readings. To obtain nearly real-time results, Sparkle combines several optimizations such as streaming and array of struct to struct of array conversions, all currently implemented by hand. In our benchmark, we implemented a mock-up of the processing core of Sparkle and automated the array of struct optimization:
+\subsubsection{The Sensor Readings} benchmark was inspired by the Sparkle visualization tool \cite{sparkle}, which is able to quickly display, zoom, transform and filter sensor readings. To obtain nearly real-time results, Sparkle combines several optimizations such as streaming and array-of-struct to struct-of-array conversions, all currently implemented by hand. In our benchmark, we implemented a mock-up of the processing core of Sparkle and automated the array-of-struct optimization:
 
 \begin{lstlisting-nobreak}
 type SensorReadings = Array[(Long, Long, Double)]
@@ -80,7 +82,13 @@ object AoSToSoA extends TransformationDescription {
 }
 \end{lstlisting-nobreak}
 
-Using the |adrt| scope produced a modest speedup of 2.2x, which initially puzzled us, since we were expecting better speedups. When we implemented the transformation by hand, manually refactoring the code, we obtained a speedup of 2.25x, showing this is the best that can be achieved for the transformation. Still, this shows the |adrt| scope is able to change the underlying data structures and provide speedups while maintaining program semantics. The transformation description object has of 60 lines of code.
+Using the |adrt| scope produced a 
+%modest 
+speedup of 2.2x.
+%, which initially puzzled us, since we were expecting better speedups. When 
+For comparison, we implemented the transformation by hand, manually refactoring the code, which obtained a nearly-identical speedup of 2.25x.
+%, showing this is the best that can be achieved for the transformation. Still, this shows the |adrt| scope is able to change the underlying data structures and provide speedups while maintaining program semantics. 
+The transformation description object is 60 LOC. Again, the optimization applied (array-of-struct to struct-of-array) is quite general-purpose.
 
 
 \subsubsection{The Hamming Numbers Benchmark} computes numbers that only have 2, 3 and 5 as their prime factors, in order. Unlike the other benchmarks, this is an example we randomly picked from Rosetta Code \cite{rosetta-code} and attempted to speed up:
@@ -114,7 +122,7 @@ adrt(BigIntToLong) {
 }
 \end{lstlisting-nobreak}
 
-An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are enough. This is an example of using local domain-specific knowledge to optimize the program. Should the optimistic assumption fail, the transformed code will produce exceptions that announce the optimistic assumptions are invalidated. For this example, the size of the transformation description objects is 100 lines of code.
+An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are enough. This is an example of using local domain-specific knowledge to optimize the program. Should the optimistic assumption fail, the transformed code will produce exceptions that announce that the optimistic assumptions are invalidated. For this example, the size of the transformation description objects is 100 LOC.
 
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
