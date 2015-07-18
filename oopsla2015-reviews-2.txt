@@ -1,0 +1,334 @@
+
+===========================================================================
+                           OOPSLA '15 Review #2A
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+                      Overall merit: 2. Weak reject
+                 Reviewer expertise: 4. Expert
+
+                         ===== Paper summary =====
+
+This paper describes how programmers specify more space efficient data layout in a statically typed language at a variety of scopes (methods, code blocks, etc.) and then the compiler type checks it and inserts the code that automatically transforms between the high and low level representations as needed based on user annotations.  This approach is analogous to the compiler boxing and unboxing with some user annotations, but the programmer has to do more here. The approach speeds up some Scala microbenchmarks.
+
+                      ===== Comments for author =====
+
+Strengths
+* Interesting idea for generalizing the idea of boxing and unboxing.
+
+Weaknesses
+* Relies on programmer to come up with the better representation. 
+* The analysis is missing key descriptions of 1) programmer work, 2) methodology for experiments (points to a web page), and 3) memory and code analysis of results. 
+
+Overall
+
+This work has the potential to be very interesting, but this paper is not yet ready to accepted, because of presentations choices and lack of analysis of where the benefits come from and discussion of programmer work.
+
+The paragraph starting with "In this way.." in the introduction uses the passive voice (a problem elsewhere as well), and so it very difficult to tell what the programmer does, what the compiler does, and what the runtime does. This lack of clarity on how the approach works and fits into the existing scala system runs throughout the paper. Section 2.1 lacks any description of what the approach actually does to the code or allocation, and thus why the code improves. The IntPairComplexToLongComplex method is never defined in the paper. 4.1 elides all the details, but that is the actual work the developer needs to do to define make this approach work.
+
+The key work of the programmer on how to define data transformations is also missing from the other examples. None of the specific resulting consequences are measured, e.g., reduced data allocation or smaller code footprint (or larger).
+
+Does the approach attains it's improvements from less allocation, better code, or both, and if both, which one is more important. The results section does not resolve this question. Results are just: microbenchmarks go faster. 
+
+The methodology is not described. Measuring JIT code and GC has a number of challenges and it is not sufficient to point the reader to the Scala web page to find out about the performance analysis methodology. Since the approach is saving GC and/or allocation, that actually should be measured and reported.
+
+Data layout is a memory optimization, yet the results do not include memory.
+
+
+The paper needs a discussion of how hard it is to define these transformations and how much code it takes. Can they be sprinkled lots of places or just one? How hard is it for developers to do it?
+
+The paper spends a lot of pages (~4) describing LDL, which can easily be summarized in a page.
+
+
+
+
+
+
+===========================================================================
+                           OOPSLA '15 Review #2B
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+                      Overall merit: 4. Accept
+                 Reviewer expertise: 3. Knowledgeable
+
+                         ===== Paper summary =====
+
+The paper opens and extends the Late Data Layout mechanism developed for the Scala compiler (to automatically and autonomously choose between different data representations, such as values or heap objects) for the programmer, who can use it to create and use her own (low-level) data representations in specified scopes.
+
+                      ===== Comments for author =====
+
+A very well-written paper. Even though the scope and utility of the presented work are somewhat limited, it nevertheless makes a solid contribution to (object-oriented) programming, with applications mainly in performance-critical contexts (in which ADRTs likely lead to cleaner code than its ad-hoc tuning alternatives). 
+
+The paper is carefully set in the context of related work, the presented evaluation is sufficient to convince me of the practical relevance and utility. Overall, very well done!
+
+
+
+
+
+
+===========================================================================
+                           OOPSLA '15 Review #2C
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+                      Overall merit: 3. Weak accept
+                 Reviewer expertise: 3. Knowledgeable
+
+                         ===== Paper summary =====
+
+This paper presents a technique to automatically change data representation
+for efficient access. To use the technique, users first delimits the scope
+for which transformation should be considered. In addition, users also
+provide the compiler (in this case the Scala compiler) with a descriptor
+object the encodes how each of the data types can be transformed.
+Given these inputs, the compiler then searches through the delimited scope 
+and performs a source-to-source transformation in choosing the most efficient 
+representation for each data type. The paper shows that the technique can handle 
+interactions with other Java language features, and can improve performance 
+in a variety of benchmarks.
+
+                      ===== Comments for author =====
+
+The paper discusses an important problem (data layout) and proposes an 
+interesting semi-automated solution. It is a well-structured paper.
+My main concern, however, is with the novelty of the solution to the problem,
+especially given the prior work on late data representation, which makes up
+the bulk of the implementation of the presented technique:
+
+- I am wondering why do users need to delimit the scope for which the 
+transformation should be applied. Why not apply to the entire program? Is it 
+a scalability issue?
+
+- How easy is it to write the transformation objects? While some  
+seem trivial to write (e.g., the motivating example), I imagine some of them
+mentioned in the benchmarks can be quite involved. It would be great if the 
+authors can show how big those transformers are, and also discuss how can
+developers come up with such representations.
+
+- Would the same technique be applicable beyond Scala? For instance 
+I would like to understand whether the proposed technique can be achieved 
+using tagged unions in languages that support them. I can imagine a smart
+compiler choosing how to implement each instance of the tagged union using 
+static analysis, and inserting appropriate coercions as needed. In that sense
+it seems to be similar to the technique proposed in the paper.
+
+Some technicalities:
+- How does the technique handle dynamically loaded code in Scala?
+- What about code that calls native methods via JNI?
+
+
+
+
+
+
+===========================================================================
+                           OOPSLA '15 Review #2D
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+                      Overall merit: 4. Accept
+                 Reviewer expertise: 2. Some familiarity
+
+                         ===== Paper summary =====
+
+The paper proposes a mechanism which allows programmers to 1) define operations which
+implicitly transform between two different representations of a type, and 2) the compiler 
+applies these operations implicitly, whenever necessary within a given scope. The approach 
+is based on Scala’s Late Data Layout transformations, with the difference that the former
+is not programmer-driven, and cannot be restricted to separate scopes.
+
+The paper explains the tree phases involved in Late Data Layout Transformation (LDRT) and 
+how they are applied in  Ad Hoc Data Representation Transformation (ADRT). It explains how
+ADRT interacts with traits. Overloading, generics, and separate compilation. It also introduces
+the concept of “bypass” transformations, which allows to avoid unnecessary intermediate 
+transformations.
+
+In order to validate the approach, the authors developed some micro-benchmarks (gcd on
+Complex numbers), least squares method, Sensor readings  (filtering and visualization of 
+Sensor readings), and Hamming numbers. In these cases they observed speedups between
+2 and 13 times. They also considered the Scala-streams library and benchmarks
+proposed in [13], and the framian vector implementation from a commercial entity, and
+observe speedups of about 10 times.
+
+                      ===== Comments for author =====
+
+Points in favour and against
+
++ Clearly stated problem, and clear solution
+
++ The paper is extremely well-written with a small motivating example, and very clear organization.
+Questions are asked which motivate the discussion further, and pointers are given to where 
+the answer will appear.
+
++ Implementation has been developed, and the benchmarks are positive
+
+- The semantics of the ADRT is described incrementally and in terms of three phases. Various
+Extra aspects of the phases are uncovered as we progress through the paper. Is it possible
+to give a more declarative semantics? If not, I would propose that in the next version of
+your paper, you give the definition of each phase in one go. 
+
+- Even though the benchmark results are very encouraging, I wonder how often one has
+the opportunity for such data representations. The benchmarks you have chosen either
+allocated large numbers of short lived intermediate objects, or have large containers of
+objects; thus you could think that they were specifically chosen for this work, and that 
+they would not be representative of many real situations.
+
+QUESTIONS
+
+1)	I suppose that the “gcd” method called in the first box in page 1 is different from
+the “gcd” method called in the first box in page 2.
+
+2)	When I first read section 2.3, I thought that by some magic the correct implementation
+of gcd would be created. But when I reached the end of section 4, I came to the 
+conclusion that this is not done. So, I suppose that the gcd created within the adrt
+will bind the wrong version of %? And that there will be an error message because
+there will be no appropriate method called norm? Also, you refer to section 4.4
+for semantics preservation, but I do not see the relation between that section and
+semantics preservation; did you mean 4.1?
+
+3)	Under “Target Semantics” you are enumerating several requirements from these
+Transformation objects. I suppose that these requirements are not checked in any way.
+
+4)	Do you support cyclic representation transformation, eg something
+like
+adrt(T1toT2){
+   adrt(T2toT1){
+    ... code ...
+   }
+}
+where T1toT2 has T1 as the high level type, and T2 as the low level type, while T2toT1 has T2 as the high level type, and T1 as the low level type.
+
+5)	At several points you require value types, but my I thought that the approach should also work for mutable types. Can you say why you need the types to be immutable? Also, what does immutable mean in that case, whether it is checked and how? 
+  
+
+
+SUGGESTIONS
+
+Initially I was very surpised that adrt was not a keyword – I found the explanation later; 
+I suggest you bring the explanation forward.
+
+On page 3 I was puzzling how the system could work without some signature defining that 
+high level and the representation of a type were. This became clearer when I read the 
+Description of IntPairComplexToLongComplex on page 5. I think you should bring it forward.
+
+
+I also suggest you give a link to  Gaussian integers, so that the reader is not puzzled about the 
+meaning of “norm” for pairs of integers.
+
+
+
+
+
+===========================================================================
+               Response by Vlad Ureche <vlad.ureche@epfl.ch>
+---------------------------------------------------------------------------
+
+# Review 1
+
+## Benchmarks
+
+The speedups are obtained through a combination of:
+ * avoiding object allocation (and, thus, garbage collection);
+ * improving locality;
+ * faster operations (through simplification, specialization or elision).
+
+For example, in the GCD benchmark:
+ * we avoid object allocation, since `(Int, Int)` is a heap object while `Long` is stack-allocated;
+ * we do not improve locality nor operation performance.
+
+We are currently adding improved benchmark descriptions to the project wiki (e.g. bottom of http://git.io/vUJtZ) and will add detailed breakdowns to the paper.
+
+Benchmarking methodology: vanilla 64-bit Oracle Java 7 SE distribution, stock GC, maximum heap of 2GB. The benchmarks were executed according to "Statistically Rigorous Java Performance Evaluation" by Georges et al. (OOPSLA '07) using the ScalaMeter framework. We will explain the benchmarking procedure in the paper.
+
+
+## Programmer Work
+
+Once the programmer devises an alternative representation, writing the transformation description object is straightforward:
+ * the `ildl` plugin automatically suggests bypass methods and reports signature mismatches;
+ * unit tests can individually check the coercions and bypass methods.
+
+In practice, the descriptions are around 30 lines long:
+ * gcd:    http://git.io/vUJO7
+ * hamming:    http://git.io/vUJkC
+ * deforestation:    http://git.io/vUJkO
+ * array of struct:    http://git.io/vUJk4
+
+With more space, we will show the `IntPairComplexToLongComplex` object and discuss how programmers would arrive at its implementation.
+
+
+## Clarifications
+
+We will clarify the sequence of transformations that lead to stack allocation:
+   * `(Int, Int)` => `Long` in the adrt scope
+   * `Long` => `long` (unboxed) in the Scala backend
+
+
+
+# Review 2
+
+Thank you.
+
+
+
+# Review 3
+
+## Why Scopes
+
+In different parts of a program, data benefits from using different representations. For example, database records:
+ - should be represented as full-fledged objects when outside specific scopes (e.g., the high-level type should be a case class, offering the full convenience of structural equality, pattern matching, etc);
+ - should use a compact representation when storing multiple values (e.g., encoded representation, `Array[Byte]`);
+ - should employ a locality-optimizing representation (e.g., struct of array) when operating over the data, for instance, executing queries;
+
+Thus, a high-level type does not have a globally best representation, but multiple local optima, corresponding to each use case. Since current state-of-the-art optimizers lack the ability to automatically infer use-cases with their boundaries and best local representation, the next best approach is allowing the programmers to inject this information through scopes. Both Section 4.2 and the test suite show the `ildl` approach scales to multiple representations.
+
+
+## Description Objects
+
+Please see the "Programmer Work" answer from review 1.
+
+
+## Other Languages
+
+The only requirement is a static type system. We will describe the porting steps in Section 5 (Implementation).
+
+
+## Dynamically loaded code
+
+Dynamically loaded code must implement an interface (or extend a class) to be useful. Since the object model is correctly preserved during `adrt` transformations, dynamically loaded code works as expected. Tests in the `ildl` plugin are loaded dynamically: http://git.io/vUJqs.
+
+
+
+# Review 4
+
+## Declarative Semantics
+
+An up-front explanation introduces too many new concepts at once. Would it work if we added this at the end, as a summary?
+
+
+## Applicability
+
+Please see the "Why Scopes" answer from Review 3.
+
+
+## Clarifications
+
+We will add suffixes to distinguish the `gcd` methods (e.g. `gcd_naive`) and mention that `%` and `norm` do not make sense in the naive translation. We will also implement the other suggestions.
+
+
+## Static Analysis
+
+We do not enforce value semantics or finality yet. Most transformations copy objects, so mutable writes to one copy would not be visible in another. We will add an example to Section 4.1.
+
+
+## Cyclic Scopes
+
+Our implementation does not support cascading scopes yet (`T1 => T2`, `T2 => T3`). When we add them, we will guard against cyclic expansions.

@@ -1,14 +1,14 @@
 \begin{abstract}
 
-To maximize run-time performance, programmers often specialize their code by hand, replacing library collections and containers by custom objects in which the data are restructured for efficient access. However, this is a tedious and error-prone process that makes it hard to test, maintain and evolve the source code.
+To maximize run-time performance, programmers often specialize their code by hand, replacing library collections and containers by custom objects in which data is restructured for efficient access. However, changing the data representation is a tedious and error-prone process that makes it hard to test, maintain and evolve the source code.
 
-We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation itself is programmer-defined and covers a wide range of use cases.
+We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation rules are still defined by the programmer, but their application occurs during compilation, thus eliminating the need for tedious and error-prone manual source code transformations.
 
-Our technique leverages the type system in order to infer where the data representation needs to be converted, while offering a strong correctness guarantee on the interaction with object-oriented language features, such as dynamic dispatch, inheritance and generics.
+Our technique leverages the type system in order to offer strong correctness guarantees on the transformation correctness and its interaction with object-oriented language features, such as dynamic dispatch, inheritance and generics.
 
-We have embedded this technique in a Scala compiler plugin and used it in four very different transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, to collection deforestation. As a result, we obtain large speedups: between 1.9x and 14.5x.
+We have embedded this technique in a Scala compiler plugin and used it in four very different transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, to collection deforestation. On our benchmarks, this technique obtains speedups between 1.8x and 24.5x.
 % on user programs.
 
 %% remove if extra space needed
-%\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization, safety, semantics}
+\keywords{data representation, jvm, bytecode, compatibility, transformation, optimization, safety, semantics}
 \end{abstract}
