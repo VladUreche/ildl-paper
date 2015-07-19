@@ -69,7 +69,7 @@ The result was (10, 3).
 This rather large speedup is the effect of using the long integer representation for Gaussian Integers, which:
 
 \begin{itemize}
-  \item[(1)] Provides a direct representation, which does not require any pointer de-referencing;
+  \item[(1)] Provides a direct representation, which does not require any pointer dereferencing;
   \item[(2)] Allocates Gaussian integers on the stack, since the |Long| primitive type is unboxed by the compiler backend, thus avoiding object allocation and garbage collector pauses.
 \end{itemize}
 
@@ -125,14 +125,14 @@ object IntPairComplexToLongComplex
 \end{lstlisting-nobreak}
 
 \noindent
-Transformation description objects are described in more detail in Section \ref{sec:ildl}, but we can already hint at their components:
+Transformation description objects are described in more detail in Section \ref{sec:ildl}, but we can already preview their components:
 \begin{itemize}
   \item The |toRepr| and |toHigh| methods serve a double purpose:
   \begin{itemize}
-    \item At the type level, they define the high-level type, in this case |(Int, Int)|, which serves as the target of the transformation and its representation type, in this case |Long|, which will be used as the optimized value representation;
+    \item At the type level, they define the high-level type, in this case |(Int, Int)|, which serves as the target of the transformation, and the representation type, in this case |Long|, which will be used as the optimized value representation;
     \item At the term level, they allow converting values between the two representations;
   \end{itemize}
-  \item The bypass methods part of the definition allows operations such as |*|, |%| and |norm| to execute directly on values \emph{encoded}  in the representation type (|Long| in this case), instead of \emph{decoding} them back to |(Int, Int)| before executing the operation.
+  \item The ``bypass methods'' part of the definition allows operations such as |*|, |%| and |norm| to execute directly on values \emph{encoded}  in the representation type (|Long| in this case), instead of \emph{decoding} them back to |(Int, Int)| before executing the operation.
 \end{itemize}
 
 Description objects split the task of optimizing the data representation into:
@@ -143,7 +143,7 @@ Description objects split the task of optimizing the data representation into:
 
 A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types speeds up monomorphic code, which handles primitives directly. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution. %Thus, when mixing monomorphic and generic code, it's best to keep primitives boxed.
 
-Furthermore, there are many aspects that can be optimized: eliminating pointer de-referencing, improving cache locality, reducing the memory footprint to avoid garbage collection pauses, reducing numeric value ranges, specializing or delaying operations and many others. Thus, there are many choices to make, depending on the context, to the point where automation does not make sense.
+Furthermore, there are many aspects that can be optimized: eliminating pointer dereferencing, improving cache locality, reducing the memory footprint to avoid garbage collection pauses, reducing numeric value ranges, specializing or delaying operations, and many others. Thus, there are many choices to make, depending on the context, to the point where automation does not make sense.
 
 Instead, armed with application profiles and domain-specific information about how the data is used, a programmer can decide what is the best transformation to apply to each critical part of an application. And, interestingly, not all parts of an application have the same needs. This is where transformation scopes come in.
 
@@ -165,7 +165,7 @@ Scoped transformations bring two advantages:
 
 \begin{itemize}
  \item Different parts of a program can use different transformations, using the best data representation for the task;
- \item Transformations are clearly signalled in the source code.
+ \item Transformations are clearly demarcated in the source code.
 \end{itemize}
 
 The fact that different transformations can be applied in different components gives the ADR transformation its scoped nature, and sets it apart from classical optimizations such as unboxing primitive types, generic specialization and value class inlining, which occur globally. However, this scoped nature makes the transformatiom more complex, as the next paragraphs will show.
