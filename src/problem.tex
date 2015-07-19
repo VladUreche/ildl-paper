@@ -8,7 +8,8 @@ This section presents the full motivating example featuring the complex number t
 
 In the introduction, we focused on adding complex number semantics to
 pairs of integers. Complex numbers with integers as both their real
-and imaginary parts are known as Gaussian integers, and are a
+and imaginary parts are known as Gaussian integers
+\cite{gauss1828theoria,gaussian-integers-wikipedia}, and are a
 countable subset of all complex numbers. The operations defined on
 Gaussian integers are similar to complex number operations, with one
 exception: to satisfy the abelian closure property, division is not precise,
@@ -60,7 +61,7 @@ The result was (10, 3).
 However, if we encode the Gaussian integers into 64-bit long integers, we improve the time by a factor of 13x:
 
 \begin{lstlisting-nobreak}
-scala> timed(() => gcd((544, 185), (131, 181)))
+scala> timed(() => gcdADRT((544, 185), (131, 181)))
 The operation took `0.23 us` (based on 10000 executions).
 The result was (10, 3).
 \end{lstlisting-nobreak}
@@ -81,10 +82,10 @@ trait and object definitions:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
- def gcd(n1: (Int, Int), n2: (Int, Int)):(Int, Int)={
-   val remainder = n1 % n2
-   if (remainder.norm == 0) n2 else gcd(n2, remainder)
- }
+  def gcdADRT(n1: (Int, Int), n2: (Int, Int)) = {
+    val remainder = n1 % n2
+    if (remainder.norm == 0) n2 else gcdADRT(n2, remainder)
+  }
 }
 \end{lstlisting-nobreak}
 
@@ -105,9 +106,9 @@ are all stored in the transformation description object, in our case
 Despite its simple interface, the Ad hoc Data Representation Transformation mechanism is by no means simple. For example, knowing that the |adrt| marker was instructed to transform |(Int, Int)| to |Long|, a naive result could be:
 
 \begin{lstlisting-nobreak}
-def gcd(n1: `Long`, n2: `Long`): `Long` = {
+def gcdNaive(n1: `Long`, n2: `Long`): `Long` = {
   val remainder = n1 % n2
-  if (remainder.norm == 0) n2 else gcd(n2, remainder)
+  if (remainder.norm == 0) n2 else gcdNaive(n2, remainder)
 }
 \end{lstlisting-nobreak}
 

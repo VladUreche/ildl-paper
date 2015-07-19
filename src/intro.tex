@@ -36,14 +36,12 @@ transformation could be automated? %and what parts need domain-specific
 %programmer intervention?
 
 % Object layout transformations in dynamic language vms => slow (due to profiling and recompilation)
-Object layout transformations are common in 
-%dynamic 
-language virtual
+Object layout transformations are common in dynamic language virtual
 machines, such as V8 and Truffle. These virtual machines profile
 values at run-time and make optimistic assumptions about the shape of
-objects. This allows them to automatically optimize the object layout
+objects. This allows them to improve the object layout
 in the heap, at the cost of recompiling of all the code that references
- the old object layout.
+the old object layout.
 %However, in practice, the effort pays off.
 If, later in the execution, the assumptions prove too optimistic, the
 virtual machine needs to revert to the more general (and less
