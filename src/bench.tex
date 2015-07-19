@@ -15,12 +15,12 @@ We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with t
 
 We chose representative micro-benchmarks in order to cover a wide range of transformations using the |adrt| scope:
 
-\begin{compactitem}
+\begin{itemize}
 \item the greatest common divisor algorithm, presented in \S\ref{sec:problem};
 \item least squares benchmark + deforestation \cite{wadler-deforestation};
 \item averaging sensor readings + array of struct;
 \item computing the first 10000 Hamming numbers.
-\end{compactitem}
+\end{itemize}
 
 \noindent
 The benchmarks were optimized using our implementation of the |adrt| scope at \cite{ildl-plugin} and are described in detail on the website \cite{ildl-plugin-wiki}. We will proceed to explain the transformation in each benchmark, but, due to space constraints, the full descriptions are only available on the website.

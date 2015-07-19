@@ -39,13 +39,13 @@ def foo: (Int, Int) = {
 
 \noindent
 Immediately after the source is parsed, the \postparser{} phase transforms the |adrt| scopes in three steps:
-\begin{compactitem}
+\begin{itemize}
 \item it attaches a unique id to each |adrt| scope;
 \item it records and clears the block enclosed by the |adrt| scope
 \item it inlines the recorded code immediately after the now-empty
 |adrt| scope and, in the process, it marks the value and method definitions
 by the |adrt| scope's unique id (or by multiple ids, if |adrt| scopes are nested).
-\end{compactitem}
+\end{itemize}
 \noindent Following the \postparser{} phase, the code is:
 
 \begin{lstlisting-nobreak}
@@ -58,10 +58,10 @@ def foo: (Int, Int) = {
 
 This code is ready for type-checking: the definition of |n| is located in the same block as its use, making the scope correct. During the type-checking process, the |IntPairToLong| object is resolved to a symbol, missing type annotations are inferred and implicit conversions are introduced explicitly in the tree. After type-checking and pattern matching expansion, the \inject{} phase traverses the tree and: % performs two operations:
 
-\begin{compactitem}
+\begin{itemize}
 \item for every |adrt| scope it records the id and description object, before removing it from the abstract syntax tree;
 \item for value and method definitions, if the type matches one or more transformations, it adds the |@repr| annotation.
-\end{compactitem}
+\end{itemize}
 \noindent Following the \inject{} phase, the code for our example is:
 
 \begin{lstlisting-nobreak}
@@ -101,11 +101,11 @@ This concludes the section, which explained how we solved the two main technical
 % - coerce - the main work was around using the bypass methods and providing a good solution for them
 % - commit -- very simple
 % The LDL phases underwent the following transformations:
-% \begin{compactitem}
+% \begin{itemize}
 % \item since the |adrt| macro adds type annotations, the \inject{} phase is only responsible for transforming the |@high| annotation, after it has been persisted in the source-level signature;
 % \item the \bridge{} method is responsible for adding all necessary bridge methods to correctly implement overriding and for warning when they perform double transformations;
 % \item the \coerce{} phase has additional machinery to support bypass methods for operators and methods added through implicit conversions;
 % \item the \commit{} phase transforms signatures to use the representation type in the description object instead of using a hard-coded logic.
-% \end{compactitem}
+% \end{itemize}
 
 % Currently, serious errors can be triggered by manually adding the |@repr| annotation in the source code. We would like to restrict that, but since in the Scala compiler name resolution and type-checker phases execute in tandem, finding user-added |@repr| annotations is impossible: before name resolution, the references to the |@repr| annotation have not yet been resolved, so we cannot reject the program. After type-checking, the |adrt| macro has already added its valid |@repr| annotations. We are still looking into  ways to fix this problem.

@@ -119,22 +119,20 @@ object IntPairComplexToLongComplex
 
 \noindent
 Transformation description objects are defined in Section \ref{sec:ildl}, but we can already hint at their components:
-\begin{compactitem}
+\begin{itemize}
   \item The |toRepr| and |toHigh| methods serve a double purpose:
-  \begin{compactitem}
+  \begin{itemize}
     \item At the type level, they define the high-level type, in this case |(Int, Int)|, which serves as the target of the transformation and its representation type, in this case |Long|, which will be used as the optimized value representation;
     \item At the term level, they allow converting values between the two representations;
-  \end{compactitem}
+  \end{itemize}
   \item The operations part of the definition allows operations such as |*|, |%| and |norm| to operate directly on the representation type (|Long| in this case) instead of converting back to |(Int, Int)|.
-\end{compactitem}
-\vspace{0.5em}
+\end{itemize}
 
-\noindent
 Description objects split the task of optimizing the data representation into:
-\begin{compactitem}
+\begin{itemize}
 \item[(1)] Devising an improved data representation. Defining the improved data representation is done once and uses domain-specific knowledge about how the data is used in the program. Therefore, this is a task for which the developer is responsible, and the means of communicating the improved data representation to the compiler is the transformation description object.
 \item[(2)] On the other hand, transforming the source code to use the improved representation is a repetitive, tedious and error-prone process, so it is best suited for the compiler.
-\end{compactitem}
+\end{itemize}
 
 A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types makes monomorphic code, which handles primitives directly, run much faster. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution. %Thus, when mixing monomorphic and generic code, it's best to keep primitives boxed.
 
@@ -147,22 +145,24 @@ Instead, armed with application profiles and domain-specific information about h
 \begin{lstlisting-nobreak}
 scala> `adrt(IntPairComplexToLongComplex)` {
        |   def gcdADRT(n1: (Int, Int), n2: (Int, Int))={
-       |     val remainder = n1 % n2
-       |     if (remainder.norm == 0) n2 else ...
+       |     ...
        |   }
        | }
 defined method gcdADRT
+\end{lstlisting-nobreak}
 
+
+\begin{lstlisting-nobreak}
 scala> timed(() => gcdADRT((544, 185), (131, 181)))
 ...
 \end{lstlisting-nobreak}
 
 Scoped transformations bring two advantages:
 
-\begin{compactitem}
+\begin{itemize}
  \item Different parts of a program can use different transformations, using the best data representation for the task;
  \item Transformations are clearly signalled in the source code.
-\end{compactitem}
+\end{itemize}
 
 The fact that different transformations can be applied in different components gives the ADR transformation its scoped nature, and sets it apart from classical optimizations such as unboxing primitive types, generic specialization and value class inlining, which are global. However, this scoped nature makes the transformatiom more complex, as the next paragraphs will show.
 
@@ -174,10 +174,10 @@ The fact that different transformations can be applied in different components g
 
 In our running example, using the long integer representation for Gaussian Integers serves several purposes:
 
-\begin{compactitem}
+\begin{itemize}
   \item It provides a direct representation, which does not require any pointer de-referencing;
   \item It allocates Gaussian integers on the stack, since the |Long| primitive type is unboxed by the compiler backend.
-\end{compactitem}
+\end{itemize}
 
 Despite its simple interface, the Ad hoc Data Representation Transformation mechanism is by no means simple. Let us try to make the transformation by hand and see the challenges that appear. The initial result, the |gcdNaive| method, would take and return values of type |Long| instead of |(Int, Int)|:
 
@@ -198,6 +198,10 @@ We could also ask what would happen if |gcd| was overriding another method, as i
 trait WithGCD[`T`] {
   def gcd(n1: `T`, n2: `T`): `T`
 }
+\end{lstlisting-nobreak}
+
+
+\begin{lstlisting-nobreak}
 class Complex extends WithGCD[`(Int, Int)`] {
   // expected: gcd(n1: (Int, Int), n2: (Int, Int)) ...
   // found:    gcd(n1: Long, n2: Long): Long
