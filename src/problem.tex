@@ -138,16 +138,16 @@ Transformation description objects are described in more detail in Section \ref{
 Description objects split the task of optimizing the data representation into:
 \begin{itemize}
 \item[(1)] Devising an improved data representation: Defining the improved data representation is done once and uses domain-specific knowledge about the program. Therefore, we let the developer decide how data should be encoded and how operations should be handled. This information is written in the description object.
-\item[(2)] Transforming the source code to use the improved representation, based on the description object. This is a repetitive, tedious and error-prone process, which makes it suited to automation.
+\item[(2)] Transforming the source code to use the improved representation, based on the description object: This is a repetitive, tedious and error-prone process, which makes it suited to automation.
 \end{itemize}
 
-A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types makes monomorphic code, which handles primitives directly, run much faster. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution. %Thus, when mixing monomorphic and generic code, it's best to keep primitives boxed.
+A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types speeds up monomorphic code, which handles primitives directly. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution. %Thus, when mixing monomorphic and generic code, it's best to keep primitives boxed.
 
 Furthermore, there are many aspects that can be optimized: eliminating pointer de-referencing, improving cache locality, reducing the memory footprint to avoid garbage collection pauses, reducing numeric value ranges, specializing or delaying operations and many others. Thus, there are many choices to make, depending on the context, to the point where automation does not make sense.
 
-Instead, armed with application profiles and domain-specific information about how the data is used, a programmer can decide what is the best transformation to apply to each critical part of an application. And, interestingly, not all parts of an application have the same needs. This is where the |adrt| scope comes in.
+Instead, armed with application profiles and domain-specific information about how the data is used, a programmer can decide what is the best transformation to apply to each critical part of an application. And, interestingly, not all parts of an application have the same needs. This is where transformation scopes come in.
 
-\subsubsection{The transformations scope} is delimited by the |adrt| marker method, which behaves much like a keyword. Values, methods and classes defined inside the |adrt| scope are visible outside, since the scope is inlined early in the compilation pipeline:
+\subsubsection{The transformation scope} is delimited by the |adrt| marker method, which behaves much like a keyword. Values, methods and classes defined inside the |adrt| scope are visible outside, since the scope is inlined early in the compilation pipeline:
 
 \begin{lstlisting-nobreak}
 scala> `adrt(IntPairComplexToLongComplex)` {
@@ -168,7 +168,7 @@ Scoped transformations bring two advantages:
  \item Transformations are clearly signalled in the source code.
 \end{itemize}
 
-The fact that different transformations can be applied in different components gives the ADR transformation its scoped nature, and sets it apart from classical optimizations such as unboxing primitive types, generic specialization and value class inlining, which are global. However, this scoped nature makes the transformatiom more complex, as the next paragraphs will show.
+The fact that different transformations can be applied in different components gives the ADR transformation its scoped nature, and sets it apart from classical optimizations such as unboxing primitive types, generic specialization and value class inlining, which occur globally. However, this scoped nature makes the transformatiom more complex, as the next paragraphs will show.
 
 %For example, the Spark in-memory map-reduce framework \cite{matei-rdds} could keep the data in serialized format when about to pass it to another machine while storing it in a very compact format when doing in-memory processing.
 
