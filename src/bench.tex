@@ -224,7 +224,7 @@ Stream(xs)
 
 %However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
 
-In more detail, a stream type has a single constructor. This constructor takes as a parameter a function with type |(T=>Boolean)=>Unit|. A stream holds the entire iteration over the elements of an array. Every element is passed to the argument-supplied function. That function holds a transformation (e.g., |map|ping). The |Boolean| return value indicates whether we should pass the transformed element down to the next consumer, in the operator chain (e.g., |filter|ing. The library contains the usual set of combinators such as: |map|, |filter|, |fold| and an |ofArray| combinator. The last one creates such a stream with the initial looping function over an in memory array. Intermediate operators (e.g., |map|) alter the iteration functions of the |Stream| instance that they are applied upon. 
+A stream type has a single constructor. This constructor takes as a parameter a function with type |(T=>Boolean)=>Unit|. A stream holds the entire iteration over the elements of an array. Every element is passed to the argument-supplied function. That function holds a transformation (e.g., |map|). The |Boolean| return value indicates whether we should pass the transformed element down to the next consumer, in the operator chain (e.g., |filter|). In the snippet below we present the implementation of the stream creation via the |apply| function:
 
 \begin{lstlisting-nobreak}
 def apply[T: ClassTag](xs: Array[T]) = {
@@ -240,6 +240,8 @@ def apply[T: ClassTag](xs: Array[T]) = {
   new Stream(gen)
 }
 \end{lstlisting-nobreak}
+
+The library contains the usual set of combinators such as: |map|, |filter|, |fold|, |take| and an |ofArray| combinator. The last one creates a stream with the initial looping function over an in memory array. Intermediate operators (e.g., |map|) alter the iteration functions of the |Stream| instance that they are applied upon. 
 
 Finally, a terminal operator (e.g., |fold|) will evaluate the stream function, transforming again the iteration function if needed. |fold| holds the state in a separate accumulator, initializes it according to the passed state, and returns it. What really happens inside a |fold| operation is the evaluation of the stream function such as |gen| in the snippet above.
 
