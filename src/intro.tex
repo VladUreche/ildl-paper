@@ -102,21 +102,21 @@ In this paper we present such an automated transformation that allows programmer
 In this way, the programmer is responsible for correctly stating (a) what the data representation transformation is and (b) to which program scope it applies. Our approach is then responsible for (1) automatically deciding when to apply the transformation and when to revert it, in order to ensure correct interchange between representations, (2) enriching the transformation with automatically generated bridge code that ensures correctness relative to overriding and dynamic dispatch and (3) persisting the necessary metadata to allow transformed program scopes in different source files and compilation runs to communicate using the optimized representation---a property we refer to as \emph{composability} in the following sections. Thus, our approach adheres to the design principle of separating the reusable, general and provably correct \emph{mechanism} from the programmer-defined \emph{policy}, which may contain incorrect decisions \cite{lampson-mechanism-policy}.
 
 Our main contributions are:
-\begin{compactitem}
+\begin{itemize}
   \item Introducing the ad hoc data representation problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
   \item Presenting the extensions that allow global data representation transformations (\S\ref{sec:drt}) to be used as scoped programmer-driven transformations (\S\ref{sec:ildl});
-  \item Implementing the approach presented as a Scala compiler plugin \cite{ildl-plugin} that allows programmers to express custom transformations (\S\ref{sec:impl}) and benchmarking the plugin on a broad spectrum of transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and to collection deforestation \cite{wadler-deforestation}. These transformations produced  speedups between 1.9 and 14.5x on user programs (\S\ref{sec:benchmarks}).
-\end{compactitem}
+  \item Implementing the approach presented as a Scala compiler plugin \cite{ildl-plugin} that allows programmers to express custom transformations (\S\ref{sec:impl}) and benchmarking the plugin on a broad spectrum of transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and to collection deforestation \cite{wadler-deforestation}. These transformations produced  speedups between 1.8 and 24.5x on user programs (\S\ref{sec:benchmarks}).
+\end{itemize}
 
 % \vspace{0.5em}
 % Using our approach and scoped programmer-driven transformations, we were able to cover the following use cases:
 %
-% \begin{compactitem}
+% \begin{itemize}
 %   \item improving the data encoding and retrofitting the value class status for Scala containers (\S\ref{sec:benchmarks});
 %   \item performing deforestation \cite{wadler-deforestation} and retrofitting specialization to Scala standard collections (\S\ref{sec:benchmarks});
 %   \item converting arrays of structs to structs of arrays (\S\ref{sec:benchmarks});
 %   \item using local and domain-specific knowledge to replace collections in a limited scope (\S\ref{sec:benchmarks}).
-% \end{compactitem}
+% \end{itemize}
 
 %% \yannis{I recommend leaving this text out. I think it doesn't add
 %% much. I integrated one important point (lampson) earlier.}
