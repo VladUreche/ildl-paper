@@ -16,6 +16,8 @@ Section \ref{sec:automating} showed how the ADR transformation is triggered by t
 }
 \end{lstlisting-nobreak}
 
+In the following paragraphs, the |gcd| method is assumed to be always transformed, so we will skip the |ADRT| suffix, which was used in the Motivation section (\S\ref{sec:problem}) to distinguish between the different versions of the method.
+
 %% Section guide
 The following sections take a step by step approach to explaining how our technique allows programmers to define transformations and to use them in localized program scopes,  improving the performance of their programs in an automated and safe fashion.
 
@@ -41,7 +43,9 @@ object IntPairComplexToLongComplex
 
 The coercions serve a double purpose: (1) the signatures match the high-level type, in this case |(Int, Int)| and indicate the corresponding representation type, |Long| and vice-versa and (2) the implementations are called in the transformed scope to encode and decode values as necessary.
 
-\subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type, but instead operate on encoded values in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is explained later, in section \S\ref{sec:ildl:method}.
+Since the description objects can accommodate very different transformations, as shown in the Benchmarks section (\S\ref{sec:benchmarks}), we will not attempt to give a recipe for defining them. Such a definition should be devised by programmers based on application profiles and domain-specific knowledge of how data is processed inside the application. Instead, we will focus on the transformation facilities provided by transformation description objects.
+
+\subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type, but instead operate on values encoded in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is explained later, in section \S\ref{sec:ildl:method}.
 
 \subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. We analyzed multiple approaches to allowing genericity in the transformation description object and converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any arity:
 
@@ -59,7 +63,10 @@ Since the coercion signatures ``match'' the high-level type and return the corre
 assert(toHigh(toRepr(x)) eq x) // referential equality
 \end{lstlisting-nobreak}
 
-These semantics reduce the benefit of the |adrt| transformation by imposing restrictions on the coercions. However, in most use cases, the targets, such as library collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it.
+These semantics prevent the coercions from simply copying the value of the object into the new representation.
+For example, the referential equality condition above would be violated if the |toRepr| and |toHigh| would simply allocate new objects (which would get new references). Instead, the |toRepr| coercion would have to cache the original value so that, when decoding, the |toHigh| coercion could return the exact same object as originally given.
+
+As expected, referential equality and mutability make transformations a lot more difficult. Luckily, in most use cases, the targets, such as library collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it. A desirable extension to our approach would be to statically check the compatibility of the high-level type with its coercions. This could prevent the programmer from incorrectly copying internally mutable objects inside the coercions.
 
 Once the transformation description object is defined, it can be used in |adrt| scopes to optimize the user program.
 
@@ -323,17 +330,17 @@ val n1: (Int, Int) = (0, 1)
 val n2: (Int, Int) = `intPairAsComplex(n1)` * n1
 \end{lstlisting-nobreak}
 
-This is a costly pattern, requiring |n1| to be decoded into a pair and passed to the |intPairAsComplex| method, which itself creates a wrapper object that exposes the |*| operator. To optimize this pattern, the ADR transformation looks for a bypass method in the transformation description object that corresponds to a mangled name combining the implicit method name and the operator. For simplicity, if we assume the name is |implicit_*| and the bypass exists, we get:
+This is a costly pattern, requiring |n1| to be decoded into a pair and passed to the |intPairAsComplex| method, which itself creates a wrapper object that exposes the |*| operator. To optimize this pattern, the ADR transformation looks for a bypass method in the transformation description object that corresponds to a mangled name combining the implicit method name and the operator. For simplicity, if we assume the name is |implicit_*| and the bypass exists in the |IntPairComplexToLongComplex| object, we get:
 
 \begin{lstlisting-nobreak}
-val n1: Long = IntPairComplexToLongComplex.toRepr(0, 1)
+val n1: Long = toRepr((0,1))
 val n2: Long = `implicit_*(n1, n1)`
 \end{lstlisting-nobreak}
 
-This allows the call to the |*| operator to go through without any heap object creation, which significantly improves performance and heap footprint. We next see the implementation of bypass methods in detail.
+Although we omitted the qualifier for brevity, the methods |toRepr| and |implicit_*| methods are taken from the transformation description object. This allows the call to the |*| operator to go through without any heap object creation, which significantly improves performance and heap footprint. We next see the implementation of bypass methods in detail.
 %Yet, we glossed over some details in how bypass methods are implemented.
 
-\subsubsection{Bypass methods.} Both normal and implicit bypass methods need to correspond to the method they are replacing and:
+\subsubsection{Bypass methods.} Both normal and implicit bypass methods defined in the transformation description object need to correspond to the method they are replacing and:
 \begin{itemize}
 \item Add a first parameter corresponding to the receiver;
 \item Have the rest of the parameters match the method;
@@ -353,26 +360,31 @@ def implicit_*(recv:`(Int,Int)`, n2:`(Int,Int)`):`(Int,Int)`
 \end{lstlisting-nobreak}
 
 It is interesting to notice that representation-specific method rewriting relies on two previous design choices: (1) shifting focus from scopes to individual values and (2) carrying the entire transformation semantics in the signature of each encoded value. %The Implementation section (\S\ref{sec:impl}) further explains how these bypass methods are defined in the transformation description objects, but before that, there is a last set of interesting interactions of |adrt| scopes and language features.
-
-
 % This allows the method to accept the second operand and return the result in the encoded state. Yet, the source code of the method, which must be defined in the transformation description object, works on encoded values, bearing the representation type, in this case, |Long|. This is why, in the transformation description object, the definition of method |implicit_*| is:
 %
 % \begin{lstlisting-nobreak}
 % def implicit_*(recv: `Long @high`,  n2: `Long @high`): `Long @high` = ...
 % \end{lstlisting-nobreak}
+Yet, there is still a snag.
 
+% constructors
+\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. In our case, the first line runs the |Tuple2| constructor, which creates a heap object, and then converts it to the |Long| representation:
 
-% Yet, there is still a snag.
-%
-% % constructors
-% \subsubsection{Constructors} create heap objects before they can be encoded in the representation type. Instead of allowing them to run, the ADR transformation intercepts and rewrites constructor invocations into extension methods that output the representation type directly. Using this feature on the code above, we get:
-%
-% \begin{lstlisting-nobreak}
-% val n1: Long = IntPairComplexToLongComplex.`toRepr_ctor(0, 1)`
-% val n2: Long = extension_*(n1, n1)
-% \end{lstlisting-nobreak}
-%
-% Notice that the integers are now passed as arguments to the extension method |toRepr_ctor|, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
+\begin{lstlisting-nobreak}
+// In Scala, writing (0, 1) is a shortcut for
+// new Tuple2[Int, Int](0, 1):
+val n1: Long = toRepr((0,1))
+val n2: Long = `implicit_*(n1, n1)`
+\end{lstlisting-nobreak}
+
+Instead of allocating the |Tuple2| object, the ADR transformation can intercept and rewrite constructor invocations into constructor bypass methods that output the representation type directly. Using this feature, we get:
+
+\begin{lstlisting-nobreak}
+val n1: Long = `ctor_Tuple2(0, 1)`
+val n2: Long = implicit_*(n1, n1)
+\end{lstlisting-nobreak}
+
+Notice that the integers are now passed as arguments to the constructor bypass method |ctor_Tuple2|, by value. This completes this scope's transformation, allowing it to execute without allocating any heap object at all.
 
 
 
