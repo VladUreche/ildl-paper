@@ -198,7 +198,7 @@ The miniboxed |LazyList| on the other hand, both executed faster and did not pro
     struct of array, random & 30.4 &    1.8x &        0 &        0 &      435 &       13 \\
     array of struct, uniform& 32.5 &    none &        0 &        0 &      454 &       16 \\
     struct of array, uniform&  5.7 &    5.7x &        0 &        0 &      433 &       19 \\ \hline
-    10001-th number, orig.  & 6.56 &    none &        0 &        0 &       31 &       11 \\
+    10001-th number, original  & 6.56 &    none &        0 &        0 &       31 &       11 \\
     10001-th number, step 1 & 2.70 &    2.4x &        0 &        0 &       31 &       11 \\
     10001-th number, step 2 & 2.16 &    3.0x &        0 &        0 &       31 &       12 \\
     10001-th number, step 3 & 1.64 &    4.0x &        0 &        0 &       31 &       10 \\ \hline
@@ -209,6 +209,8 @@ The miniboxed |LazyList| on the other hand, both executed faster and did not pro
 %   \vspace{-1em }
 \end{table*}
 
+\vspace{0.5em}
+\noindent
 \textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 30\% speedup compared to ``adrt miniboxed''.
 
 The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation can't be applied unless we consider a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 70\% compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
@@ -274,8 +276,29 @@ adrt(BigIntToLong) {
 }
 \end{lstlisting-nobreak}
 
-An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception. For this example, the transformation has 100 LOC.
+An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception.
 
+As with other benchmarks, we broke down the transformation is several steps:
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``original'' code} is the unmodified version from the Rosetta Code website, which we kept as a witness.
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``step1'' code} uses |adrt| scopes to replace the |Queue| object by a custom fixed-size array-based circular buffer. This collection specialization brings a 2.4x speedup without any memory layout transformation.
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings a 20\% speedup.
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long|. This unboxing operation produces an additional 25\% speedup, as fewer objects are created during the benchmark execution.
+
+The conclusion is that, although the ADR transformation seems to be a memory layout optimization, it can actually do many more optimizations that bring orthogonal speedups, such as improving cache locality, specializing operations and collections etc.
+
+For this example, the two transformation objects have 100 LOC and the circular buffer has 20 LOC.
 
 \subsection{ADRT in Realistic Libraries}
 % \subsection{Retrofitting Specialization to Functions}
