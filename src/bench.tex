@@ -8,32 +8,142 @@ the setting of a library and its clients.
 %
 %\subsection{Setup}
 %
-We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|. The RAM available to the benchmarks was |2GB| and the running times were measured using the scalameter benchmarking platform \cite{scalameter}, to avoid jitter from the garbage collector and just-in-time compiler.
 
+\begin{table*}[t!]
+  \centering
+  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+    \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
+    \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
+    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    10K GCD runs, original & 28.1 &    none &        0 &        0 &     13.5 &       13 \\
+    10K GCD runs, class    & 12.5 &    2.2x &        0 &        0 &      2.5 &       10 \\
+    10K GCD runs, boxed    & 15.0 &    1.9x &        0 &        0 &      8.7 &       11 \\
+    10K GCD runs, unboxed  &  2.2 &   12.7x &        0 &        0 &      0.5 &        9 \\ \hline
+  \end{tabularx}
+  \vspace{-1.9mm}
+  \caption{Greatest Common Divisor benchmark results.}
+  \label{table:gcd}
+%   \vspace{-1em }
+\end{table*}
+
+The benchmarks were executed on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, |2GB| of RAM running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the Just in time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to \cite{rigorous-java-benchmarking}.
 
 \subsection{ADRT Micro-Benchmarks}
 
+Our benchmarking platform, ScalaMeter, executes micro-benchmarks using the following recipe:
+\begin{compactitem}
+  \item First, fork a new JVM;
+  \item Execute the benchmark several times to warm up the JVM, only measuring the noise;
+  \item When the noise drops below a threshold, execute the benchmark and gather measurements;
+\end{compactitem}
+
+\vspace{0.5em}
+\noindent
+For each benchmark run, we monitor:
+\begin{compactitem}
+  \item The benchmark running time;
+  \item GC cycles occurring during the run (in-benchmark);
+  \item GC cycles occurring after the run (inter-benchmark);
+\end{compactitem}
+
+\vspace{0.5em}
+\noindent
+At the end of a cycle, we manually trigger a full GC cycle so the current run does not affect the next. This allows us to record the following parameters for each benchmark:
+
+\begin{compactitem}
+  \item Benchmark running time (ms)
+  \item In-benchmark garbage collected (MB)
+  \item In-benchmark GC pause time (ms)
+  \item Inter-benchmark garbage collected (MB)
+  \item Inter-benchmark GC pause time (ms)
+\end{compactitem}
+
+\vspace{0.5em}
+\noindent
+Since the ADR transformation is directly related to memory layout and, thus, to memory consumption, we paid special attention to GC cycles. Please notice that the benchmark running time includes the in-benchmark GC pause but not the inter-benchmark GC pause. This allows us to separately measure the speedups gained by avoiding GC cycles and from other factors, such as:
+
+\begin{compactitem}
+  \item Avoiding pointer dereferencing;
+  \item Improving cache locality;
+  \item Simplifying operations;
+  \item Specializing operations;
+  \item Lazyfying operations.
+\end{compactitem}
+
+\vspace{0.5em}
+\noindent
+For each benchmark, we broke down the transformation in several steps, which allowed us to quantify the exact contribution obtained by each transformation step. Unfortunately, due to space constraints, we cannot include the complete analysis in the paper. Interested readers can readi it in the accompanying artifact or on the project website \cite{ildl-plugin-wiki}.
+
+\vspace{0.5em}
+\noindent
 We chose representative micro-benchmarks in order to cover a wide range of transformations using the |adrt| scope:
 
-\begin{itemize}
+\begin{compactitem}
 \item the greatest common divisor algorithm, presented in \S\ref{sec:problem};
 \item least squares benchmark + deforestation \cite{wadler-deforestation};
 \item averaging sensor readings + array of struct;
 \item computing the first 10000 Hamming numbers.
-\end{itemize}
+\end{compactitem}
 
+\vspace{0.5em}
 \noindent
-The benchmarks were optimized using our implementation of the |adrt| scope at \cite{ildl-plugin} and are described in detail on the website \cite{ildl-plugin-wiki}. We will proceed to explain the transformation in each benchmark, but, due to space constraints, the full descriptions are only available on the website.
+All benchmarks are fully automated and use the |adrt| markers and transformation description objects. We will proceed to explain the transformation in each benchmark, but, due to space constraints, the full descriptions are only available on the website.
 
 \subsubsection{The Gaussian Greatest Common Divisor}
 % What is the benchmark about?
 % Why does it matter?
 % How we optimized it?
-is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric and CPU-bound benchmark, where the main slowdown is caused by heap allocations.
+is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric CPU-bound benchmark, where the main slowdown is caused by heap allocations and GC cycles. We broke down the transformation into four steps, with the result shown in Table \ref{table:gcd}. None of the transformations triggered GC pauses during the measured runs, but they did produce different amounts of garbage objects:
 
-The |adrt| transformation surrounds the tail-recursive |gcd| method and optimizes the pair of integer representation of Gaussian integers by encoding them in long integers. From this point of view, we can think of the transformation as retrofitting the value class status to the pair of integers. The benchmark results in Table \ref{table:adrt} show a 13x speed improvement and we checked that no object allocations occur in the transformed version of the |gcd| method. The transformation description object is 30 lines of code (LOC) long.
+\vspace{0.5em}
+\noindent
+\textbf{The ``original'' benchmark} does not apply any transformation, thus modelling Gaussian integers using Scala's |Tuple2| class. Due to limitations in the specialization \cite{iuli-thesis, specialization-iuli} translation in Scala, the memory footprint of |Tuple2| classes is larger than it should be.
 
-\subsubsection{The Least Squares Method} takes a list of points in two dimensions and computes the slope and offset of a straight line that best approximates the input data. The benchmark performs multiple traversals over the input data and thus benefits from deforestation \cite{wadler-deforestation}, which avoids the creation of intermediate collections after each |map| operation:
+\vspace{0.5em}
+\noindent
+\textbf{The ``class'' transformation} applies an |adrt| transformation which encodes Gaussian integers as our own |Complex| class, essentially retrofitting specialization. This obtains a 2x speed improvement and reduces the garbage by 5x:
+
+\begin{lstlisting-nobreak}
+case class Complex(_1: Int, _2: Int)
+\end{lstlisting-nobreak}
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``boxed'' transformation} encodes Gaussian integers as long integers, but keeps them heap-allocated. This is slower than having our own class since it requires encoding values into the long integer representation. To achieve boxing, we use |java.lang.Long| objects, which the Scala backend does not unbox. The additional value encoding produces a small slowdown and for unknown reasons increases the garbage produced.
+
+\vspace{0.5em}
+\noindent
+\textbf{The ``unboxed'' transformation} is the one shown throughout the paper. It encodes Gaussian integers as |scala.Long| values, which are automatically unboxed by the Scala compiler backend. This brings a significant speedup to the benchmark, allowing execution to occur without any heap allocation, as explained in \S\ref{sec:ildl:method}. Compared to using pairs of integers, the speedup is almost 13x and the garbage is reduced by
+27x.
+
+\vspace{0.5em}
+\noindent
+The transformation description objects for the three transformations above range between 30 and 40 lines of code and include more operations than necessary for the benchmark, such as addition, multiplication, multiplication with integers, subtraction etc.
+
+\begin{table*}[t!]
+  \centering
+  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+    \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
+    \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
+    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    LSM, original          & 8264 &    none &     1166 &     7547 &      809 &     5317 \\
+    LSM, scala-blitz       & 3464 &    2.4x &      468 &     2936 &     1165 &     5236 \\
+    LSM, adrt generic      &  429 &   19.3x &      701 &        3 &      933 &     5210 \\
+    LSM, adrt miniboxed    &  280 &   29.5x &        0 &        0 &      701 &     5193 \\
+    LSM, manual deforestation  &  195 &   42.4x &        0 &        0 &      702 &     5269 \\
+    LSM, manual fusion     &   79 &  105.0x &        0 &        0 &      702 &     5282 \\ \hline
+    array of struct, random & 55.5 &    none &        0 &        0 &      451 &       15 \\
+    struct of array, random & 30.4 &    1.8x &        0 &        0 &      435 &       13 \\
+    array of struct, uniform& 32.5 &    none &        0 &        0 &      454 &       16 \\
+    struct of array, uniform&  5.7 &    5.7x &        0 &        0 &      433 &       19 \\ \hline
+  \end{tabularx}
+  \vspace{-1.9mm}
+  \caption{Least Squares Method and Sensor Readings benchmark results.}
+  \label{table:lslr}
+%   \vspace{-1em }
+\end{table*}
+
+\subsubsection{The Least Squares Method} takes a list of points in two dimensions and computes the slope and offset of a straight line that best approximates the input data. The benchmark performs multiple traversals over the input data and thus can benefit from deforestation \cite{wadler-deforestation}, which avoids the creation of intermediate collections after each |map| operation:
 
 \begin{lstlisting-nobreak}
 adrt(ListAsLazyList){
@@ -59,7 +169,11 @@ object ListAsLazyList extends TransformationDescription {
 }
 \end{lstlisting-nobreak}
 
-The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on the collection or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection. This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
+The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on the collection or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection.
+
+TODO: Update
+
+This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
 
 Yet, using the |LazyList| collection we can also benefit from specialization \cite{iuli-thesis}. Using a specialized version of the |LazyList| collection we obtain a 5x speed improvement thanks to a combination of deforestation and specialization. Therefore, we used the |adrt| transformation both to transform the collection semantics and to retrofit specialization in a localized scope. The transformation description object is 30 LOC and the |LazyList| is 70 LOC.
 
@@ -90,6 +204,22 @@ For comparison, we implemented the transformation by hand, manually refactoring 
 %, showing this is the best that can be achieved for the transformation. Still, this shows the |adrt| scope is able to change the underlying data structures and provide speedups while maintaining program semantics.
 The transformation description object is 60 LOC and the optimization applied (array-of-struct to struct-of-array) is general-purpose.
 
+\begin{table*}[t]
+  \centering
+  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+    \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
+    \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
+    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    10001-th number, orig.  & 6.56 &    none &        0 &        0 &       31 &       11 \\
+    10001-th number, step 1 & 2.70 &    2.4x &        0 &        0 &       31 &       11 \\
+    10001-th number, step 2 & 2.16 &    3.0x &        0 &        0 &       31 &       12 \\
+    10001-th number, step 3 & 1.64 &    4.0x &        0 &        0 &       31 &       10 \\ \hline
+  \end{tabularx}
+  \vspace{-1.9mm}
+  \caption{Hamming Numbers benchmark results.}
+  \label{table:hamming}
+%   \vspace{-1em }
+\end{table*}
 
 \subsubsection{The Hamming Numbers Benchmark} computes numbers that only have 2, 3 and 5 as their prime factors, in order. Unlike the other benchmarks, this is an example we randomly picked from Rosetta Code \cite{rosetta-code} and attempted to speed up:
 
@@ -124,26 +254,6 @@ adrt(BigIntToLong) {
 
 An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception. For this example, the transformation has 100 LOC.
 
-
-\newcolumntype{Y}{>{\centering\arraybackslash}X}
-
-\begin{table}[t!]
-  \centering
-  \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
-    \rowcolor{Gray}
-    \textbf{Benchmark}   &  \textbf{Original}  &     \textbf{ADRT} &      \textbf{Speedup} \\ \hline
-    Gaussian GCD         &        3.05 $\mu$s &      0.23 $\mu$s &                   13x \\
-    Least Sq. Blitz (5M) &             8026 ms &           4763 ms &                  1.7x \\
-    Least Sq. adrt 1 (5M) &             8026 ms &           2393 ms &                    3x \\
-    Least Sq. adrt 2 (5M) &             8026 ms &           1643 ms &                    5x \\
-    Sensor Readings (5M) &             50.8 ms &           23.1 ms &                    2x \\
-    Hamming 10000th      &             4.35 ms &           0.55 ms &                    8x \\ \hline
-  \end{tabularx}
-  \vspace{-2mm}
-  \caption{Benchmark running time for each use case.}
-  \label{table:adrt}
-  \vspace{-1em }
-\end{table}
 
 \subsection{ADRT in Realistic Libraries}
 % \subsection{Retrofitting Specialization to Functions}
