@@ -133,13 +133,9 @@ The transformation description objects for the three transformations above range
     LSM, adrt miniboxed    &  280 &   29.5x &        0 &        0 &      701 &     5193 \\
     LSM, manual deforestation  &  195 &   42.4x &        0 &        0 &      702 &     5269 \\
     LSM, manual fusion     &   79 &  105.0x &        0 &        0 &      702 &     5282 \\ \hline
-    array of struct, random & 55.5 &    none &        0 &        0 &      451 &       15 \\
-    struct of array, random & 30.4 &    1.8x &        0 &        0 &      435 &       13 \\
-    array of struct, uniform& 32.5 &    none &        0 &        0 &      454 &       16 \\
-    struct of array, uniform&  5.7 &    5.7x &        0 &        0 &      433 &       19 \\ \hline
   \end{tabularx}
   \vspace{-1.9mm}
-  \caption{Least Squares Method and Sensor Readings benchmark results.}
+  \caption{Least Squares Method benchmark results.}
   \label{table:lslr}
 %   \vspace{-1em }
 \end{table*}
@@ -172,15 +168,49 @@ object ListAsLazyList extends TransformationDescription {
 
 The |LazyList| collection achieves deforestation by recording the mapped functions and executing them lazily, either when |force| is invoked on the collection or when a |fold| operation is executed. Since the |sum| operation is implemented as a |foldLeft|, the |LazyList| applies the function and sums the result without creating an intermediate collection.
 
-TODO: Update
+To put the transformation into context, we explored several scenarios:
 
-This transformation alone produced a 3x speedup for an input of 5 million points and made the |adrt| transformation perform better than the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper}, which produced a modest 1.7x speedup.
+\vspace{0.5em}
+\noindent
+\textbf{The ``original'' case} executes the least squares method on 5 million points without any transformation. Table \ref{table:lslr} shows that, on average, as many as 1.1 GB of heap memory are reclaimed during the benchmark run, significantly slowing down the execution. If it wasn't for the in-benchmark GC pause, the execution would take around 700ms, in line with the other transformations.
 
-Yet, using the |LazyList| collection we can also benefit from specialization \cite{iuli-thesis}. Using a specialized version of the |LazyList| collection we obtain a 5x speed improvement thanks to a combination of deforestation and specialization. Therefore, we used the |adrt| transformation both to transform the collection semantics and to retrofit specialization in a localized scope. The transformation description object is 30 LOC and the |LazyList| is 70 LOC.
+\noindent
+What we can also notice is that, across all benchmarks, the input data occupies around 700MB of heap space and is only collected at the end of the benchmark. A back of the envelope calculation can confirm this: each linked list node takes 32 bytes (2-word header + 8-byte pointer to value + 8-byte pointer to the next cell) and contains a tuple of 48 bytes (2-word header + two 8-byte pointers and two 8-byte doubles, due to limitations in specialization), which itself contains 16 bytes per boxed double. Considering 5 million such nodes, we have: $(32 + 48 + 2 \times 16) * 5 \times 10^6 = 560 \times 10^6$, approximately 560MB of data.
 
-Although the Least Squares Method benchmark is a specialized micro-benchmark, the techniques it uses are of wide applicability. For instance, deforestation can be applied in a variety of realistic optimization scenarios.
+\vspace{0.5em}
+\noindent
+\textbf{The ``blitz'' transformation} uses the dedicated collection optimization tool |scalablitz| \cite{scalablitz, scalablitz-paper} to improve performance. Under the hood, scalablitz uses compile-time macros to rewrite the code and improve its performance. Indeed, the tool manages both to cut down on garbage generation and improve the running performance of the code.
 
+\vspace{0.5em}
+\noindent
+\textbf{The ``adrt'' transformation} performs deforestation by automatically introducing |LazyList|s. This avoids the creation of intermediate lists and thus significantly reduces the garbage produced. We tried using two versions of |LazyList|: one using erased generics (adrt generic) and one using miniboxing \cite{miniboxing} specialization (adrt miniboxed).
 
+The erased generic |LazyList| executed the code on-par with the scalablitz optimizer but produced less garbage and the GC pause was much slower (requiring a simple generational garbage collection, not a full mark and sweep).
+
+The miniboxed |LazyList| on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 40\%.
+
+\begin{table*}[t!]
+  \centering
+  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+    \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
+    \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
+    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    array of struct, random & 55.5 &    none &        0 &        0 &      451 &       15 \\
+    struct of array, random & 30.4 &    1.8x &        0 &        0 &      435 &       13 \\
+    array of struct, uniform& 32.5 &    none &        0 &        0 &      454 &       16 \\
+    struct of array, uniform&  5.7 &    5.7x &        0 &        0 &      433 &       19 \\ \hline
+  \end{tabularx}
+  \vspace{-1.9mm}
+  \caption{Sensor Readings benchmark results.}
+  \label{table:sparkle}
+%   \vspace{-1em }
+\end{table*}
+
+\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 30\% speedup compared to ``adrt miniboxed''.
+
+The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation can't be applied unless we consider a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 70\% compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
+
+For the programmer effort, the |LazyList| definition takes about 60 LOC and the transformation description object about 30 LOC. The difference between ``adrt erased'' and ``adrt miniboxed'' is the presence of |@miniboxed| annotations in the |LazyList| classes and in the description object.
 
 \subsubsection{The Sensor Readings} benchmark was inspired by the Sparkle visualization tool \cite{sparkle}, which is able to quickly display, zoom, transform and filter sensor readings. To obtain nearly real-time results, Sparkle combines several optimizations such as streaming and array-of-struct to struct-of-array conversions, all currently implemented by hand. In our benchmark, we implemented a mock-up of the processing core of Sparkle and automated the array-of-struct transform:
 
