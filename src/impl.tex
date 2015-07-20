@@ -96,8 +96,6 @@ This mechanism allows programmers to both define and use the transformation desc
 % - transformation description object  => dependency of the code => change it => recompile!
 Another advantage we get for free, thanks to referencing the transformation description object in the type annotation, is an explicit dependency between all transformed values and their description objects. This allows the Scala incremental compiler to automatically recompile all scopes when the description object in their |adrt| marker has changed.
 
-This concludes the section, which explained how we solved the two main technical problems in the ADR Transformation and how this impacted the compilation pipeline.
-
 % - bridge - warnings
 % - coerce - the main work was around using the bypass methods and providing a good solution for them
 % - commit -- very simple
@@ -113,17 +111,18 @@ This concludes the section, which explained how we solved the two main technical
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \subsection{Compiler Entry Points}
-% \label{sec:ildl:scala}
+\subsection{Compiler Entry Points}
+\label{sec:ildl:scala}
+
+In many of the descriptions so far we have implicitly assumed the Scala compiler features. To ease other compiler developers in porting this approach, we highlight the exact Scala compiler features that we rely on:
 %
-% Most of the description focused on how the ADR transformation extends LDL and how it transforms the code. To allow other compiler implementers to
+\begin{compactitem}
+  \item The type checker is available all time during compilation;
+  \item We can change/see a symbol's signature at any phase;
+  \item Compiler support for annotations;
+  \item Support for external annotation checkers;
+  \item Support for tree attachments;
+  \item Expected type propagation (In Scala, this is part of the local type inference).
+\end{compactitem}
 
-
-
-%  - ability to use the type checker at any phase in the compilation pipeline
-%  - ability to change the symbol signature from one phase to the next
-%  - ability to see a symbol's signature at any phase
-%  - support for annotations
-%  - support for external annotation checkers
-%  - support for tree attachments
-%  - typechecker support for expected types (In Scala, this is part of the local type inference)
+This concludes the section, which explained how we solved the two main technical problems in the ADR Transformation and how this impacted the compilation pipeline.
