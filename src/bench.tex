@@ -172,10 +172,10 @@ To put the transformation into context, we explored several scenarios:
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``original'' case} executes the least squares method on 5 million points without any transformation. Table \ref{table:lslr} shows that, on average, as many as 1.1 GB of heap memory are reclaimed during the benchmark run, significantly slowing down the execution. If it wasn't for the in-benchmark GC pause, the execution would take around 700ms, in line with the other transformations.
+\textbf{The ``original'' case} executes the least squares method on 5 million points without any transformation. Table \ref{table:lslr} shows that, on average, as much as 1.1 GB of heap memory is reclaimed during the benchmark run, significantly slowing down the execution. If it was not for the in-benchmark GC pause, the execution would take around 700ms, in line with the other transformations.
 
 \noindent
-What we can also notice is that, across all benchmarks, the input data occupies around 700MB of heap space and is only collected at the end of the benchmark. A back of the envelope calculation can confirm this: each linked list node takes 32 bytes (2-word header + 8-byte pointer to value + 8-byte pointer to the next cell) and contains a tuple of 48 bytes (2-word header + two 8-byte pointers and two 8-byte doubles, due to limitations in specialization), which itself contains 16 bytes per boxed double. Considering 5 million such nodes, we have: $(32 + 48 + 2 \times 16) * 5 \times 10^6 = 560 \times 10^6$, approximately 560MB of data.
+What we can also notice is that, across all benchmarks, the input data occupies around 700MB of heap space and is only collected at the end of the benchmark. A back-of-the-envelope calculation can confirm this: each linked list node takes 32 bytes (2-word header + 8-byte pointer to value + 8-byte pointer to the next cell) and contains a tuple of 48 bytes (2-word header + two 8-byte pointers and two 8-byte doubles, due to limitations in specialization), which itself contains 16 bytes per boxed double. Considering 5 million such nodes, we have: $(32 + 48 + 2 \times 16) * 5 \times 10^6 = 560 \times 10^6$, approximately 560MB of data.
 
 \vspace{0.5em}
 \noindent
