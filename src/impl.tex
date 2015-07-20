@@ -1,8 +1,9 @@
 \section{Implementation}
 \label{sec:impl}
 
-This section describes the technical aspects of our implementation that can aid a compiler developer in porting the approach to another language.
-We implemented the ADR transformation as a Scala compiler plugin \cite{ildl-plugin}, by extending the open-source multi-stage programming transformation provided with the LDL \cite{ldl} artifact, available at \cite{ldl-staging-plugin}.
+%This section describes the technical aspects of our implementation that can aid a compiler developer in porting the approach to another language.
+
+We implemented the ADR transformation as a Scala compiler plugin \cite{ildl-plugin}, by extending the open-source multi-stage programming transformation provided with the LDL \cite{ldl} artifact, available at \cite{ldl-staging-plugin}. In this section we describe the technical aspects of our implementation that are not directly related to the transformation itself, but to providing a good programmer experience.
 
 
 %The programmer front-end consists of the |adrt| marker, which acts as a transformation trigger and the marker interface |TransformationDescription|. These programmer-facing constructs were shown in the Problem Statement (\S\ref{sec:problem}) and in the ADR Transformation section (\S\ref{sec:ildl}). We next present each of them in detail.
@@ -109,3 +110,13 @@ This concludes the section, which explained how we solved the two main technical
 % \end{itemize}
 
 % Currently, serious errors can be triggered by manually adding the |@repr| annotation in the source code. We would like to restrict that, but since in the Scala compiler name resolution and type-checker phases execute in tandem, finding user-added |@repr| annotations is impossible: before name resolution, the references to the |@repr| annotation have not yet been resolved, so we cannot reject the program. After type-checking, the |adrt| macro has already added its valid |@repr| annotations. We are still looking into  ways to fix this problem.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \subsection{Compiler Entry Points}
+% \label{sec:ildl:scala}
+%
+% Most of the description focused on how the ADR transformation extends LDL and how it transforms the code. To allow other compiler implementers to
+
+
+
