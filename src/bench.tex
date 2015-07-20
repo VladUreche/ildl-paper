@@ -9,12 +9,13 @@ the setting of a library and its clients.
 %\subsection{Setup}
 %
 
+
 \begin{table*}[t!]
   \centering
-  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+  \begin{tabularx}{\textwidth}{|g| *{6}{|Y}|} \hline
     \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
     \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
-    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    \rowcolor{Gray}                                &  (ms)         &                  & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
     10K GCD runs, original & 28.1 &    none &        0 &        0 &     13.5 &       13 \\
     10K GCD runs, class    & 12.5 &    2.2x &        0 &        0 &      2.5 &       10 \\
     10K GCD runs, boxed    & 15.0 &    1.9x &        0 &        0 &      8.7 &       11 \\
@@ -26,7 +27,7 @@ the setting of a library and its clients.
 %   \vspace{-1em }
 \end{table*}
 
-The benchmarks were executed on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, |2GB| of RAM running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the Just in time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to \cite{rigorous-java-benchmarking}.
+We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
 
 \subsection{ADRT Micro-Benchmarks}
 
@@ -72,7 +73,7 @@ Since the ADR transformation is directly related to memory layout and, thus, to 
 
 \vspace{0.5em}
 \noindent
-For each benchmark, we broke down the transformation in several steps, which allowed us to quantify the exact contribution obtained by each transformation step. Unfortunately, due to space constraints, we cannot include the complete analysis in the paper. Interested readers can readi it in the accompanying artifact or on the project website \cite{ildl-plugin-wiki}.
+For each benchmark, we broke down the transformation in several steps, which allowed us to quantify the exact contribution obtained by each transformation step. Unfortunately, due to space constraints, we cannot include the complete analysis in the paper. Interested readers can review it in the accompanying artifact or on the project website \cite{ildl-plugin-wiki}.
 
 \vspace{0.5em}
 \noindent
@@ -93,7 +94,7 @@ All benchmarks are fully automated and use the |adrt| markers and transformation
 % What is the benchmark about?
 % Why does it matter?
 % How we optimized it?
-is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric CPU-bound benchmark, where the main slowdown is caused by heap allocations and GC cycles. We broke down the transformation into four steps, with the result shown in Table \ref{table:gcd}. None of the transformations triggered GC pauses during the measured runs, but they did produce different amounts of garbage objects:
+is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric, CPU-bound benchmark, where the main slowdown is caused by heap allocations and GC cycles. We broke down the transformation into four steps, with the result shown in Table \ref{table:gcd}. None of the transformations triggered GC pauses during the measured runs, but they did produce different amounts of garbage objects:
 
 \vspace{0.5em}
 \noindent
@@ -122,10 +123,10 @@ The transformation description objects for the three transformations above range
 
 \begin{table*}[t!]
   \centering
-  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+  \begin{tabularx}{\textwidth}{|g| *{6}{|Y}|} \hline
     \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
     \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
-    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    \rowcolor{Gray}                                &  (ms)              &             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
     LSM, original          & 8264 &    none &     1166 &     7547 &      809 &     5317 \\
     LSM, scala-blitz       & 3464 &    2.4x &      468 &     2936 &     1165 &     5236 \\
     LSM, adrt generic      &  429 &   19.3x &      701 &        3 &      933 &     5210 \\
@@ -206,10 +207,10 @@ The transformation description object is 60 LOC and the optimization applied (ar
 
 \begin{table*}[t]
   \centering
-  \begin{tabularx}{\textwidth}{|g *{6}{|Y}|} \hline
+  \begin{tabularx}{\textwidth}{|g| *{6}{|Y}|} \hline
     \rowcolor{Gray}                                &               &                  & \multicolumn{2}{c|}{In-benchmark}    & \multicolumn{2}{c|}{Inter-benchmark} \\\cline{4-7}
     \rowcolor{Gray}\textbf{Benchmark}              & \textbf{Time} & \textbf{Speedup} & \textbf{Garbage}  & \textbf{GC time}  & \textbf{Garbage}  & \textbf{GC time} \\
-    \rowcolor{Gray}                                &               & (ms)             & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
+    \rowcolor{Gray}                                &  (ms)             &              & (MB)              & (ms)              & (MB)              & (ms)     \\ \hline
     10001-th number, orig.  & 6.56 &    none &        0 &        0 &       31 &       11 \\
     10001-th number, step 1 & 2.70 &    2.4x &        0 &        0 &       31 &       11 \\
     10001-th number, step 2 & 2.16 &    3.0x &        0 &        0 &       31 &       12 \\
