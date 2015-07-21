@@ -119,10 +119,10 @@ In many of the descriptions so far we have implicitly assumed the Scala compiler
 \begin{compactitem}
   \item The type checker is available all time during compilation;
   \item We can change/see a symbol's signature at any phase;
-  \item Compiler support for annotations;
-  \item Support for external annotation checkers;
-  \item Support for tree attachments;
-  \item Expected type propagation (In Scala, this is part of the local type inference).
+  \item The compiler supports type annotations;
+  \item It supports external annotation checkers;
+  \item It support AST attachments;
+  \item It offers expected type propagation during type checking (In Scala, this is part of the local type inference).
 \end{compactitem}
 
 This concludes the section, which explained how we solved the two main technical problems in the ADR Transformation and how this impacted the compilation pipeline.

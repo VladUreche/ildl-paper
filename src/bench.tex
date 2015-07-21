@@ -285,6 +285,23 @@ As with other benchmarks, we broke down the transformation is several steps:
 \noindent
 \textbf{The ``original'' code} is the unmodified version from the Rosetta Code website, which we kept as a witness.
 
+\begin{table}[t]
+  \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
+    \rowcolor{Gray}
+    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
+    \rowcolor{Gray}
+                       &                  &                   & +functions \\ \hline
+    Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
+    SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
+    SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
+    Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
+  \end{tabularx}
+  \vspace{-2mm}
+  \caption{Scala Streams pipelines for 10M elements.}
+  \label{table:streams}
+  \vspace{-1em}
+\end{table}
+
 \vspace{0.5em}
 \noindent
 \textbf{The ``step1'' code} uses |adrt| scopes to replace the |Queue| object with a custom, fixed-size array-based circular buffer. This collection specialization brings a 2.4x speedup without any memory layout transformation.
@@ -297,8 +314,8 @@ As with other benchmarks, we broke down the transformation is several steps:
 \noindent
 \textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional 25\% speedup, as fewer objects are created during the benchmark execution.
 
-The conclusion is that, although the ADR transformation can be viewed as a memory layout optimization, it can additionally trigger more optimizations that bring orthogonal speedups, such as 
-%improving cache locality, 
+The conclusion is that, although the ADR transformation can be viewed as a memory layout optimization, it can additionally trigger more optimizations that bring orthogonal speedups, such as
+%improving cache locality,
 specializing operations and collections.
 %, etc.
 %%% (YS) I didn't like the original wording. Memory optimizations are mostly about cache locality.
@@ -354,22 +371,19 @@ as a scope for the \emph{function and tuple representation
 This transformation has a significant impact in library benchmarks.
 
 \begin{table}[t]
-  \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
+  \begin{tabularx}{0.48\textwidth}{|g *{1}{|Y}|} \hline
     \rowcolor{Gray}
-    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
-    \rowcolor{Gray}
-                       &                  &                   & +functions \\ \hline
-    Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
-    SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
-    SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
-    Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
+    \textbf{Benchmark}             &  \textbf{Running time} \\ \hline
+    Manual C-like code             &         0.650 $\mu$s \\
+    Miniboxing with functions      &         0.705 $\mu$s \\
+    Miniboxing without functions   &         3.080 $\mu$s \\
+    Generic                        &        13.409 $\mu$s \\ \hline
   \end{tabularx}
   \vspace{-2mm}
-  \caption{Scala Streams pipelines for 10M elements.}
-  \label{table:streams}
+  \caption{Mapping a 1K vector.}
+  \label{table:framian}
   \vspace{-1em}
 \end{table}
-
 
 \subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for functional operations on data streams. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
 % This makes the Scala Streams an interesting platform to study the performance benefits of the miniboxing transformation and, in turn, of our |adrt| precursor.
@@ -402,19 +416,6 @@ representation optimization is nearly 35x!
 % [info] r.VecMapBenchmark.squareDoubleArrayWithLoop    thrpt       20  1540313.539    18644.313  ops/s
 % [info] r.VecMapBenchmark.squareDoubleArrayWithMap     thrpt       20    89519.549      760.324  ops/s
 % [info] r.VecMapBenchmark.squareDoubleVec              thrpt       20   324700.925     3609.481  ops/s
-\begin{table}[t]
-  \begin{tabularx}{0.48\textwidth}{|g *{1}{|Y}|} \hline
-    \rowcolor{Gray}
-    \textbf{Benchmark}             &  \textbf{Running time} \\ \hline
-    Manual C-like code             &         0.650 $\mu$s \\
-    Miniboxing with functions      &         0.705 $\mu$s \\
-    Miniboxing without functions   &         3.080 $\mu$s \\
-    Generic                        &        13.409 $\mu$s \\ \hline
-  \end{tabularx}
-  \vspace{-2mm}
-  \caption{Mapping a 1K vector.}
-  \label{table:framian}
-  \vspace{-1em}
-\end{table}
+
 
 %We will close the section by concluding that the |adrt| scopes are capable of covering a broad range of custom and scoped transformations and the technique has been shown to scale to large programs, through the miniboxing plugin extension based on the |adrt| approach.
