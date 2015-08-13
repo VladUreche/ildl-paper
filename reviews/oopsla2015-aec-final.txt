@@ -1,0 +1,335 @@
+
+Dear Vlad Ureche,
+
+We are pleased to inform you that your artifact met the expectations
+established by your paper. Congratulations and thank you for taking the
+time and energy to participate in this process; the research community
+benefits from a more effective sharing of the infrastructure that goes into
+our results and your contribution to that makes a difference.
+
+Please follow the instructions here:
+http://www.eecs.northwestern.edu/~robby/aec.zip to put the badge on your
+paper.
+
+Below is the consensus rationale for the AECâ€™s decision. The entire AEC
+agreed to this rationale. Following the consensus are the individual
+reviewerâ€™s comments. We hope the feedback that this process provides will
+help you to improve your artifact (and perhaps even any future artifacts
+you may construct).
+
+Best,
+Mike & Robby
+
+===========================================================================
+                                  Comment
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+The reviewers thank the authors for a very well-done artifact that exceeded our expectations.
+
+Consistency:
+Running the ildl experiments produced results that were consistent with the paper.
+The miniboxing benchmarks behaved less consistently, indicating a less pronounced difference between 'generic' and 'miniboxed', but in general showed the same trends.
+Reviewers were unable to relate output from 'Framian Vector' to results in the paper.
+
+Completeness:
+The artifact is complete and, except for some downloads when testing locally, self-contained.
+Reviewers had no trouble following the author's instructions, and commands and scripts worked as expected.
+
+Documentation:
+The documentation of the artifact exceeded our expectations.
+It is very thorough, detailed, much more than what is strictly needed to replicate the experiments.
+The tutorial provides a lot of information about example scenarios, the approaches, the commands, and the experiment results.
+Yet it remains easy to understand.
+However, sometimes the benchmarks did not produce results as formatted in the documentation.
+
+Reusability:
+This artifact is clearly designed for use (and reuse) by the wider community, both researchers who wish to expand upon the ildl plugin and programmers who wish to use it. 
+The quality of the documentation, compiler error messages, worked examples, and the tool itself is remarkably high. 
+There are sections in the doc targeted for developers that want to use and experiment with the plugin in their own projects.
+Reusability from the perspective of using the ildl-plugin in one's own programming, is excellent.
+It's easy to define and use your own transformations.
+
+Suggestions:
+When distributing the artifact, hardcoded assertions concerning architecture and platform versions should be removed.
+
+The output from the benchmarks could be improved, and doesn't always match what is documented.
+Although tool output was not particularly hard to parse, reviewers did expect formatted tables indicating speedups.
+
+In order to facilitate users to reproduce the experimental results, the documentation should mention more explicitly which attempts correspond to Manual C-like code, Miniboxing without functions, Generics, etc.
+Documentation should also mention how the running time is calculated for each configuration, because there are three benchmarks executed for each configuration, outputting three different numbers.
+
+The syntax for creating a scope in which data transformations are used (e.g. adrt(Repr) { ... }) could also be improved. 
+The ability to simply annotate that a compilation unit should use a specific adrt would be great.
+
+
+
+===========================================================================
+                         OOPSLA '15 AEC Review #2A
+                     Updated 14 Jul 2015 5:55:45pm EDT
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+   Quality of Getting-Started Guide: 2. Unsatisfactory
+
+                           ===== Questions =====
+
+The wiki provided with the VM is wonderfully detailed, and the VM environment makes running scala easy.  However, the VM has been set up with the wrong architecture - it's running an i686 kernel, but the benchmarks I've tried running don't work on x86.  If it is possible for the authors to either provide an amd64 VM image or provide instruction for converting the benchmarks to be x86-compliant, my ability to review this artifact would be seriously enhanced.  
+
+(In order to prevent de-anonymization, the reviewers cannot access online resources hosted by the authors or their associates other than the VM images).
+
+                     Artifact Grade: 3. Exceeded expectations established
+                                        in paper
+Is the artifact consistent with the paper?:
+                                     3. Yes
+          Is the artifact complete?: 3. Yes
+   Is the artifact well-documented?: 3. Yes
+    Is the artifact easy to re-use?: 3. Yes
+
+                 ===== Rationale for the assessment =====
+
+This artifact is clearly designed for use (and re-use) by the wider community, both researchers who wish to expand upon the ildl plugin and programmers who wish to use it.  As such, the quality of the documentation, compiler error messages, worked examples, and the tool itself is remarkably high.  It's easy to define and use your own transformations (though I only attempted "toy" examples).
+
+Reusability, from the perspective of using the ildl-plugin in one's own programming, is excellent.
+
+iLDL benchmarks:
+I was excited to see from the wiki that various benchmarks would print pretty tables indicating exact speedups; from running the tool, this was not the case.  That being said, the output that *was* produced was not particularly hard to parse.  I also appreciated the more verbose tool output; while hard to parse, it does provide more insight into what exactly the tool is doing.  The results produced by the tool on the provided VM were entirely consistent with those reported in the paper and tutorial (modulo the standard VM slowdown and expected fluctuations due to an uncontrolled testing environment). 
+
+Miniboxing benchmarks behaved less consistently with the paper; still, I find it likely that the numbers are due to the interposed VM rather than any sort of failure of the authors.
+
+All in all, this was a very well-done artifact.  Good work!
+
+                          ===== Suggestions =====
+
+the syntax for creating a scope in which your data transformations will be used (e.g.   adrt(Repr) { ... }) leaves something to be desired.  I'm not sure what the intricacies of syntax extensions for Scala are (the authors mention that it's neither easy nor portable), but the ability to simply annotate that a compilation unit should use a specific adrt would be lovely.
+
+===========================================================================
+                         OOPSLA '15 AEC Review #2B
+                     Updated 10 Jul 2015 8:15:20am EDT
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+   Quality of Getting-Started Guide: 1. Satisfactory
+                     Artifact Grade: 2. Met expectations established in
+                                        paper
+Is the artifact consistent with the paper?:
+                                     2. Borderline
+          Is the artifact complete?: 3. Yes
+   Is the artifact well-documented?: 2. Borderline
+    Is the artifact easy to re-use?: 3. Yes
+
+                 ===== Rationale for the assessment =====
+
+This paper presents an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation is programmer-defined and covers a wide range of use cases. The technique leverages the type system in order to infer where the data representation needs to be converted, while offering a strong correctness guarantee on the interaction with object-oriented language features, such as dynamic dispatch, inheritance and generics.
+
+The tutorial provides a lot of information about the exemplar scenarios, the approaches, the commands, and the experiment results. It is easy to understand. However, due to the time limit, I didn't read the tutorial carefully for introduction and examples. Instead, I mainly focused on the Sample and Benchmark chapters.
+
+In the Sample chapter, I executed the following command for gcd benchmark:
+
+$ cd ildl-plugin
+$ sbt 'ildl-benchmarks/runMain ildl.benchmark.gcd.BenchmarkRunner'
+
+I got the following result:
+
+Parameters(bench -> direct, jvm_interpreter -> false): 39.015866
+Parameters(bench -> adrt_1, jvm_interpreter -> false): 14.949529350000002
+Parameters(bench -> adrt_2, jvm_interpreter -> false): 15.952387149999998
+Parameters(bench -> adrt_3, jvm_interpreter -> false): 2.1484669499999995
+
+The format is different from the output written in the tutorial:
+
+| Benchmark                                  | Running Time | Speedup |
+| ------------------------------------------ | ------------ | ------- |
+| 10000 GCD runs, original code              |      28.1 ms |    none |
+| 10000 GCD runs, step 1 transformation      |      12.5 ms |    2.2x |
+| 10000 GCD runs, step 2 transformation      |      15.0 ms |    1.9x |
+| 10000 GCD runs, step 3 transformation      |       2.2 ms |   12.7x |
+
+I also tried another way to execute the same benchmark using:
+$ cd ildl-plugin
+$ sbt ildl-benchmarks/run
+
+and then entered number "2". The output format is still inconsistent with the documentation (something like "Parameters(bench -> ..."). Although the speedup numbers are different from those reported in the paper, I think that is understandable because I'm running the tool in different system settings (VM on Mac). I did observe the same trend of changes in terms of run time and speedup.
+
+I ran other benchmarks "hamming", "deforest", and "aos2soa" as well. For "deforest", there is typo in command on page "localhost:4000/Sample-~-Deforestation": 
+$sbt 'ildl-benchmarks/runMain ildl.benchmark.hamming.BenchmarkRunner', where "hamming" should be "deforest".
+
+Although I ran the benchmarks with VM, the speedup data I got is similar to reported data in Table 1.
+
+To reproduce data similar to Table 2, I ran the stream library benchmarks. After several executions of different configurations (Generic vs. Miniboxed vx. Miniboxed + functions), I don't see much difference between Generic and Miniboxed. Similarly, in the tutorial, the difference is not as significant as reported in Table 2, either. There is inconsistency between results mentioned in the paper, those described in the tutorial, and observations in my trials.
+
+Here are the results listed in the paper:
+Result 1----------
+                           Generic      Miniboxed       Miniboxed+functions
+Sum                    100.6 ms    355.9 ms        12.0 ms
+SumOfSquares     188.3 ms    450.9 ms       13.0 ms
+SumOfSqEven      130.8 ms    300.4 ms       52.2 ms
+Cart                     220.6 ms    560.2 ms       55.3 ms
+
+Based on the comparison, Miniboxed is the slowest one, it costs at least twice of the time cost by Generic. For Cart, the difference is 220.6 vs. 560.2ms.
+
+Here are the results described in the tutorial:
+Result 2----------
+                           Generic      Miniboxed       Miniboxed+functions
+Sum                     98.212      158.565          17.953
+SumOfSquares    131.557      193.141          12.010
+SumOfSqEven       92.299      189.583          48.699
+Cart                    217.351      214.849          57.464
+
+Based on the comparison, Miniboxed is still the slowest one. However, it's not very different from Generics. For Cart, the difference is 217.351 vs. 214. 849.
+
+Here are the results I observed:
+Result 3----------
+                           Generic      Miniboxed       Miniboxed+functions
+Sum                      94.507      151.919            16.071
+SumOfSquares     134.200      187.121           16.025 
+SumOfSqEven      102.692      166.535            49.965
+Cart                    202.013      214.737          109.769
+
+Based on the comparison, Miniboxed is still the slowest one. However, it is not very different from Generics. For Cart, the difference is 202.013 vs. 214.737.
+
+When comparing Result2 and Result3, I see that Miniboxed is not as slow as reported in the paper. The authors need to double check the results for Miniboxed column. If Miniboxed is not very slow, then the claim in the paper "In fact, the speedup (of miniboxed+function) relative to the miniboxed code without the function representation optimization is nearly 35x!" is not precise.
+
+When comparing Result2 and Result3, I see the numbers are pretty similar except one Miniboxed+functions: 57.464 vs. 109.769. The authors need to double check this reported number.
+
+To reproduce data similar to Table 3, I ran the Framian Vector implementation by navigating to the file directory "optimistic-spec-article". I don't see any result mentioned in the paper or tutorial. Here are the results I observed:
+
+For attempt1: 
+r.VecMapBenchmark.squareDoubleArrayWithLoop 1167141.688
+r.VecMapBenchmark.squareDoubleArrayWithMap    126816.873
+r.VecMapBenchmark.squareDoubleVec                    135652.991
+
+For attempt5:
+r.VecMapBenchmark.squareDoubleArrayWithLoop 1237555.503
+r.VecMapBenchmark.squareDoubleArrayWithMap    126307.528
+r.VecMapBenchmark.squareDoubleVec                   1251560.698
+
+For attempt6: 
+r.VecMapBenchmark.squareDoubleArrayWithLoop 1218082
+r.VecMapBenchmark.squareDoubleArrayWithMap    121788
+r.VecMapBenchmark.squareDoubleVec                  1097667
+
+Here are the results reported in the paper
+                                              Running Time
+Manual C-like code                     0.650 Î¼s
+Miniboxing with functions           0.705 Î¼s
+Miniboxing without functions      3.080 Î¼s
+Generic                                     13.409 Î¼s
+
+I didn't try the other attempts. However, I don't see much performance difference across different attempts. In order to facilitate users to reproduce the experiment results, the authors should have mentioned explicitly which attempts correspond to Manual C-like code, Miniboxing without functions, Generics, etc. They should also mention how the running time is calculated for each configuration, because there are three benchmarks executed for each configuration, outputting three totally different numbers. Although they mentioned that attempt6 corresponds to Miniboxing with functions, which is supposed to perform best. Based on my observation, that is not true.
+
+===========================================================================
+                         OOPSLA '15 AEC Review #2C
+                     Updated 6 Jul 2015 12:55:17pm EDT
+---------------------------------------------------------------------------
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+
+
+   Quality of Getting-Started Guide: 2. Unsatisfactory
+
+                           ===== Questions =====
+
+I first try to run the benchmarks in the provided virtual machine, but I get 
+
+Unsupported architecture: i386
+
+The authors provide a 32-bit kernel, together with a 'Getting Started' guide that actually mentions that the authors were unable to replicate the benchmarks in that VM "most likely due to the 32Â­bit system architecture" ?
+
+I then installed the necessary prerequisites locally (Mac OSX 10.10.3 on recent MacBook Pro), but then I get:
+
+Unsupported architecture: x86_64
+
+The instructions and/or artifact have to be updated to make reviewing possible.
+
+                     Artifact Grade: 3. Exceeded expectations established
+                                        in paper
+Is the artifact consistent with the paper?:
+                                     3. Yes
+          Is the artifact complete?: 3. Yes
+   Is the artifact well-documented?: 3. Yes
+    Is the artifact easy to re-use?: 3. Yes
+
+                 ===== Rationale for the assessment =====
+
+Consistency:
+I ran all benchmarks locally, and observed that they support the claims made in the paper regarding Tables 1 and 2.
+I could not replicate the experiment with results reported in Table 3.
+
+Completeness:
+The artifact is complete and -- except for some downloads when testing locally -- rather self-contained.
+I had no trouble following the author's instructions, and all commands and scripts worked as expected.
+
+Documentation:
+The documentation of the artifact exceeded my expectations.
+It is very thorough and detailed, much more than what is strictly needed to replicate the experiments.
+However, sometimes the benchmarks did not produce the results as presented in the documentation.
+Especially for the Framian Vector benchmark I could not relate it to the paper.
+
+Reusability:
+The documentation contains a lot of details that go beyond the scope of verifying the experimental results from the paper.
+More specifically, there are sections targeted for developers that want to use and experiment with the plugin in their own projects.
+
+====
+
+Data collected from running the experiments:
+
+Micro benchmarks
+
+Hamming
+paper: 4.35ms -> 0.55ms, or 7.9x speedup (reported as 8x)
+local: 3.04ms -> 0.93ms, or 3.3x speedup
+
+gcd
+paper: 3.05ms -> 0.23ms, or 13.3x speedup (reported as 13x)
+local: 3.76ms -> 1.38ms, or 2.72x speedup
+
+deforest 1 (least squares Blitz 5M)
+paper: 8026ms -> 4763ms, or 1.7x speedup
+local: 7254ms -> 3096ms, or 2.3x speedup
+
+deforest 2 (least squares erased 5M)
+paper: 8026ms -> 2393ms, or 3.4x speedup (reported as 3x)
+local: 7254ms -> 435ms, or 16.7x speedup
+
+deforest 3 (least squares specd 5M)
+paper: 8026ms -> 1643ms, or 4.9x speedup (reported as 5x)
+local: 7254ms -> 268ms, or 27.1x speedup
+
+aos2soa (Sensor readings predictable false)
+paper: 50.8ms -> 23.1ms, or 2.2x speedup
+local: 40.7 -> 17.8ms, or 2.3x speedup
+
+
+Streams benchmarks
+
+cart
+paper: 220.6ms -> 560.2ms -> 55.3ms
+local: 193.7ms -> 197.3ms -> 82.1ms
+
+sum
+paper: 100.6ms -> 355.9ms ->12.0ms
+local: 88.7ms -> 152.1ms -> 8.6ms
+
+sumOfSquares
+paper: 188.3ms -> 450.9ms -> 13.0ms, or 14.5x speedup
+local: 128.7ms -> 182.0ms -> 14.0ms, or 9.2x speedup
+
+somOfSquaresEven
+paper: 130.8ms -> 300.4ms -> 52.2ms
+local: 83.5ms -> 164.7ms ->  39.5ms
+
+
+Framian vectors benchmarks (attempt1 -> attempt6)
+
+squareDoubleVec
+paper: ? -> ?
+local: 93788 -> 1354990
+
+                          ===== Suggestions =====
+
+Hardcoded labels concerning architecture and platform version should be removed.
+The output from the benchmarks could be improved, and doesn't always match what is documented.

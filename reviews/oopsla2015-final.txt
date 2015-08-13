@@ -1,0 +1,51 @@
+===========================================================================
+                                  Comment
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+Comments for the 2nd version of the paper
+
+I liked the second version of the paper much better, and in particular the worked-out examples of the transformations and the benchmarks.
+
+My main comment about the new version is that I would like you to clarify the effectiveness of the technique. I find the report of the speedups slightly misleading, because it sounds as if the technique always brings performance improvements. Instead, the technique will only bring improvements, if the adrt object does indeed provide an improvement in the particular scope where it is used. It is perfectly possible to write an adrt which, instead, reduces performance, and some art-s may improve performance in some scopes and reduce it in others. Moreover, it is possible to write ardt-s which are not sound, i.e. do not preserve referential equality (page 7) I do not think that these facts destruct from the value of the technique, but the authors should explain this right away - e.g. in the introduction.  It would also be interesting if the authors included some discussion of their own experience when developing adrt-s.
+
+
+Smaller comments:
+
+* Page 3, third paragraph, say what gcdADRT is supposed to be; we only find out three paragraphs later.
+
+* When you show the case for  gcdADRT  explain that it  is identical to that of gcd; nevertheless, it runs differently,  because the implementation of the operation +, % (and ==?) are those supplied as bypass methods described later.
+
+* What constitutes a “bypass” method? Any method mentioned after tor or or toHigh? Or just methods like *, % and norm? On age 3 this is left open.
+
+* Page 20. What are you talking of byte code? The code shown looks like Scala, and not like Java byte code.
+
+* What do you mean by "Unfortunately, the current theory does not allow a value to undergo multiple levels of ADR trans- formations, and this extension is not trivial.” Which theory are you referring to?
+
+* I like the new benchmarks section, and in particular how you show the effect of various transformations for the same data type. Am I right to think that the Inter-benchmark GC (MB) is a direct measure of the memory footprint of the application (since after it has run all its data will be GC-ed?) If not, then what does it measure?
+
+* Looking at your list example, I wonder whether the data representation transformations also be used to transform streams, as e.g. in some of the authors’ ECOOP paper "Streams a la carte: ..."
+
+
+
+===========================================================================
+                                  Comment
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+The main reservation about the new version is that the authors should clarify the effectiveness of the technique. The report of the speedups is slightly misleading, because it sounds as if the technique always brings performance improvements. Instead, the technique will only bring improvements, if the adrt object does indeed provide an improvement in the particular scope where it is used. It is perfectly possible to write an adrt which, instead, reduces performance, and some art-s may improve performance in some scopes and reduce it in others. Moreover, it is possible to write ardt-s which are not sound, i.e. do not preserve referential equality (page 7). The authors should explain this right away in the camera ready version - e.g. in the introduction.  It would also be interesting if the authors included some discussion of their own experience when developing adrt-s.
+
+
+Smaller comments:
+
+* Page 3, third paragraph, say what gcdADRT is supposed to be; we only find out three paragraphs later.
+
+* When you show the case for  gcdADRT  explain that it  is identical to that of gcd; nevertheless, it runs differently,  because the implementation of the operation +, % (and ==?) are those supplied as bypass methods described later.
+
+* What constitutes a “bypass” method? Any method mentioned after tor or or toHigh? Or just methods like *, % and norm? On age 3 this is left open.
+
+* Page 20. What are you talking of byte code? The code shown looks like Scala, and not like Java byte code.
+
+* What do you mean by "Unfortunately, the current theory does not allow a value to undergo multiple levels of ADR trans- formations, and this extension is not trivial.” Which theory are you referring to?
+
+* The new benchmarks section is nice, and in particular how you show the effect of various transformations for the same data type. Is it right to think that the Inter-benchmark GC (MB) is a direct measure of the memory footprint of the application (since after it has run all its data will be GC-ed?) If not, then what does it measure?
+
+* Looking at your list example, I wonder whether the data representation transformations also be used to transform streams, as e.g. in some of the authors’ ECOOP paper "Streams a la carte: ..."

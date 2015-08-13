@@ -1,0 +1,189 @@
+
+===========================================================================
+               Response by Vlad Ureche <vlad.ureche@epfl.ch>
+      Paper #2: Automating Ad-hoc Data Representation Transformations
+---------------------------------------------------------------------------
+Thank you for taking the time to review our artifact!
+
+The first part of this response addresses the problems pointed out
+by reviewers. The second part is general "Troubleshooting" text with
+other problems one may encounter when trying out the plugin.
+
+
+Running Benchmarks in a VM
+============================
+
+We recommend running the benchmarks directly on the host
+machine for a full replication of the results. However, to ease
+the work, we prepared a 64-bit virtual machine, as requested by
+reviewer 1. It is at:
+
+* https://www.dropbox.com/s/mooti69emucvqg2/iLDL-VM-64-v1.0.tar.gz?dl=0
+* http://chara.epfl.ch/~ureche/iLDL-VM-64-v1.0.tar.gz
+
+(The first URL is clearly 3rd-party hosted.)
+
+The hash sums are:
+* `md5sum  42d0f96a0a500b9f848f28f5211be96a`
+* `sha1sum af5af33237d7e2387304e323b5a463e98e399fae`
+
+To confirm that this contains the same code as in the original
+submission, you can check the artifact versions installed in the two
+virtual machines using the `git log` command:
+
+iLDL-VM-v1.3:
+
+```
+$ cd Workspace/
+$ for a in `ls`; do cd $a; git log -n 1 --oneline; cd ..; done
+922492c Merge branch 'master' of github.com:miniboxing/ildl-plugin
+f2003fe Merge branch 'wip' of github.com:miniboxing/miniboxing-plugin into wip
+a8ad615 Updated params
+37fa4ed Added sbt eclipse plugin.
+```
+
+iLDL-VM-64-v1.0:
+
+```
+$ cd Workspace/
+$ for a in `ls`; do cd $a; git log -n 1 --oneline; cd ..; done
+922492c Merge branch 'master' of github.com:miniboxing/ildl-plugin
+f2003fe Merge branch 'wip' of github.com:miniboxing/miniboxing-plugin into wip
+a8ad615 Updated params
+37fa4ed Added sbt eclipse plugin.
+```
+
+
+Running Benchmarks Natively
+============================
+
+Ideally, one should install the artifacts locally and run there.
+The setup is explained on the following page:
+  http://localhost:4000/Setup-~-Local
+
+
+ The results we obtained in the 64-bit virtual machine did not fully replicate the wiki content:
+
+* The "Deforestation" benchmark (http://localhost:4000/Sample-~-Deforestation) cannot be replicated well, since it runs into the problem which as shown at http://localhost:4000/Sample-~-Deforestation#benchmark in the last bullet point ("Note that, given an large enough heap ..."): On the local machine, the heap limit for this change to manifest was 6GB, whereas in the virtual machine this is 3GB. We will update the paper and wiki showing both numbers and explaining where the 10x performance difference comes from (the GC cycles that occur when deforestation does not kick in, due to the intermediate lists which need to be collected as garbage);
+* For the external "Steams" benchmarks, the numbers are very jittery, although they maintain the same trend;
+* For the external "Vector" benchmarks, we have a surprising result that the miniboxed version of the code is more efficient than the hand-written (and hand-specialized) code. We have no clue as to why this occurs, although, by all means, it should not happen.
+
+Aside from these three differences, in our tests, the benchmarks behaved similarly.
+
+
+Architecture
+============
+
+We would like to thank the third reviewer, who tried to execute the benchmarks locally. We fixed the architecture to `amd64` (which is a synonym for `x86_64`: http://askubuntu.com/questions/3378/my-processor-is-64-bit-does-that-mean-i-need-the-amd64-image#answer-3399) during development, along with other parameters, which were subtly influencing the benchmark results. These parameters are:
+* the platform, which influences the miniboxing performance;
+* the java version, which influences the inlining heuristics, leading to different outcomes;
+* the JAVA_OPTS and _JAVA_OPTIONS flags, which can override the JVM flags passed to the virtual machine instances used for benchmarking.
+
+To disable the architecture check, please run the following commands:
+
+```
+$ cd path/to/ildl-plugin # vm: /home/acc/Workspace/ildl-plugin
+$ sed -i 's/sys.props.getOrElse("os.arch", "") == "amd64"/true/' tests/benchmarks/src/ildl/benchmark/Platform.scala
+$ sbt ildl-benchmarks/run
+```
+
+The sed command removes the architecture check in file `tests/benchmarks/src/ildl/benchmark/Platform.scala`:
+
+```
+  def checkCompatibility() = {
+    // x86 architecture
+    assert(true, "Unsupported architecture: ...")
+
+    ...
+  }
+```
+
+With this change, the benchmarks should run successfully (running `sbt` automatically re-compiles `Platform.scala`).
+
+Please note that the `Platform.scala` file also restricts the JVM version to 1.7. To eliminate this restriction, replace the condition in the second assert by `true`.
+
+Finally, the file prevents the benchmarks from running if the `JAVA_OPTS` and `_JAVA_OPTIONS` environment flags are set. These have caused many hours for debugging unreliable performance characteristics caused by different flags overriding the original benchmark flags. To disable these two flags, run the following tow commands in the Terminal:
+
+```
+$ unset JAVA_OPTS
+$ unset _JAVA_OPTIONS
+```
+
+Disabling the platform check will allow the benchmarks to run on any platform (except the 32-bit virtual machine, which does not have enough memory to run some of the benchmarks).
+
+
+
+Troubleshooting
+===============
+
+There are other possible issues that one may encounter
+
+Issue 1
+=======
+
+While running the benchmarks in the virtual machine, we noticed one of the benchmark descriptions is not clear. In the external "Streams" benchmark, at the following address: http://localhost:4000/OOPSLA-~-External-Benchmarks-Streams#running-the-benchmarks, we ask reviewers to run the following code:
+
+```
+run -i 5 -wi 5 -f 1 ".*streams.*"
+```
+
+This command should be executed within sbt:
+
+```
+$ sbt
+...
+> run -i 5 -wi 5 -f 1 ".*streams.*"
+...
+```
+
+
+Issue 2
+=======
+
+There is a counter-intuitive error message that shows up when running with little memory available:
+
+```
+$ sbt
+...
+> ildl-benchmarks/run
+
+Multiple main classes detected, select one to run:
+
+ [1] ildl.benchmark.deforest.BenchmarkRunner
+ [2] ildl.benchmark.gcd.BenchmarkRunner
+ [3] ildl.benchmark.aos2soa.BenchmarkRunner
+ [4] ildl.benchmark.hamming.BenchmarkRunner
+
+Enter number: 1
+
+[info] Running ildl.benchmark.deforest.BenchmarkRunner
+Running test set for leastSquares, curve Test-0
+Starting 10 measurements across 1 independent JVM runs.
+Starting new JVM: java -server -verbose:gc ...
+Error occurred during initialization of VM
+Could not reserve enough space for object heap
+Error: Could not create the Java Virtual Machine.
+Error: A fatal exception has occurred. Program will exit.
+Error running separate JVM: java.lang.ClassCastException: cannot assign instance of scala.collection.immutable.HashMap$SerializationProxy to field org.scalameter.Context.properties of type scala.collection.immutable.Map in instance of org.scalameter.Context
+Classpath: /home/acc/.sbt/launchers/0.13.5/sbt-launch.jar
+[error] (run-main-1) java.lang.ClassCastException: cannot assign instance of scala.collection.immutable.HashMap$SerializationProxy to field org.scalameter.Context.properties of type scala.collection.immutable.Map in instance of org.scalameter.Context
+java.lang.ClassCastException: cannot assign instance of scala.collection.immutable.HashMap$SerializationProxy to field org.scalameter.Context.properties of type scala.collection.immutable.Map in instance of org.scalameter.Context
+        at java.io.ObjectStreamClass$FieldReflector.setObjFieldValues(ObjectStreamClass.java:2083)
+        at java.io.ObjectStreamClass.setObjFieldValues(ObjectStreamClass.java:1261)
+        at java.io.ObjectInputStream.defaultReadFields(ObjectInputStream.java:1996)
+        .. ...
+```
+
+The underlying problem is hidden in the output:
+
+```
+Error occurred during initialization of VM
+Could not reserve enough space for object heap
+Error: Could not create the Java Virtual Machine.
+Error: A fatal exception has occurred. Program will exit.
+```
+
+To solve this problem, either tune the `tests/benchmarks/src/ildl/benchmark/deforest/Benchmark.scala` on line 56 to allocate less memory or free more memory by closing some of the applications currently running on the virtual machine.
+
+
+With these clarifications we hope to have answered the issues that reviewers encountered or are likely to encounter.
