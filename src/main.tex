@@ -1,6 +1,12 @@
-\documentclass[10pt, preprint]{style/sigplanconf}
+\documentclass[10pt]{style/sigplanconf}
 
 \input{tweaks.tex}
+
+%%% AEC BADGE THINGY %%%
+\usepackage[firstpage]{draftwatermark}
+\SetWatermarkText{\hspace*{8in}\raisebox{4.4in}{\includegraphics[scale=0.1]{aec/aec-badge}}}
+\SetWatermarkAngle{0}
+%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
@@ -17,7 +23,7 @@
 \titlebanner{DRAFT - Please do not distribute}
 \preprintfooter{DRAFT - Please do not distribute}
 
-\title{Automating Ad hoc Data Representation Transformations}
+\title{\Automating Ad hoc Data Representation Transformations}
 
 %% remove if extra space needed
 \authorinfo{Vlad Ureche$^\dagger$

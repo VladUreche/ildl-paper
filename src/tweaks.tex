@@ -23,6 +23,7 @@
 \usepackage{tabularx}
 \usepackage{array,booktabs}
 \setcounter{tocdepth}{3}
+\usepackage{pifont}
 
 % Short verbatim
 \DefineShortVerb{\|}
@@ -35,6 +36,7 @@
 \newcolumntype{g}{>{\columncolor{Gray}}l}
 \newcolumntype{h}{>{\columncolor{Gray}}c}
 \newcolumntype{i}{>{\columncolor{Gray}}r}
+\newcommand{\iv}[1]{\textcolor{white}{#1}}
 
 % Lstlisting highlight
 % http://tex.stackexchange.com/a/49309
@@ -111,6 +113,8 @@
 \newlength{\linenumwidth} \setlength{\linenumwidth}{0.9em}% Redefine as required
 \newlength{\numwidth}%
 \setlength{\numwidth}{\widthof{\normalfont\tiny{\-\lst@numberstyle{99}}}}% Up to 2-digit (99) line numbers
+\newcommand{\Automating}[0]{\\[-1.8em]\iv{\ding{61}}\\ Automating }
+
 \def\lst@PlaceNumber{%
   \makebox[\linenumwidth][l]{%
     \makebox[\numwidth][r]{\normalfont\tiny\lst@numberstyle{\thelstnumber}}%
