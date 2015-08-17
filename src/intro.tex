@@ -76,12 +76,12 @@ optimize the object layout, they do not meet the ad hoc criterion:
 they cannot be retrofitted later, and they have a global, all-or-nothing
 nature. For instance, in Scala, the generic pair class is specialized
 but not marked as a value class. As a result, the representation is
-not fully optimized, still requiring a heap object per pair. Even
+not fully optimized, still requiring a heap object for each pair. Even
 worse, specialization and value class inlining are mutually exclusive,
 making it impossible to optimally represent our ``complex numbers''
-as values even if we had complete control over the Scala library.
-Furthermore, a change in the data representation may be applicable for
-specific parts of the client code, but might not make sense to apply globally.
+even if we had complete control over the Scala library.
+Furthermore, our encoded ``complex number'' data representation may be applicable for
+specific parts of the client code, but might not make sense globally.
 
 % secret ingredient => the domain-specific information provided by the programmer
 In our ``complex numbers'' abstraction, we only
@@ -92,14 +92,14 @@ the only solution is to transform the code by hand, essentially having
 to choose between an obfuscated or a slow version of the code. What is
 missing is a largely automated and safe transformation that allows us
 to use our domain-specific knowledge to mark a scope where the
-``complex numbers'' can use the alternative object layout, effectively
+``complex numbers'' can use the encoded representation, effectively
 specializing that part of our program.
 
 In this paper we present such an automated transformation that allows programmers to safely change the data representation in limited, well-defined scopes that can include anything from expressions to method and class definitions. The transformation, which occurs during compilation, maintains strong correctness guarantees in terms of non-orthogonal language features, such as dynamic dispatch, inheritance and generics, while also maintaining consistence across separate compilation runs.
 
 Like metaprogramming, which allows developers to transform their code
 in an ad-hoc ways, our technique allows redefining the data
-representation to be used inside specific scopes. To maximize
+representation to be used in the delimited scopes. To maximize
 performance, programmers can use their domain knowledge to specify
 better data representations and to improve the operations that handle
 this data. Then, they are also responsible for indicating the program
@@ -111,8 +111,9 @@ semantics may be desirable---a property we exploit in the
 deforestation benchmark in \S\ref{sec:benchmarks:ad-hoc}.
 
 Therefore, because of its power, our technique also affords potential
-for misuse.  Still, its scoped nature offers programmer control and
-our approach automatically eliminates several complexities.  Inside
+for misuse.  Still, its scoped nature offers tight control over what
+parts of the code are transformed and the mechanism for defining
+transformations automatically eliminates many complexities.  Inside
 transformed scopes, the compiler is responsible for (1) automatically
 deciding when to apply the transformation and when to revert it, in
 order to ensure correct interchange between representations, (2)
@@ -123,16 +124,14 @@ scopes in different source files and compilation runs to communicate
 using the optimized representation---a property we refer to as
 \emph{composability} in the following sections. Thus, our approach
 adheres to the design principle of separating the reusable, general
-and provably correct \emph{mechanism} from the programmer-defined
+and provably correct transformation \emph{mechanism} from the programmer-defined
 \emph{policy}, which may contain incorrect decisions
-\cite{lampson-mechanism-policy}.
-
-Our main contributions are:
-\begin{itemize}
-  \item Introducing the ad hoc data representation problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
+\cite{lampson-mechanism-policy}. In this context, our main contributions are:
+\begin{compactitem}
+  \item Introducing the data representation metaprogramming problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
   \item Presenting the extensions that allow global data representation transformations (\S\ref{sec:drt}) to be used as scoped programmer-driven transformations (\S\ref{sec:ildl});
   \item Implementing the approach presented as a Scala compiler plugin \cite{ildl-plugin} that allows programmers to express custom transformations (\S\ref{sec:impl}) and benchmarking the plugin on a broad spectrum of transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and to collection deforestation \cite{wadler-deforestation}. These transformations produced  speedups between 1.8 and 24.5x on user programs (\S\ref{sec:benchmarks}).
-\end{itemize}
+\end{compactitem}
 
 %%% (YS) Some of this moved earlier
 %Exactly like metaprogramming, which allows developers to alter the

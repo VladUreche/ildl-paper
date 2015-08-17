@@ -2,11 +2,11 @@
 
 To maximize run-time performance, programmers often specialize their code by hand, replacing library collections and containers by custom objects in which data is restructured for efficient access. However, changing the data representation is a tedious and error-prone process that makes it hard to test, maintain and evolve the source code.
 
-We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation rules are still defined by the programmer, but their application occurs during compilation, thus eliminating the need for tedious and error-prone manual source code changes.
+We present an automated and composable approach that allows programmers to safely change the data representation in delimited scopes containing anything from expressions to entire class definitions. The transformation rules are defined by the programmers and are automatically applied during compilation, thus eliminating the need for tedious and error-prone manual source code rewrites.
 
 Our technique leverages the type system in order to offer strong correctness guarantees on the transformation and its interaction with object-oriented language features, such as dynamic dispatch, inheritance and generics.
 
-We have embedded this technique in a Scala compiler plugin and used it in four very different transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and all the way to collection deforestation. On our benchmarks, this technique obtains speedups between 1.8x and 24.5x.
+We have embedded this technique in a Scala compiler plugin and used it in four very different transformations, ranging from improving the data layout and encoding, to retrofitting specialization and value class status, and all the way to collection deforestation. On our benchmarks, this technique obtained speedups between 1.8x and 24.5x.
 
 % \category{E.2}{Object representation}{}
 \vspace{0.5em}
