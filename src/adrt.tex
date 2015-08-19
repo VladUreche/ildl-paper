@@ -199,7 +199,7 @@ adrt(`UtoV`) {
 }
 \end{lstlisting-nobreak}
 
-It may seem natural that the value |t| will be transformed to use the |V| representation type: first, converting from |T| to |U| and then from |U| to |V|. Unfortunately, the current theory does not allow a value to undergo multiple levels of ADR transformations, and this extension is not trivial. For example, the |@repr| annotation would have to take a list of transformation description objects instead of one. Therefore, in the current approach, we disallow cascading scopes:
+It may seem natural that the value |t| will be transformed to use the |V| representation type: first, converting from |T| to |U| and then from |U| to |V|. Unfortunately, the underlying mechanism, the Late Data Layout transformation \cite{ldl}, only allows a value to undergo a single ADR conversion, and extending it to multiple conversions at once is not straight-forward. For example, the |@repr| annotation would have to take a list of transformation description objects instead of one. Therefore, in the current approach, we disallow cascading scopes:
 
 \begin{lstlisting-nobreak}
 cascading.scala:25:  warning: Although you may expect value t to use the representation type U, by virtue of nesting the transformation description objects (TtoU,UtoV), "cascading" scopes are not supported:

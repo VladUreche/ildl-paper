@@ -49,7 +49,9 @@ For each benchmark run, we monitor:
 
 \vspace{0.5em}
 \noindent
-At the end of a cycle, we manually trigger a full GC cycle so the current run does not affect the next. This allows us to record the following parameters for each benchmark:
+At the end of a cycle, we manually trigger a full GC cycle so the current run does not affect the next. The memory collected after the run (inter-benchmark) corresponds to the input and output data and any garbage produced by running the benchmarked code that was not automatically collected during its execution (in-benchmark).
+
+This allows us to record the following parameters for each benchmark:
 
 \begin{compactitem}
   \item Benchmark running time (ms)
