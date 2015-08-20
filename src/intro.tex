@@ -99,23 +99,26 @@ In this paper we present such an automated transformation that allows programmer
 
 Like metaprogramming, which allows developers to transform their code
 in an ad-hoc ways, our technique allows redefining the data
-representation to be used in the delimited scopes. To maximize
+representation to be used inside the delimited scopes. To maximize
 performance, programmers can use their domain knowledge to specify
 better data representations and to improve the operations that handle
-this data. Then, they are also responsible for indicating the program
-scopes where their transformation applies. In some cases, specifically
-for mutable and reference-based data structures, the transformations
+this data. % Then, they are also responsible for indicating the program
+%scopes where their transformation applies.
+Because of its power, our technique also affords potential
+for misuse. In some cases, specifically for mutable and
+reference-based data structures, the transformations
 must be carefully designed to preserve language semantics
-(\S\ref{sec:ildl:language-features}). Furthermore, altering program
-semantics may be desirable---a property we exploit in the
-deforestation benchmark in \S\ref{sec:benchmarks:ad-hoc}.
+(\S\ref{sec:ildl:language-features}). Still, altering program
+semantics may be desirable---we exploit this property in the
+deforestation benchmark, shown in the evaluation section (\S\ref{sec:benchmarks:ad-hoc}).
+And, furthermore, the scoped nature of the transformation tightly controls which
+parts of the code use the new data representation and operations while
+the mechanism for defining transformations automatically eliminates
+many of the common semantics-altering pitfalls.
 
-Therefore, because of its power, our technique also affords potential
-for misuse.  Still, its scoped nature offers tight control over what
-parts of the code are transformed and the mechanism for defining
-transformations automatically eliminates many complexities.  Inside
-transformed scopes, the compiler is responsible for (1) automatically
-deciding when to apply the transformation and when to revert it, in
+Given a programmer-designed data representation transformation,
+inside the delimited scopes the compiler is responsible for:
+(1) automatically deciding when to apply the transformation and when to revert it, in
 order to ensure correct interchange between representations, (2)
 enriching the transformation with automatically generated bridge code
 that ensures correctness relative to overriding and dynamic dispatch
@@ -127,6 +130,7 @@ adheres to the design principle of separating the reusable, general
 and provably correct transformation \emph{mechanism} from the programmer-defined
 \emph{policy}, which may contain incorrect decisions
 \cite{lampson-mechanism-policy}. In this context, our main contributions are:
+\vspace{0.25em}
 \begin{compactitem}
   \item Introducing the data representation metaprogramming problem, which, to the best of our knowledge, has not been addressed at all in the literature (\S\ref{sec:problem});
   \item Presenting the extensions that allow global data representation transformations (\S\ref{sec:drt}) to be used as scoped programmer-driven transformations (\S\ref{sec:ildl});
