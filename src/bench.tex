@@ -250,62 +250,59 @@ The transformation description object is 50 LOC and requires 20 additional LOC t
 
 \subsubsection{The Hamming Numbers Benchmark} computes numbers that only have 2, 3 and 5 as their prime factors, in order. Unlike the other benchmarks, this is an example we randomly picked from Rosetta Code \cite{rosetta-code} and attempted to speed up:
 
-% \begin{lstlisting-nobreak}
-% adrt(BigIntToLong) {
-%   adrt(QueueOfBigIntAsFunnyQueue) {
-%     class Hamming extends Iterator[BigInt] {
-%       import scala.collection.mutable.Queue
-%       val q2 = new Queue[BigInt]
-%       val q3 = new Queue[BigInt]
-%       val q5 = new Queue[BigInt]
-% \end{lstlisting-nobreak}
-% \begin{lstlisting-nobreak}
-%       def enqueue(n: BigInt) = {
-%         q2 enqueue n * 2
-%         q3 enqueue n * 3
-%         q5 enqueue n * 5
-%       }
-%       def next = {
-%         val n = q2.head min q3.head min q5.head
-%         if (q2.head == n) q2.dequeue
-%         if (q3.head == n) q3.dequeue
-%         if (q5.head == n) q5.dequeue
-%         enqueue(n); n
-%       }
-%       def hasNext = true
-%       q2 enqueue 1
-%       q3 enqueue 1
-%       q5 enqueue 1
-%     }
-%   }
-% }
-% \end{lstlisting-nobreak}
-
-\vspace{-1em}
 \begin{lstlisting-nobreak}
-class Hamming extends Iterator[BigInt] {
-  import scala.collection.mutable.Queue
-  val q2 = new Queue[BigInt]
-  val q3 = new Queue[BigInt]
-  val q5 = new Queue[BigInt]
-  def enqueue(n: BigInt) = {
-    q2 enqueue n * 2
-    q3 enqueue n * 3
-    q5 enqueue n * 5
+adrt(BigIntToLong) {
+  adrt(QueueOfBigIntAsFunnyQueue) {
+    class Hamming extends Iterator[BigInt] {
+      import scala.collection.mutable.Queue
+      val q2 = new Queue[BigInt]
+      val q3 = new Queue[BigInt]
+      val q5 = new Queue[BigInt]
+      def enqueue(n: BigInt) = {
+        q2 enqueue n * 2
+        q3 enqueue n * 3
+        q5 enqueue n * 5
+      }
+      def next = {
+        val n = q2.head min q3.head min q5.head
+        if (q2.head == n) q2.dequeue
+        if (q3.head == n) q3.dequeue
+        if (q5.head == n) q5.dequeue
+        enqueue(n); n
+      }
+      def hasNext = true
+      q2 enqueue 1
+      q3 enqueue 1
+      q5 enqueue 1
+    }
   }
-  def next = {
-    val n = q2.head min q3.head min q5.head
-    if (q2.head == n) q2.dequeue
-    if (q3.head == n) q3.dequeue
-    if (q5.head == n) q5.dequeue
-    enqueue(n); n
-  }
-  def hasNext = true
-  q2 enqueue 1
-  q3 enqueue 1
-  q5 enqueue 1
 }
 \end{lstlisting-nobreak}
+
+% \begin{lstlisting-nobreak}
+% class Hamming extends Iterator[BigInt] {
+%   import scala.collection.mutable.Queue
+%   val q2 = new Queue[BigInt]
+%   val q3 = new Queue[BigInt]
+%   val q5 = new Queue[BigInt]
+%   def enqueue(n: BigInt) = {
+%     q2 enqueue n * 2
+%     q3 enqueue n * 3
+%     q5 enqueue n * 5
+%   }
+%   def next = {
+%     val n = q2.head min q3.head min q5.head
+%     if (q2.head == n) q2.dequeue
+%     if (q3.head == n) q3.dequeue
+%     if (q5.head == n) q5.dequeue
+%     enqueue(n); n
+%   }
+%   def hasNext = true
+%   q2 enqueue 1
+%   q3 enqueue 1
+%   q5 enqueue 1
+% }
+% \end{lstlisting-nobreak}
 
 An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception.
 
@@ -314,23 +311,6 @@ As with other benchmarks, we broke down the transformation is several steps:
 \vspace{0.5em}
 \noindent
 \textbf{The ``original'' code} is the unmodified version from the Rosetta Code website, which we kept as a witness.
-
-\begin{table}[t]
-  \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
-    \rowcolor{Gray}
-    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
-    \rowcolor{Gray}
-                       &                  &                   & +functions \\ \hline
-    Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
-    SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
-    SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
-    Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
-  \end{tabularx}
-  \vspace{-2mm}
-  \caption{Scala Streams pipelines for 10M elements.}
-  \label{table:streams}
-  \vspace{-1em}
-\end{table}
 
 \vspace{0.5em}
 \noindent
@@ -359,6 +339,23 @@ For this example, the two transformation objects are 100 LOC and the circular bu
 
 % subset of the adrt, missing frontend features -- value annotation and signature persistence are there.
 % motivation: miniboxing specialization + function encoding
+
+\begin{table}[t]
+  \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
+    \rowcolor{Gray}
+    \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
+    \rowcolor{Gray}
+                       &                  &                   & +functions \\ \hline
+    Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
+    SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
+    SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
+    Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
+  \end{tabularx}
+  \vspace{-2mm}
+  \caption{Scala Streams pipelines for 10M elements.}
+  \label{table:streams}
+  \vspace{-1em}
+\end{table}
 
 The |adrt| scoped transformation is a conceptual generalization of a mechanism
 motivated by library transformation scenarios. In particular, the
@@ -416,45 +413,45 @@ This transformation has a significant impact in library benchmarks.
 \end{table}
 
 % <<<<<<< HEAD
-% \subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for functional operations on data streams. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
+\subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for functional operations on data streams. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
 % =======
 
-\subsubsection{The Scala-Streams library} \emph{scala-streams} is an open source library~\cite{biboudis-streams} that
-imitates the design of Java 8 streams which is based on a CPS-encoded composition of operators on the contrary to other stream libraries~\cite{biboudis_clash_2014}. The goal is to achieve high performance (relative to standard Scala libraries) for functional operations on data
-streams. In its continuation-based design, each stream combinator provides a function that is retrofitted to the iteration loop, created at the producer side, to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. In other workds, \emph{scala-streams} implement push-based streams instead of pull (iterator-based). In the former case the traversal of the data source is guided by the producer of the source. In the latter case, the traversal is guided by the consumer.
-
-Streams are used via a fluent api, e.g.
-
-\begin{lstlisting-nobreak}
-Stream(xs)
-   .map(_*2)
-   .fold(0)(_+_)
-\end{lstlisting-nobreak}
-
-%However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
-
-A stream type has a single constructor. This constructor takes as a parameter a function with type |(T=>Boolean)=>Unit|. A stream holds the entire iteration over the elements of an array. Every element is passed to the argument-supplied function. That function holds a transformation (e.g., |map|). The |Boolean| return value indicates whether we should pass the transformed element down to the next consumer, in the operator chain (e.g., |filter|). In the snippet below we present the implementation of the stream creation via the |apply| function:
-
-\begin{lstlisting-nobreak}
-def apply[T: ClassTag](xs: Array[T]) = {
-  val gen = (iterf: T => Boolean) => {
-    var counter = 0
-    var cont = true
-    val size = xs.length
-    while (counter < size && cont) {
-      cont = iterf(xs(counter))
-      counter += 1
-    }
-  }
-  new Stream(gen)
-}
-\end{lstlisting-nobreak}
-
-The library contains the usual set of combinators such as: |map|, |filter|, |fold|, |take| and an |ofArray| combinator. The last one creates a stream with the initial looping function over an in memory array. Intermediate operators (e.g., |map|) alter the iteration functions of the |Stream| instance that they are applied upon.
-
-Finally, a terminal operator (e.g., |fold|) will evaluate the stream function, transforming again the iteration function if needed. |fold| holds the state in a separate accumulator, initializes it according to the passed state, and returns it. What really happens inside a |fold| operation is the evaluation of the stream function such as |gen| in the snippet above.
-
-The project uses heavily function types, where the type parameters can be generic or primitive types. The transformation of the layout of functions employed by the miniboxing plugin increases performance significantly.
+% \subsubsection{The Scala-Streams library} \emph{scala-streams} is an open source library~\cite{biboudis-streams} that
+% imitates the design of Java 8 streams which is based on a CPS-encoded composition of operators on the contrary to other stream libraries~\cite{biboudis_clash_2014}. The goal is to achieve high performance (relative to standard Scala libraries) for functional operations on data
+% streams. In its continuation-based design, each stream combinator provides a function that is retrofitted to the iteration loop, created at the producer side, to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. In other workds, \emph{scala-streams} implement push-based streams instead of pull (iterator-based). In the former case the traversal of the data source is guided by the producer of the source. In the latter case, the traversal is guided by the consumer.
+%
+% Streams are used via a fluent api, e.g.
+%
+% \begin{lstlisting-nobreak}
+% Stream(xs)
+%    .map(_*2)
+%    .fold(0)(_+_)
+% \end{lstlisting-nobreak}
+%
+% %However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
+%
+% A stream type has a single constructor. This constructor takes as a parameter a function with type |(T=>Boolean)=>Unit|. A stream holds the entire iteration over the elements of an array. Every element is passed to the argument-supplied function. That function holds a transformation (e.g., |map|). The |Boolean| return value indicates whether we should pass the transformed element down to the next consumer, in the operator chain (e.g., |filter|). In the snippet below we present the implementation of the stream creation via the |apply| function:
+%
+% \begin{lstlisting-nobreak}
+% def apply[T: ClassTag](xs: Array[T]) = {
+%   val gen = (iterf: T => Boolean) => {
+%     var counter = 0
+%     var cont = true
+%     val size = xs.length
+%     while (counter < size && cont) {
+%       cont = iterf(xs(counter))
+%       counter += 1
+%     }
+%   }
+%   new Stream(gen)
+% }
+% \end{lstlisting-nobreak}
+%
+% The library contains the usual set of combinators such as: |map|, |filter|, |fold|, |take| and an |ofArray| combinator. The last one creates a stream with the initial looping function over an in memory array. Intermediate operators (e.g., |map|) alter the iteration functions of the |Stream| instance that they are applied upon.
+%
+% Finally, a terminal operator (e.g., |fold|) will evaluate the stream function, transforming again the iteration function if needed. |fold| holds the state in a separate accumulator, initializes it according to the passed state, and returns it. What really happens inside a |fold| operation is the evaluation of the stream function such as |gen| in the snippet above.
+%
+% The project uses heavily function types, where the type parameters can be generic or primitive types. The transformation of the layout of functions employed by the miniboxing plugin increases performance significantly.
 
 Table \ref{table:streams} shows the result of applying our data
 representation transformation to the Scala-Streams published

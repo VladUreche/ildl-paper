@@ -218,6 +218,7 @@ val t: `T` = ???
 
 Instead, the value |t| undergoes a single ADR transformation, to the representation type |V|. By disallowing ``cascading'' scopes we also protect against cyclic scopes, such as |TtoU| nested inside |UtoT|, which could cause infinite loops.
 
+\vspace{-0.2em}
 \subsubsection{Prohibiting access to the representation type inside the transformation scope is limiting.} For example, a per\-for\-mance-conscious programmer might want to transform the high-level integer pair into a floating-point pair without allocating heap objects. Since the programmer does not have direct access to the representation, it looks like the only solution is to decode the integer pair into a heap object, convert it to a floating-point pair and encode it back to the long integer.
 
 There is a better solution. As we will later see, the programmer can use bypass methods to ``serialize'' the integer pair into a long integer and ``de-serialize'' it into a floating-point pair. Yet, this requires a principled change in the transformation description object. This is the price to pay for a safe and automated representation transformation.
@@ -230,8 +231,10 @@ are annotated in exactly the same way. The next part extends scope composition a
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\vspace{-0.5em}
 \subsection{Separate Compilation}
 \label{sec:ildl:separate-compilation}
+\vspace{-0.3em}
 
 Annotating the high-level type with the transformation semantics allows different |adrt| scopes to seamlessly pass encoded values. To reason about composing scopes across different compilation runs, let us assume we have already compiled the |gcd| method in the motivating example:
 
@@ -262,7 +265,7 @@ When compiling source code that refers to existing low-level code, such as objec
 
 The simplest solution is to create two versions for each transformed method: the transformed method itself and a bridge, which corresponds to the high-level signature. The bridge method would accept pairs of integers and encode them as longs before calling the transformed version of the |gcd| method. It would also decode the result of |gcd| back to a pair of integers. This approach allows calling |gcd| from separately compiled files without being aware of the transformation. Still, we can do better.
 
-\vspace{-0.55em}
+\vspace{-0.45em}
 \subsubsection{Persisting transformation annotations.} Let us assume we want to call the |gcd| method from a scope transformed using the same transformation description object as we used when compiling |gcd|, but in a different compilation run:
 
 \begin{lstlisting-nobreak}
@@ -298,12 +301,13 @@ val n2: `Long` = ...
 val res: `Long` = gcd(n1, n2) // no coercions!!!
 \end{lstlisting-nobreak}
 
-\vspace{-0.55em}
-\subsubsection{Making bridge methods redundant.} Persisting transformation information in the high-level signatures allows us to skip creating bridges. For example, calling the |gcd| method outside the |adrt| scope is still possible:
+\vspace{-0.45em}
+\subsubsection{Making bridge methods redundant.} Persisting transformation information in the high-level signatures allows us to skip creating bridges. For example: %, calling the |gcd| method outside the |adrt| scope is still possible:
 
-\begin{lstlisting-nobreak}
+\vspace{-0.2em}
+\begin{lstlisting}
 val res: (Int, Int) = gcd((55, 2), (17, 13))
-\end{lstlisting-nobreak}
+\end{lstlisting}
 
 Since the signature for method |gcd| references the transformation description object, the \coerce{} phase knows exactly which coercions are necessary:
 
@@ -317,10 +321,10 @@ Generally, persisting references to the description objects in each value's sign
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% \vspace{-0.3em}
+\vspace{-0.5em}
 \subsection{Optimizing Method Invocations}
 \label{sec:ildl:method}
-% \vspace{-0.2em}
+\vspace{-0.2em}
 
 % Objects encapsulate data and executable code. So far, the focus has been on the data representation, but that's not all: we also care about accessing methods of the transformed object
 When choosing a generic container, such as a pair or a list, programmers are usually motivated by the natural syntax and the flexible interface, which allows them to quickly achieve their goal by invoking the container's many convenience methods. The presentation so far focused on optimizing the data representation, but to obtain peak performance, the method invocations need to be transformed as well:
@@ -349,7 +353,7 @@ println(IntPairComplexToLongComplex.`bypass_toString`(n))
 The bypass method can operate directly on the encoded version of the integer pair, avoiding a heap allocation. In practice, when the receiver of a method call is annotated, our modified LDL transformation looks up the |bypass_toString| method in the transformation description object, and, if none is found, warns the programmer and proceeds with decoding the receiver and generating the dynamically-dispatched call.
 
 % implicitly added methods + parameters
-% \vspace{-0.2em}
+\vspace{-0.2em}
 \subsubsection{Methods added via implicit conversions} and other enrichment techniques, such as extension methods or type classes, add another layer or complexity, only handled in the ADR transformation. For example, we can see the multiplication operator |*|, added via an implicit conversion (we will further analyze the interaction with implicit conversions in \S\ref{sec:ildl:language-implicit-conversions}):
 
 \begin{lstlisting-nobreak}
@@ -361,10 +365,11 @@ adrt(`IntPairComplexToLongComplex`) {
 
 Type-checking the program makes the implicit conversion that introduces the |*| operator an explicit call:
 
-\begin{lstlisting-nobreak}
+\vspace{-0.5em}
+\begin{lstlisting}
 val n1: (Int, Int) = (0, 1)
 val n2: (Int, Int) = `intPairAsComplex(n1)` * n1
-\end{lstlisting-nobreak}
+\end{lstlisting}
 
 This is a costly pattern, requiring |n1| to be decoded into a pair and passed to the |intPairAsComplex| method, which itself creates a wrapper object that exposes the |*| operator. To optimize this pattern, the ADR transformation looks for a bypass method in the transformation description object that corresponds to a mangled name combining the implicit method name and the operator. For simplicity, if we assume the name is |implicit_*| and the bypass exists in the |IntPairComplexToLongComplex| object, the \coerce{} phase transforms the code to:
 
@@ -376,16 +381,14 @@ val n2: Long = IntPair...Complex.`implicit_*(n1, n1)`
 This allows the call to the |*| operator to be transformed to a bypass call, avoiding heap object creation, and thus significantly improving the performance and heap footprint. %Bypass methods are worth a second, more detailed, look.
 %Yet, we glossed over some details in how bypass methods are implemented.
 
-\vspace{-0.1em}
+\vspace{-0.4em}
 \subsubsection{Bypass methods.} Both normal and implicit bypass methods defined in the transformation description object need to correspond to the original method they are replacing and:
 
-\vspace{0.25em}
 \begin{compactitem}
 \item Add a first parameter corresponding to the receiver;
 \item Have the rest of the parameters match the origin method;
 \item Freely choose parameters to be encoded or decoded.
 \end{compactitem}
-\vspace{0.25em}
 
 Therefore, during the \coerce{} phase, which introduces bypass method calls, the |implicit_*| has the signature:
 
@@ -412,7 +415,7 @@ It is interesting to notice that representation-agnostic method rewriting relies
 Yet, there is still a snag.
 
 % constructors
-\vspace{-0.1em}
+\vspace{-0.4em}
 \subsubsection{Constructors} create heap objects before they can be encoded in the representation type. In our case, the first line runs the pair (|Tuple2|) constructor, which creates a heap object, and then converts it to the |Long| representation:
 
 \begin{lstlisting-nobreak}
@@ -421,7 +424,7 @@ val n1: Long = toRepr(`(0,1)`)
 val n2: Long = IntPair...Complex.implicit_*(n1, n1)
 \end{lstlisting-nobreak}
 
-Instead of allocating the |Tuple2| object, the ADR transformation can intercept and rewrite constructor invocations into constructor bypass methods that output the representation type directly. Using this feature, we get:
+Instead of allocating the |Tuple2| object, the ADR transformation can intercept and rewrite constructor invocations into constructor bypass methods:
 
 \begin{lstlisting-nobreak}
 val n1: Long = `IntPair...Complex.ctor_Tuple2(0, 1)`
@@ -481,10 +484,10 @@ The \coerce{} and \commit{} phases then transform class |Y| as before, resulting
 \begin{lstlisting-nobreak}
 class Y(t: `Long`) extends X {
   def identity(i: `Long`): `Long` = t
-  @bridge override def identity(i: `(Int, Int)`) =
-    IntPairAsLong.toHigh(identity(toRepr(i)))
+  @bridge override def identity(i: `(Int, Int)`) = ...
 }
 \end{lstlisting-nobreak}
+%    IntPairAsLong.toHigh(identity(toRepr(i)))
 
 % The backwards problem is also true => bridge + warning
 If we now try to extend class |Y| in another |adrt| scope with the same transformation description object, overriding will take place correctly: the new class will define both the transformed method and the bridge, overriding both methods above. However, a more interesting case occurs when extending class |Y| from a scope with a different description:
@@ -511,11 +514,9 @@ class Z extends Y(...) {
 
 Although the resulting object layout is consistent, the |@bridge| methods have to transform between the representations, which makes them less efficient. This is even more problematic when up-casting class |Z| to |Y| and invoking |identity|, as the bridge method goes through the high-level type to convert the long integer to a double. In such cases the \bridge{} phase issues warnings to notify the programmer of a possible slowdown caused by the coercions.
 
-\subsubsection{Dynamic and Native Code}
-\label{sec:ildl:language-dynamically-loaded-code}
+\subsubsection{Dynamic and Native Code.} Thanks to the \bridge{} phase, class |Z| conforms to the trait (interface) |X|, thus, any call going through the interface will execute as expected, albeit, in this case, less efficiently. This allows dynamically loaded code to work correctly:
 
-Thanks to the \bridge{} phase, class |Z| conforms to the trait (interface) |X|, thus, any call going through the interface will execute as expected, albeit, in this case, less efficiently.
-This allows dynamically loaded code to work correctly:
+\label{sec:ildl:language-dynamically-loaded-code}
 
 \begin{lstlisting-nobreak}
 Class.forName("Z").newInstance() match {
@@ -539,10 +540,7 @@ adrt(IntPairAsLong) {
 \end{lstlisting-nobreak}
 
 % In the very particular case of list, it's okay, but not in the general case
-In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| before calling |use1|. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the collection only applies to the immutable list in the standard library, and not to other generic classes that may occur in practice.
-
-% Furthermore, there is an entire class of mutable containers which cannot be transformed
-Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. This is similar to the mutability restriction in \S\ref{sec:ildl:custom}.
+In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| before calling |use1|. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the collection only applies to the immutable list in the standard library, and not to other generic classes that may occur in practice. Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. This is similar to the mutability restriction in \S\ref{sec:ildl:custom}.
 
 % We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegant and general solution.
 The approach we follow in the ADR transformation is to preserve the high-level type inside generics. Thus, our example after the \commit{} phase will be:
@@ -555,25 +553,26 @@ def use2(list: List[(Int, Int)]): Unit = `use1(list)`
 However, this does not prevent a programmer from defining another transformation description object that targets |List[(Int, Int)]| and replaces it by |List[Long]|:
 
 \begin{lstlisting-nobreak}
-def use1(list: List[(Int, Int)]): Unit = ...
 adrt(`ListOfIntPairAsListOfLong`) {
-  def use2(list: List[(Int, Int)]): Unit = use1(list)
+  def use3(list: List[(Int, Int)]): Unit = use1(list)
 }
 \end{lstlisting-nobreak}
 
-After the \commit{} phase, the transformation produces:
+In this second example, following the \commit{} phase, the |List[(Int, Int)]| is indeed transformed to |List[Long]|:
 
 \begin{lstlisting-nobreak}
-def use1(list: List[(Int, Int)]): Unit = ...
-def use2(list: `List[Long]`): Unit = use1(`toHigh`(list))
+def use3(list: `List[Long]`): Unit = use1(`toHigh`(list))
 \end{lstlisting-nobreak}
 
-Therefore |adrt| scopes are capable of targeting:
+To summarize, |adrt| scopes are capable of targeting:
+
+\vspace{0.3em}
 \begin{compactitem}
 \item generic types, such as |List[T]| for any |T|;
 \item instantiated generic types, such as |List[(Int, Int)]|;
 \item monomorphic types, such as |(Int,Int)|, outside generics
 \end{compactitem}
+\vspace{0.3em}
 
 \noindent
 Using these three cases and scope composition, programmers can conveniently target any type in their program.
@@ -586,9 +585,11 @@ interact in two ways with |adrt| scopes:
 % \item Replacing the LDL backend by implicit conversions.
 % \end{compactitem}
 
+\vspace{0.3em}
 \noindent
-\textem{Extending the object functionality} through implicit conversions, extension methods, or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since, in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signature transformation rules remain the same (\S\ref{sec:ildl:method}).
+\textem{Extending the object functionality} through implicit conversions, extension methods, or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since, in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be diferit, but the mechanism and signature transformation rules remain the same (\S\ref{sec:ildl:method}).
 
+\vspace{0.3em}
 \noindent
 \textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions do not offer strong enough guarantees to replace the LDL backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
 
@@ -598,7 +599,8 @@ val a: Any = n
 println(a)
 \end{lstlisting-nobreak}
 
-To trigger the transformation, we replace the type of |n|: % to |Long| and re-typecheck the tree:
+\noindent
+To trigger the transformation, we replace the type of |n| to |Long| in the source code and wait for the implicit conversions to do their work:
 
 \begin{lstlisting-nobreak}
 val n: `Long` = (1, 0) // triggers implicit conversion
@@ -606,13 +608,9 @@ val a: Any = n              // does not trigger the reverse
 println(a)
 \end{lstlisting-nobreak}
 
-This resulting code breaks semantics because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, the output becomes |4294967296| instead of |(1, 0)|.
-%% Is this the right section? I thought there would be a sub-section of 4 here.
-As we saw in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation,
-% which is orthogonal to the type system of the host language.
-since annotations are orthogonal to the host language type system.
+This resulting code breaks semantics because no coercion is applied to |a|, since |Long| is a subtype of |Any|. In turn, the output becomes |4294967296| instead of |(1, 0)|. As we saw in \S\ref{sec:drt}, the missing coercion is correctly inserted when annotations track the value representation, since annotations are orthogonal to the host language type system.
 
-With this, we presented the main insights in the Ad hoc Data Representation Transformation approach and how they interact with other language features to guarantee transformation correctness. The next section describes the architecture and implementation of our Scala compiler plugin.
+With this, we presented the Ad hoc Data Representation Transformation mechanism and how it interacts with other language features to guarantee transformation correctness. The next section describes the architecture and implementation of our Scala compiler plugin. \iv{Hey, is this thing on?}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

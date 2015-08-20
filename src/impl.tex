@@ -3,8 +3,7 @@
 
 %This section describes the technical aspects of our implementation that can aid a compiler developer in porting the approach to another language.
 
-We implemented the ADR transformation as a Scala compiler plugin \cite{ildl-plugin}, by extending the open-source multi-stage programming transformation provided with the LDL \cite{ldl} artifact, available at \cite{ldl-staging-plugin}. In this section we describe the technical aspects of our implementation that are not directly related to the transformation itself, but to providing a good programmer experience.
-
+We implemented the ADR transformation as a Scala compiler plugin \cite{ildl-plugin}, by extending the open-source multi-stage programming transformation provided with the LDL \cite{ldl} artifact, available at \cite{ldl-staging-plugin}. In this section we describe the technical aspects of our implementation that are not directly related to the transformation itself, but to providing a good programmer experience. Readers should also refer to the paper Appendix for an end-to-end example of the transformation phases. Additionally, the paper is accompanied by an Artifact which can be used to explore the transformation.
 
 %The programmer front-end consists of the |adrt| marker, which acts as a transformation trigger and the marker interface |TransformationDescription|. These programmer-facing constructs were shown in the Problem Statement (\S\ref{sec:problem}) and in the ADR Transformation section (\S\ref{sec:ildl}). We next present each of them in detail.
 
@@ -40,6 +39,8 @@ def foo: (Int, Int) = {
 
 \noindent
 Immediately after the source is parsed, the \postparser{} phase transforms the |adrt| scopes in three steps:
+
+\vspace{0.3em}
 \begin{compactitem}
 \item it attaches a unique id to each |adrt| scope;
 \item it records and clears the block enclosed by the |adrt| scope
@@ -47,6 +48,8 @@ Immediately after the source is parsed, the \postparser{} phase transforms the |
 |adrt| scope and, in the process, it marks the value and method definitions
 by the |adrt| scope's unique id (or by multiple ids, if |adrt| scopes are nested).
 \end{compactitem}
+\vspace{0.3em}
+
 \noindent Following the \postparser{} phase, the code is:
 
 \begin{lstlisting-nobreak}
@@ -59,10 +62,13 @@ def foo: (Int, Int) = {
 
 This code is ready for type-checking: the definition of |n| is located in the same block as its use, making the scope correct. During the type-checking process, the |IntPairToLong| object is resolved to a symbol, missing type annotations are inferred and implicit conversions are introduced explicitly in the tree. After type-checking and pattern matching expansion, the \inject{} phase traverses the tree and: % performs two operations:
 
+\vspace{0.3em}
 \begin{compactitem}
 \item for every |adrt| scope it records the id and description object, before removing it from the abstract syntax tree;
 \item for value and method definitions, if the type matches one or more transformations, it adds the |@repr| annotation.
 \end{compactitem}
+\vspace{0.3em}
+
 \noindent Following the \inject{} phase, the code for our example is:
 
 \begin{lstlisting-nobreak}
@@ -77,8 +83,9 @@ After the \inject{} phase, the annotated signatures are persisted, allowing the 
 Later, the \bridge{}, \coerce{} and \commit{} phases proceed as described in \S\ref{sec:drt} and \S\ref{sec:ildl}.
 
 % - transformation description objects => bootstrapping problem => annotation
-\subsubsection{The transformation description objects} extend the marker trait |TransformationDescription|. Although the marker trait is empty, the description object needs to define at least the |toHigh| and |toRepr| coercions, which may be generic (\S\ref{sec:ildl:custom}). The programmer is then free to add bypass methods, in order to avoid decoding the representation type for the purpose of dynamically dispatching method calls. To aid the programmer in adding bypass methods, the \coerce{} phase warns
-whenever it does not find a suitable bypass method, indicating both the expected name and the expected method signature. Here we encountered a bootstrapping problem: although bypass methods handle the representation type, during the \coerce{} phase, their signatures are expected to accept parameters of the annotated high-level type, in order to allow redirecting method calls. To work around this problem, we added a the |@high| annotation, which acts as an anti-|@repr| and marks the representation types:
+\subsubsection{The transformation description objects} extend the marker trait |TransformationDescription|. Although the marker trait is empty, the description object needs to define at least the |toHigh| and |toRepr| coercions, which may be generic, as shown in \S\ref{sec:ildl:custom}. The programmer is then free to add bypass methods, in order to avoid decoding the representation type for the purpose of dynamically dispatching method calls. To aid the programmer in adding bypass methods, the \coerce{} phase warns whenever it does not find a suitable bypass method, indicating both the expected name and the expected method signature. \iv{Help, I'm trapped here!}
+
+Here we encountered a bootstrapping problem: although bypass methods handle the representation type, during the \coerce{} phase, their signatures are expected to take parameters of the annotated high-level type, in order to allow redirecting method calls. To work around this problem, we added a the |@high| annotation, which acts as an anti-|@repr| and marks the representation types:
 
 \begin{lstlisting-nobreak}
 object IntPairToLong extends TransformationDescription{
@@ -92,9 +99,13 @@ object IntPairToLong extends TransformationDescription{
 }
 \end{lstlisting-nobreak}
 
-This mechanism allows programmers to both define and use the transformation description objects in the same compilation run. Considering the difficult nature of bootstrapping transformations, we are  content with the current solution.
+This mechanism allows programmers to both define and use the transformation description objects in the same compilation run, an obvious benefit over full macro-based metaprogramming in Scala \cite{eugene-macros}. The underlying reason for this was our conscious decision to prohibit running any code from the transformation description object -- which we replaced by using signatures to drive the type inference.
+% Considering the difficult nature of bootstrapping transformations, we are  content with the current solution.
 % - transformation description object  => dependency of the code => change it => recompile!
+
 Another advantage we get for free, thanks to referencing the transformation description object in the type annotation, is an explicit dependency between all transformed values and their description objects. This allows the Scala incremental compiler to automatically recompile all scopes when the description object in their |adrt| marker has changed.
+
+
 
 % - bridge - warnings
 % - coerce - the main work was around using the bypass methods and providing a good solution for them
@@ -111,11 +122,13 @@ Another advantage we get for free, thanks to referencing the transformation desc
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\vspace{-0.5em}
 \paragraph{Compiler Entry Points.}
 %\label{sec:ildl:scala}
 
-In many of the descriptions so far we have implicitly assumed the Scala compiler features. To ease other compiler developers in porting this approach, we highlight the exact Scala compiler features that we rely on:
-%
+In many of the descriptions so far we have implicitly assumed the Scala compiler features. To ease other compiler developers in porting this approach, we highlight the exact Scala compiler features that we use:
+
+\vspace{0.3em}
 \begin{compactitem}
   \item The type checker is available at all times during compilation;
   \item We can change/see a symbol's signature at any phase;
@@ -123,5 +136,6 @@ In many of the descriptions so far we have implicitly assumed the Scala compiler
   \item The compiler support AST attachments;
   \item The compiler offers expected type propagation during type checking (In Scala, this is part of the local type inference.)
 \end{compactitem}
+\vspace{0.3em}
 
-This concludes the section, which explained how we solved the two main technical problems in the ADR Transformation and how this impacted the compilation pipeline.
+This concludes the section, which explained how we solved the two main technical problems in the ADR Transformation and how this impacted the compilation pipeline. We now continue with the evaluation.
