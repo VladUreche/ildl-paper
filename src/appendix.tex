@@ -18,10 +18,7 @@ object IntPairAsGaussianInt extends Transformation{
   def implicit_GaussianInt_%(n1: @high Long, n2: @high Long): @high Long = ...
   def implicit_GaussianInt_norm(n: @high Long): Int = ...
 }
-\end{lstlisting-nobreak}
 
-
-\begin{lstlisting-nobreak}
 object GCD {
   implicit class GaussianInt(pair: (Int, Int)) {
     def %(that: (Int, Int)): (Int, Int) = ...
