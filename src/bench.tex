@@ -189,7 +189,8 @@ What we can also notice is that, across all benchmarks, the input data occupies 
 
 The erased generic |LazyList| executed the code on par with the scalablitz optimizer but produced less garbage and the GC pause was much shorter (probably requiring a simple young-generation collection, not a full mark and sweep).
 
-The miniboxed |LazyList|, on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 40\%.
+The miniboxed |LazyList|, on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 2.56x. 
+%40\%.
 
 \begin{table*}[t!]
   \centering
@@ -214,9 +215,13 @@ The miniboxed |LazyList|, on the other hand, both executed faster and did not pr
 
 \vspace{0.5em}
 \noindent
-\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 30\% speedup compared to ``adrt miniboxed''.
+\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 
+%30\% 
+1.43x speedup compared to ``adrt miniboxed''.
 
-The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 70\% compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
+The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 
+%70\% 
+3.54x compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
 
 In terms of programmer effort, the |LazyList| definition takes about 60 LOC and the transformation description object about 30 LOC. The difference between ``adrt erased'' and ``adrt miniboxed'' is the presence of |@miniboxed| annotations in the |LazyList| classes and in the description object.
 
@@ -242,7 +247,7 @@ In the benchmark, we have an array of 5 million events, each with its own timest
  \item Uniformly occurring events appear every 3rd element, thus offering more room for CPU speculation.
 \end{compactitem}
 
-Using the |adrt| scope to transform the array of tuples into a tuple of arrays allows better cache locality and fewer pointer dereferences. With random events, the ``adrt'' transformation produces a speedup of 1.9x. With uniformly distributed events, both the original and the transformed code run faster, yet resulting in a speedup of 5.7x.
+Using the |adrt| scope to transform the array of tuples into a tuple of arrays allows better cache locality and fewer pointer dereferences. With random events, the ``adrt'' transformation produces a speedup of 1.8x. With uniformly distributed events, both the original and the transformed code run faster, yet resulting in a speedup of 5.7x.
 
 In all four cases, the amount of memory allocated is approximately the same and no objects are allocated aside from the input data. Thus, the operation speedups are obtained through improving cache locality.
 
@@ -318,11 +323,15 @@ As with other benchmarks, we broke down the transformation is several steps:
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings a 20\% speedup.
+\textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings an extra 1.25x
+% 20\% 
+speedup.
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional 25\% speedup, as fewer objects are created during the benchmark execution.
+\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional 
+%25\% 
+1.31x speedup, as fewer objects are created during the benchmark execution.
 
 The conclusion is that, although the ADR transformation can be viewed as a memory layout optimization, it can additionally trigger more optimizations that bring orthogonal speedups, such as
 %improving cache locality,
@@ -390,7 +399,7 @@ Our data representation transformation converts the references to
 which allows calls to use the miniboxed representation, thus being more efficient. The
 problem is that the miniboxed code needs to interoperate with
 library-defined code, or with other libraries that were not
-transformed. Thus the miniboxed code acts
+transformed. Thus, the miniboxed code acts
 as a scope for the \emph{function and tuple representation
   transformation}, i.e., the ADR transformation of |Function| and
 |Tuple|.

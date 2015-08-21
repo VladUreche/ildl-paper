@@ -99,7 +99,10 @@ object IntPairToLong extends TransformationDescription{
 }
 \end{lstlisting-nobreak}
 
-This mechanism allows programmers to both define and use the transformation description objects in the same compilation run---an obvious benefit over full macro-based metaprogramming in Scala \cite{eugene-macros}. The underlying reason for this was our conscious decision to prohibit running any code from the transformation description object, which we replaced by using signatures to drive the type inference.
+This mechanism allows programmers to both define and use the transformation description objects in the same compilation run---an obvious benefit over full macro-based metaprogramming in Scala \cite{eugene-macros}. This reflects our design decision to have in the transformation description
+object code that gets \emph{composed} with the client code, instead of code that transforms it.
+%The underlying reason for this was our conscious decision to prohibit running any code from the transformation description object, which we replaced by using signatures to drive the type inference.
+%
 % Considering the difficult nature of bootstrapping transformations, we are  content with the current solution.
 % - transformation description object  => dependency of the code => change it => recompile!
 

@@ -97,7 +97,9 @@ object IntPairAsGaussianInt extends Transformation{
 
 The member signatures are then persisted, meaning that all future compilation runs see the signatures left by the \inject{} phase. Thus, to ensure scope composition, none of the signatures computed by the \inject{} phase can contain references to the representation type, except for the |toHigh| and |toRepr| coercions. Then, all signatures that are transformed contain two pieces of information: the high-level type and the transformation description object.
 
-Since our example does not use inheritance and overriding, the \bridge{} phase leaves the AST unchanged.  Then, the \coerce{} phase introduces coercions and rewrites dynamic calls to bypass methods. The transformation description objects are skipped by the \coerce{} phase, as re-type-checking them with the modified signatures would lead to errors:
+We ignore inheritance and overriding in our example, thus assuming that 
+%Since our example does not use inheritance and overriding, 
+the \bridge{} phase leaves the AST unchanged.  Then, the \coerce{} phase introduces coercions and rewrites dynamic calls to bypass methods. The transformation description objects are skipped by the \coerce{} phase, as re-type-checking them with the modified signatures would lead to errors:
 
 \begin{lstlisting-nobreak}
 object GCD {
