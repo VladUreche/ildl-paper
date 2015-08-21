@@ -5,7 +5,7 @@
 The Ad hoc Data Representation (ADR) transformation adds two new elements to existing data representation transformations: (1) it enables custom, programmer-defined alternative representations and (2) it allows the transformation to take place in limited scopes, ranging from expressions all the way to method and class definitions. This allows programmers to use locally optimal transformations that may be suboptimal or even incorrect for code outside the given scope.
 
 %% Example
-Section \ref{sec:automating} showed how the ADR transformation is triggered by the |adrt| marker. The running example is reproduced below for quick reference\footnote{In the following paragraphs, the |gcd| method is assumed to be always transformed, so we will skip the |ADRT| suffix, which was used in the Motivation section (\S\ref{sec:problem}) to mark the transformed version of the method.}:
+Section \ref{sec:automating} showed how the ADR transformation is triggered by the |adrt| marker. The running example is reproduced below for quick reference:\footnote{In the following paragraphs, the |gcd| method is assumed to be always transformed, so we will skip the |ADRT| suffix, which was used in the Motivation section (\S\ref{sec:problem}) to mark the transformed version of the method.}
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -46,7 +46,7 @@ Since the description objects can accommodate very different transformations, as
 \subsubsection{Bypass Methods.} The description object can optionally include bypass methods, which correspond to the methods exposed by the high-level type, but instead operate on values encoded in the representation type. Bypass methods allow the transformation to avoid coercing receivers to the high-level type by rewriting dynamically dispatched calls to their corresponding statically-resolved bypass method calls, as shown in section \S\ref{sec:ldl:oo-patterns}. Method call rewriting in |adrt| scopes is more general, and we describe it   in section \S\ref{sec:ildl:method}.
 
 \vspace{0.4em}
-\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e. not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. We analyzed multiple approaches to allowing genericity in the transformation description object and converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any type constructor arity:
+\subsubsection{Generic Transformations.} In our example, both the high-level and representation types are monomorphic (i.e., not generic). Still, in some cases, the ADR transformation is used to target collections regardless of the type of their elements. We analyzed multiple approaches to allowing genericity in the transformation description object and converged on allowing the coercions to be generic themselves. This approach has the merit of being concise and extending naturally to any type constructor arity:
 
 % Example of a generic transformation
 \begin{lstlisting-nobreak}
@@ -66,9 +66,9 @@ assert(`toHigh(toRepr(x))` eq `x`) // referential equality
 These semantics prevent the coercions from simply copying the value of the object into the new representation.
 For example, the referential equality condition above would be violated if the |toRepr| and |toHigh| methods would simply allocate new objects (which would get new references). Instead, the |toRepr| coercion would have to cache the original value so that, when decoding, the |toHigh| coercion could return the exact same object as originally given.
 
-As expected, referential equality and mutability make transformations a lot more difficult. Luckily, in most use cases, the targets, such as library collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it. A desirable extension to our approach would be to statically check the compatibility of the high-level type with its coercions. This could prevent the programmer from incorrectly copying internally mutable objects inside the coercions.
+As expected, referential equality and mutability make transformations a lot more difficult. Luckily, in most use cases, the targets, such as library collections and containers, have value semantics: they are immutable, final and only use structural equality. Such high-level types can be targeted at will, since they can be reconstructed at any time without the program observing it. A desirable extension of our approach would be to statically check the compatibility of the high-level type with its coercions. This could prevent the programmer from incorrectly copying internally mutable objects inside the coercions.
 
-The complete transformation description object for the complex number encoding is given in the appendix.
+The complete transformation description object for the complex number encoding is given in the Appendix.
 % Once the transformation description object is defined, it can be used in |adrt| scopes to optimize programs.
 
 
@@ -77,7 +77,7 @@ The complete transformation description object for the complex number encoding i
 \subsection{Transformation Scopes and Composability}
 \label{sec:ildl:scoped}
 
-Existing LDL-based data representation transformations, such as value class inlining and specialization, have fixed semantics and occur in separate compiler phases. Instead, the ADR transformation handles all scopes in the source code concurrently, each with its own high-level target, representation type and coercions. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, demands a disciplined treatment.
+Existing LDL-based data representation transformations, such as value class inlining and specialization, have fixed semantics and occur in separate compiler phases. Instead, the ADR transformation handles all scopes in the source code concurrently, each with its own high-level target, representation type, and coercions. This is a challenge, as handling the interactions between these concurrent scopes, some of which may even be nested, demands a disciplined treatment.
 
 %%% \yannis{To me this is incomprehensible.}
 %The key to the composability property is shifting the focus from the
@@ -106,7 +106,7 @@ We look at four instances of composability:
 \end{compactitem}
 \vspace{0.3em}
 
-Although the four examples cover the most interesting corner cases of the transformation, the interested reader may consult the ``Scope Nesting'' page on the project wiki \cite{ildl-plugin-wiki}, which describes all cases of scope overlapping, collaboration and nesting. Furthermore, the scope composition is tested with each commit, as part of the project's test suite.
+Although the four examples cover the most interesting corner cases of the transformation, the interested reader may consult the ``Scope Nesting'' page on the project wiki \cite{ildl-plugin-wiki}, which describes all cases of scope overlapping, collaboration and nesting. Furthermore, scope composition is tested with each commit, as part of the project's test suite.
 
 \subsubsection{A high-level type can have different representations in different scopes.} This follows from the scoped nature of the ADR transformation, which allows programmers to use the most efficient data representation for each task. But it raises the question of whether values can be safely passed across scopes that use different representations:
 
@@ -186,7 +186,7 @@ adrt(`PairAsMyPair`) {            // (Int,Int) -> MyPair[Int,Int]
 }
 \end{lstlisting-nobreak}
 
-In the code above, the type of |x| matches both transformation description objects, so it could be transformed to both representation types |MyPair[Int, Int]| and |Long|. However, during the \inject{} phase, if a value is matched by several nested |adrt| scopes, this can be reported to the programmer either as an error or, depending on the implementation, as a warning, followed by choosing one of the transformation description objects for the value (current solution):
+In the code above, the type of |x| matches both transformation description objects, so it could be transformed to both representation types |MyPair[Int, Int]| and |Long|. However, during the \inject{} phase, if a value is matched by several nested |adrt| scopes, this can be reported to the programmer either as an error or, depending on the implementation, as a warning, followed by choosing one of the transformation description objects for the value (our current solution):
 
 \begin{lstlisting-nobreak}
 console:9:  warning: Several adrt scopes can be applied to value x. Picking the innermost one: `IntPairAsLong`
@@ -206,7 +206,7 @@ adrt(`TtoU`) {             // T -> U
 }
 \end{lstlisting-nobreak}
 
-It may seem natural that the value |t| will be transformed to use the |V| representation type: first, converting from |T| to |U| and then from |U| to |V|. Unfortunately, the underlying mechanism, Late Data Layout \cite{ldl}, only allows values to undergo one representation change in the \coerce{} phase. Thus, to enable cascading scopes, we would have to either run the \coerce{} phase until a fixpoint or extend both the theory and the implementation to handle multiple conversions in a single run, neither of which is a straight-forward extension.
+It may seem natural that the value |t| will be transformed to use the |V| representation type: first, converting from |T| to |U| and then from |U| to |V|. Unfortunately, the underlying mechanism, Late Data Layout \cite{ldl}, only allows values to undergo one representation change in the \coerce{} phase. Thus, to enable cascading scopes, we would have to either run the \coerce{} phase until a fixpoint or extend both the theory and the implementation to handle multiple conversions in a single run, neither of which is a straightforward extension.
 %For example, the |@repr| annotation would have to take a list of transformation description objects instead of one.
 Therefore, in the current approach, we disallow cascading scopes:
 
@@ -240,7 +240,7 @@ Annotating the high-level type with the transformation semantics allows differen
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
-  def gcd(n1: (Int,Int), n2: (Int,Int)): (Int,Int) = ..
+  def gcd(n1: (Int,Int), n2: (Int,Int)): (Int,Int) =...
 }
 \end{lstlisting-nobreak}
 
@@ -293,7 +293,7 @@ val n2: `@repr(.)` (Int, Int) = ...
 val res: `@repr(.)` (Int, Int) = gcd(n1, n2)
 \end{lstlisting-nobreak}
 
-With the complete signature for |gcd|, the \coerce{} phase does not introduce any coercions, since the arguments to method |gcd| use the same encoding as the method parameters did in the previous compilation run. This allows |adrt| scopes to seamlessly compose even across separate compilation. After the \commit{} phase, the scope is compiled to:
+With the complete signature for |gcd|, the \coerce{} phase does not introduce any coercions, since the arguments to method |gcd| use the same encoding as the method parameters did in the previous compilation run. This allows |adrt| scopes to seamlessly compose even across separate compilations. After the \commit{} phase, the scope is compiled to:
 
 \begin{lstlisting-nobreak}
 val n1: `Long` = ...
@@ -363,7 +363,7 @@ adrt(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-Type-checking the program makes into an explicit call the implicit conversion that introduces the |*| operator:
+Type-checking the program produces an explicit call for the implicit conversion that introduces the |*| operator:
 
 \vspace{-0.5em}
 \begin{lstlisting}
@@ -416,7 +416,7 @@ Yet, there is still a snag.
 
 % constructors
 \vspace{-0.4em}
-\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. In our case, the first line runs the pair (|Tuple2|) constructor, which creates a heap object, and then converts it to the |Long| representation:
+\subsubsection{Constructors} create heap objects before they can be encoded in the representation type. In our example, the first line runs the pair (|Tuple2|) constructor, which creates a heap object, and then converts it to the |Long| representation:
 
 \begin{lstlisting-nobreak}
 // In Scala, (0,1) is a shorthand for new Tuple2(0,1):
@@ -441,7 +441,7 @@ Notice that the integers are now passed as arguments to the constructor bypass m
 \subsection{Interaction with Other Language Features}
 \label{sec:ildl:language-features}
 
-This section presents the interaction between the ADR transformation and object-oriented inheritance, generics and implicit conversions, explaining the additional steps that should be taken to ensure correct program transformation. %and  the limitations of the approach.
+This section presents the interaction between the ADR transformation and object-oriented inheritance, generics and implicit conversions, explaining the additional steps that are taken to ensure correct program transformation. %and  the limitations of the approach.
 
 \subsubsection{Dynamic Dispatch and Overriding}
 \label{sec:ildl:language-overriding}
@@ -540,7 +540,7 @@ adrt(IntPairAsLong) {
 \end{lstlisting-nobreak}
 
 % In the very particular case of list, it's okay, but not in the general case
-In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| before calling |use1|. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the collection only applies to the immutable list in the standard library, and not to other generic classes that may occur in practice. Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. But duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. This is similar to the mutability restriction in \S\ref{sec:ildl:custom}.
+In the specific case of the Scala immutable list, it would be possible to convert the |list| parameter of |use2| from type |List[Long]| to |List[(Int, Int)]| before calling |use1|. This can be done by mapping over the list and transforming the representation of each element. However, this domain-specific knowledge of how to transform the collection only applies to the immutable list in the standard library, and not to other generic classes that may occur in practice. Furthermore, there is an entire class of containers for which this approach is incorrect: mutable containers. An invariant of mutable containers is that any elements changed will be visible to all the code that holds a reference to the container. Duplicating the container itself and its elements (stored with a different representation) breaks this invariant: changes to one copy of the mutable container are not visible to its other copies. This is similar to the mutability restriction in \S\ref{sec:ildl:custom}.
 
 % We could use the transformation representation object to add container transformation rules, but in the current implementation we did not find an elegant and general solution.
 The approach we follow in the ADR transformation is to preserve the high-level type inside generics. Thus, our example after the \commit{} phase will be:
@@ -587,11 +587,13 @@ interact in two ways with |adrt| scopes:
 
 \vspace{0.3em}
 \noindent
-\textem{Extending the object functionality} through implicit conversions, extension methods, or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since, in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be diferit, but the mechanism and signature transformation rules remain the same (\S\ref{sec:ildl:method}).
+\textem{Extending the object functionality} through implicit conversions, extension methods, or type classes must be taken into account by the method call rewriting in the \coerce{} phase. The handling of all three means of adding object functionality is similar, since, in all three cases, the call to the new method needs to be intercepted and redirected. Depending on the exact means, the mangled name for the bypass method will be different, but the mechanism and signature transformation rules remain the same (\S\ref{sec:ildl:method}).
 
 \vspace{0.3em}
 \noindent
-\textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions do not offer strong enough guarantees to replace the LDL backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
+\textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions are not powerful enough 
+% do not offer strong enough guarantees 
+to replace LDL as an ADRT backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
 
 \begin{lstlisting-nobreak}
 val n: (Int, Int) = (1, 0)

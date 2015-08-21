@@ -34,7 +34,7 @@ object GCD {
 }
 \end{lstlisting-nobreak}
 
-The most important compiler phases injected by the ADRT plugin are: \postparser{}, \inject{}, \bridge{}, \coerce{} and \commit{}. We show how each of these phases transforms the code. After the source code has been parsed, before type checking and name resolution, the \postparser{} phase inlines the |adrt| scopes and attaches unique ids to the abstract syntax tree (AST) nodes, both for the transformation object and the transformed scope:
+The most important compiler phases injected by the ADRT plugin are: \postparser{}, \inject{}, \bridge{}, \coerce{} and \commit{}. We show how each of these phases transforms the code. After the source code has been parsed, before type checking and name resolution, the \postparser{} phase inlines the |adrt| scopes and attaches unique ids to the abstract syntax tree (AST) nodes, both for the transformation object and for the transformed scope:
 
 \begin{lstlisting-nobreak}
 object IntPairAsGaussianInt extends Transformation{
@@ -53,7 +53,7 @@ object GCD {
 }
 \end{lstlisting-nobreak}
 
-After the \postparser{} phase, the tree is ready for name resolution and type checking. These two phases run in tandem and transform the literal |IntPairAsGaussianInt| into a fully qualified reference, which points to the object symbol. Along the way, the typer checks that |IntPairAsGaussianInt| extends the |Transformation| trait and that it is an object.
+After the \postparser{} phase, the tree is ready for name resolution and type checking. These two phases run in tandem and transform the literal |IntPairAsGaussianInt| into a fully qualified reference, which points to the object symbol. Along the way, the type-checker ensures that |IntPairAsGaussianInt| extends the |Transformation| trait and that it is an object.
 
 During type checking, the missing type annotations and implicit conversions are added to the AST:
 

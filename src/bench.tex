@@ -27,7 +27,7 @@ the setting of a library and its clients.
 %   \vspace{-1em }
 \end{table*}
 
-We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
+We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, and |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
 
 \subsection{ADRT Micro-Benchmarks}
 
@@ -100,7 +100,7 @@ is the running example described in \S\ref{sec:problem} and used throughout the 
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``original'' benchmark} does not apply any transformation, thus modelling Gaussian integers using Scala's |Tuple2| class. Due to limitations in the specialization \cite{iuli-thesis, specialization-iuli} translation in Scala, the memory footprint of |Tuple2| classes is larger than it should be.
+\textbf{The ``original'' benchmark} does not apply any transformation, thus modeling Gaussian integers using Scala's |Tuple2| class. Due to limitations in the specialization \cite{iuli-thesis, specialization-iuli} translation in Scala, the memory footprint of |Tuple2| classes is larger than it should be.
 
 \vspace{0.5em}
 \noindent
@@ -121,7 +121,7 @@ case class Complex(_1: Int, _2: Int)
 
 \vspace{0.5em}
 \noindent
-The transformation description objects for the three transformations above range between 30 and 40 lines of code and include more operations than necessary for the benchmark, such as addition, multiplication, multiplication with integers, subtraction etc.
+The transformation description objects for the three transformations above range between 30 and 40 lines of code and include more operations than necessary for the benchmark, such as addition, multiplication, multiplication with integers, subtraction, etc.
 
 \begin{table*}[t!]
   \centering
@@ -456,7 +456,7 @@ This transformation has a significant impact in library benchmarks.
 Table \ref{table:streams} shows the result of applying our data
 representation transformation to the Scala-Streams published
 benchmarks. (The benchmarks are described in detail in prior
-literature \cite{biboudis_clash_2014}.) As can be seen, the miniboxing
+literature \cite{biboudis_clash_2014,biboudis_et_al:ECOOP:short}.) As can be seen, the miniboxing
 transformation is an enabler of our optimization but produces
 \emph{worse} results by itself (due to extra conversions).
 
@@ -469,7 +469,7 @@ representation optimization is nearly 35x!
 %Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
 
 
-\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a commercial entity using the Scala programming language. Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows the ADR-transformed function code lies within a 10\% margin compared to the fully specialized and manually optimized code.
+\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a third party (a commercial entity using Scala). Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows that the ADR-transformed function code performs within 10\% of the fully specialized and manually optimized code.
 
 % normal exec:
 % [info] Benchmark                                       Mode  Samples        Score  Score error  Units

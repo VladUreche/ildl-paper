@@ -3,7 +3,7 @@
 
 
 Changing data representations is a well-established and time-honored
-programming need. Techniques for removing abstraction barriers appear
+programming need. Techniques for removing abstraction barriers have appeared
 in the literature since the invention of high-level programming
 languages and often target low-level data representations. However,
 our technique is distinguished by its automatic determination of when
@@ -47,7 +47,7 @@ extends~\cite{thiemann-unboxed-objects-cps} and
 generalizes~\cite{shao-flexible-representation-analysis} such
 transformations. In terms of runtime-dispatched
 generics, we refer to the work on Napier88 \cite{morrison-napier88}
-and the TIL compiler \cite{tarditi-til} \cite{harper-intensional-type-analysis}.
+and the TIL compiler \cite{tarditi-til,harper-intensional-type-analysis}.
 
 In the specific setting of data structure specialization, the CoCo
 approach~\cite{Xu:2013:CSA:2524984.2524986} adaptively replaces uses
@@ -68,7 +68,7 @@ views, which allow data abstraction and extraction through pattern matching \cit
 
 Multi-stage programming \cite{taha-intro} is another technique that
 optimizes the data representation. Its Scala implementation, dubbed
-lightweight modular staging and can both optimize and even re-target parts of a
+lightweight modular staging, can both optimize and even re-target parts of a
 program to GPUs \cite{tiark-lms,delite}. Yet, multi-stage programming
 scopes are not accessible from outside, making it impossible to call
 a transformed method or read a transformed value. Instead, the transformation
@@ -78,5 +78,5 @@ staging front-end \cite{vojin-yy}, based on Scala macros \cite{eugene-macros}.
 Another type-directed transformation in the Scala compiler is the
 pickling framework \cite{heather-pickers}, also based on macros.
 Instead of transforming the data representation in-place, pickler combinators
-create serialization code that allows can efficiently convert an object to a wide
+create serialization code that can efficiently convert an object to a wide
 range of formats.

@@ -28,7 +28,7 @@ Data Representation Transformation: selectivity, optimality and
 consistency. However, LDL is neither programmer-driven, since the
 data representation has to be known a priori and encoded in the
 transformation, nor directly applicable to limited scopes inside a program,
-so later sections will have to further extend it.
+so later sections will have to extend it.
 
 
 \subsection{Late Data Layout}
@@ -124,8 +124,9 @@ result. Yet, the first one is markedly better: it does not execute
 any coercions, compared to second definition, which executes two
 coercions regardless of the value of |c|. These subtle
 sub-optimalities can slow down program execution, increase the heap
-footprint and the bytecode size. This is why the \coerce{} phase needs
-to be optimal. The LDL paper \cite{ldl} makes the following
+footprint and the bytecode size. 
+%This is why the \coerce{} phase needs to be optimal. 
+The LDL paper \cite{ldl} makes the following
 intuition-based conjecture: ``in any given terminating
 execution trace through the transformed program, the number of
 coercions executed is minimal,
@@ -178,7 +179,8 @@ val a: @unboxed Int = 1
 println(`box`(a).toString)
 \end{lstlisting-nobreak}
 
-To improve performance, the LDL mechanism also supports bypass methods, also known as extension methods in the literature. For example, if a static |bypass_toString| method is available for the unboxed |int| representation, there is no need to convert it before the method call:
+To improve performance, the LDL mechanism also supports bypass methods, also known as 
+\emph{extension methods} in the literature. For example, if a static |bypass_toString| method is available for the unboxed |int| representation, there is no need to convert it before the method call:
 
 \begin{lstlisting-nobreak}
 val a: @unboxed Int = 1
@@ -199,4 +201,4 @@ paper \cite{ldl} shows examples of both cases: when
 annotations are propagated inside generics and when they are not. The
 LDL mechanism adapts seamlessly to either case.
 
-Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now extend it to allow the more complex programmer-driven Ad hoc Data Representation Transformation.
+Having seen the Late Data Layout mechanism at work for unboxing primitive types, we can now extend it to allow the more complex, programmer-driven, Ad hoc Data Representation Transformation.

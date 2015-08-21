@@ -23,12 +23,12 @@ code to contain hard references to data, encoded according to a convention known
 \emph{object layout}. For instance, methods encapsulated
 by the generic pair class, such as |swap| and |toString|, rely on the
 existence of two generic fields, erased to |Object|. This leads to
-inefficient storage in the running example, as the integers need to be boxed, producing as many as
+inefficient storage in our running example, as the integers need to be boxed, producing as many as
 3 heap objects for each ``complex number'': the two boxed integers and
 the pair container. What if, for a part of  our program, instead of the pair, we
 concatenated the two 32-bit integers into a 64-bit long integer, that
 would represent the ``complex number''? We could pass complex numbers by value,
-avoiding the memory allocation and thus the garbage collection cycles. Additionally, what if we could also add
+avoiding the memory allocation and thus the garbage collection cost. Additionally, what if we could also add
 functionality, such as arithmetic operations, directly on our ad hoc complex
 numbers, without any heap allocation overhead? % Finally, what parts of such a transformation could be automated? %and what parts need domain-specific
 %programmer intervention?
@@ -99,23 +99,27 @@ In this paper we present such an automated transformation that allows programmer
 
 Like metaprogramming, which allows developers to transform their code
 in an ad-hoc ways, our technique allows redefining the data
-representation to be used inside the delimited scopes. To maximize
-performance, programmers can use their domain knowledge to specify
-better data representations and to improve the operations that handle
-this data. % Then, they are also responsible for indicating the program
+representation to be used inside delimited scopes. 
+%%% This is clear from earlier
+%To maximize
+%performance, programmers can use their domain knowledge to specify
+%better data representations and to improve the operations that handle
+%this data. 
+%
+% Then, they are also responsible for indicating the program
 %scopes where their transformation applies.
-Because of its power, our technique also affords potential
+Because of its power, the technique also affords potential
 for misuse. In some cases, specifically for mutable and
 reference-based data structures, the transformations
 must be carefully designed to preserve language semantics
 (\S\ref{sec:ildl:language-features}). Still, altering program
 semantics may be desirable---we exploit this property in the
 deforestation benchmark, shown in the evaluation section (\S\ref{sec:benchmarks:ad-hoc}).
-And, furthermore, the scoped nature of the transformation tightly controls which
+
+The scoped nature of the transformation tightly controls which
 parts of the code use the new data representation and operations while
 the mechanism for defining transformations automatically eliminates
 many of the common semantics-altering pitfalls.
-
 Given a programmer-designed data representation transformation,
 inside the delimited scopes the compiler is responsible for:
 (1) automatically deciding when to apply the transformation and when to revert it, in
