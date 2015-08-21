@@ -591,9 +591,9 @@ interact in two ways with |adrt| scopes:
 
 \vspace{0.3em}
 \noindent
-\textem{Offering an alternative to the LDL-based backend}. Despite the apparent similarity, implicit conversions are not powerful enough 
-% do not offer strong enough guarantees 
-to replace LDL as an ADRT backend. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
+\textem{Offering an alternative transformation mechanism}. Despite the apparent similarity, implicit conversions are not powerful enough
+% do not offer strong enough guarantees
+to replace the ADRT mechanism. For example, assuming the presence of implicit methods to coerce integer pairs to longs and back, we can try to transform:
 
 \begin{lstlisting-nobreak}
 val n: (Int, Int) = (1, 0)

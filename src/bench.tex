@@ -27,7 +27,7 @@ the setting of a library and its clients.
 %   \vspace{-1em }
 \end{table*}
 
-We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, and |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
+We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, and |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution on Ubuntu |14.04 LTS|. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
 
 \subsection{ADRT Micro-Benchmarks}
 
@@ -189,7 +189,7 @@ What we can also notice is that, across all benchmarks, the input data occupies 
 
 The erased generic |LazyList| executed the code on par with the scalablitz optimizer but produced less garbage and the GC pause was much shorter (probably requiring a simple young-generation collection, not a full mark and sweep).
 
-The miniboxed |LazyList|, on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 2.56x. 
+The miniboxed |LazyList|, on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 2.56x.
 %40\%.
 
 \begin{table*}[t!]
@@ -215,12 +215,12 @@ The miniboxed |LazyList|, on the other hand, both executed faster and did not pr
 
 \vspace{0.5em}
 \noindent
-\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 
-%30\% 
+\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a
+%30\%
 1.43x speedup compared to ``adrt miniboxed''.
 
-The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 
-%70\% 
+The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by
+%70\%
 3.54x compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
 
 In terms of programmer effort, the |LazyList| definition takes about 60 LOC and the transformation description object about 30 LOC. The difference between ``adrt erased'' and ``adrt miniboxed'' is the presence of |@miniboxed| annotations in the |LazyList| classes and in the description object.
@@ -309,7 +309,7 @@ adrt(BigIntToLong) {
 % }
 % \end{lstlisting-nobreak}
 
-An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 8x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception.
+An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 4x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception.
 
 As with other benchmarks, we broke down the transformation is several steps:
 
@@ -324,13 +324,13 @@ As with other benchmarks, we broke down the transformation is several steps:
 \vspace{0.5em}
 \noindent
 \textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings an extra 1.25x
-% 20\% 
+% 20\%
 speedup.
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional 
-%25\% 
+\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional
+%25\%
 1.31x speedup, as fewer objects are created during the benchmark execution.
 
 The conclusion is that, although the ADR transformation can be viewed as a memory layout optimization, it can additionally trigger more optimizations that bring orthogonal speedups, such as
@@ -355,10 +355,10 @@ For this example, the two transformation objects are 100 LOC and the circular bu
     \textbf{Benchmark} & \textbf{Generic} & \textbf{Miniboxed}& \textbf{Miniboxed} \\
     \rowcolor{Gray}
                        &                  &                   & +functions \\ \hline
-    Sum              &              100.6 ms &              355.9 ms &             12.0 ms \\
-    SumOfSquares     &              188.3 ms &              450.9 ms &             13.0 ms \\
-    SumOfSqEven      &              130.8 ms &              300.4 ms &             52.2 ms \\
-    Cart             &              220.6 ms &              560.2 ms &             55.3 ms \\ \hline
+    Sum                &          98.2 ms &          158.6 ms &             18.0 ms \\
+    SumOfSquares       &         131.6 ms &          193.1 ms &             12.0 ms \\
+    SumOfSqEven        &          92.3 ms &          189.6 ms &             48.7 ms \\
+    Cart               &         217.4 ms &          214.9 ms &             57.5 ms \\ \hline
   \end{tabularx}
   \vspace{-2mm}
   \caption{Scala Streams pipelines for 10M elements.}
@@ -471,14 +471,15 @@ transformation is an enabler of our optimization but produces
 
 Compared to the original library, the application of miniboxing and
 data representation optimization for functions achieves a very high
-speedup---up to 14.5x for the SumOfSquares benchmark. In fact, the
+speedup---up to 11x for the SumOfSquares benchmark. In fact, the
 speedup relative to the miniboxed code without the function
-representation optimization is nearly 35x!
+representation optimization is nearly 16x! \iv{Miniboxing -- it really whips the llama's ass!}
 
 %Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
 
 
-\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a third party (a commercial entity using Scala). Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows that the ADR-transformed function code performs within 10\% of the fully specialized and manually optimized code.
+\subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a third party (a commercial entity using Scala). Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows that the ADR-transformed function code performs within 10\% of the fully specialized and manually optimized code. \iv{Erm, no, that was Winamp with the llama, not miniboxing...}
+\vspace{-1em}
 
 % normal exec:
 % [info] Benchmark                                       Mode  Samples        Score  Score error  Units

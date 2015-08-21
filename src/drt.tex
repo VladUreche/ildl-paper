@@ -70,7 +70,7 @@ these phases.
 
 \vspace{-0.2em}
 % Inject
-\subsubsection{The \inject{} phase} is responsible for marking each value with its desired representation. In the case of primitive integer unboxing, the annotation is |@unboxed|, and it signals that a value should be stored in the unboxed |int| representation. As an optimization, instead of adding a |@boxed| annotation for the corresponding cases, values that are not marked are automatically considered boxed. Following the \inject{} phase, the previous example will be transformed to:
+\subsubsection{The \inject{} phase} is responsible for marking each symbol with its desired representation. In the case of primitive integer unboxing, the annotation is |@unboxed|, and it signals that the value should be stored in the unboxed |int| representation. As an optimization, instead of adding a |@boxed| annotation for the corresponding cases, symbols that are not marked are automatically considered boxed. Following the \inject{} phase, the previous example will be transformed to:
 
 \vspace{-0.1em}
 \begin{lstlisting-nobreak}
@@ -81,10 +81,10 @@ val k: Any = j                  // Any cannot be unboxed
 
 
 \vspace{-0.9em}
-The \inject{} phase gives LDL a selective nature, allowing it to mark
-each individual value with its representation. For example, it would
+The \inject{} phase gives LDL a selective nature, al\-low\-ing it to mark
+each individual symbol with its representation. For example, it would
 have been equally correct if the marking rules decided that |j| should
-be boxed, in which case its type would not have been marked. One of
+be boxed, in which case it would not have been marked. One of
 the properties of the LDL transformation is that boxed and unboxed
 values are compatible in the \inject{} phase, so there are no coercions.
 
@@ -124,8 +124,8 @@ result. Yet, the first one is markedly better: it does not execute
 any coercions, compared to second definition, which executes two
 coercions regardless of the value of |c|. These subtle
 sub-optimalities can slow down program execution, increase the heap
-footprint and the bytecode size. 
-%This is why the \coerce{} phase needs to be optimal. 
+footprint and the bytecode size.
+%This is why the \coerce{} phase needs to be optimal.
 The LDL paper \cite{ldl} makes the following
 intuition-based conjecture: ``in any given terminating
 execution trace through the transformed program, the number of
@@ -179,7 +179,7 @@ val a: @unboxed Int = 1
 println(`box`(a).toString)
 \end{lstlisting-nobreak}
 
-To improve performance, the LDL mechanism also supports bypass methods, also known as 
+To improve performance, the LDL mechanism also supports bypass methods, also known as
 \emph{extension methods} in the literature. For example, if a static |bypass_toString| method is available for the unboxed |int| representation, there is no need to convert it before the method call:
 
 \begin{lstlisting-nobreak}
