@@ -147,7 +147,7 @@ Transformation description objects are described in more detail in \S\ref{sec:il
     \item At the type level, they define the high-level type, in this case |(Int, Int)|, which serves as the target of the transformation, and the representation type, in this case |Long|, which will be used as the optimized value representation;
     \item At the term level, they allow converting values between the two representations;
   \end{compactitem}
-  \item The ``bypass methods'' part of the definition allows operations such as |*|, |%| and |norm| to run directly on values \emph{encoded} in the representation type (in this case |Long|), instead of \emph{decoding} them back to the high-level type in order to execute the dynamic dispatch. We explain how bypass methods are defined and used later or, in \S\ref{sec:ildl:method}.
+  \item The ``bypass methods'' part of the definition allows operations such as |*|, |%| and |norm| to run directly on values \emph{encoded} in the representation type (in this case |Long|), instead of \emph{decoding} them back to the high-level type in order to execute the dynamic dispatch. We explain how bypass methods are defined and used later on, in \S\ref{sec:ildl:method}.
 \end{compactitem}
 \vspace{0.35em}
 
@@ -156,7 +156,7 @@ Description objects split the task of optimizing the data representation into:
 \vspace{0.35em}
 \begin{compactitem}
 \item[(1)] Devising an improved data representation: Defining the improved data representation is done once and uses domain-specific knowledge about the program. Therefore, we let the developer decide how data should be encoded and how operations should be handled. This information is stored in the description object.
-\item[(2)] Transforming the source code to use the improved representation, based on the description object: This is the repetitive, tedious and error-prone work, which we completely automate away.
+\item[(2)] Transforming the source code to use the improved representation, based on the description object: This is repetitive, tedious and error-prone work, which we completely automate away.
 \end{compactitem}
 \vspace{0.35em}
 
@@ -214,7 +214,7 @@ There are many questions one could ask about this naive translation. For example
 
 Going into the semantics of the program, we can ask if the |%| (modulo) operator maintains the semantics of Gaussian integers when used for long integers. Also, is |norm| defined for long integers? Unfortunately, the response to both questions is negative. Therefore, to correctly transform the code, ADRT needs equivalent versions of the methods that operate on the long integer representation (\S\ref{sec:ildl:method}).
 
-We could also ask what would happen if |gcd| was overriding another method? Would the new signature still override it? The answer is no, so the naive translation would break the object model (\S\ref{sec:ildl:language-features}):
+We could also ask what would happen if |gcd| was overriding another method. Would the new signature still override it? The answer is no, so the naive translation would break the object model (\S\ref{sec:ildl:language-features}):
 
 \begin{lstlisting-nobreak}
 trait WithGCD[`T`] {

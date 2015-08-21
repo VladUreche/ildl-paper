@@ -93,7 +93,7 @@ Existing LDL-based data representation transformations, such as value class inli
 %classes of unsoundness.
 
 %% \vlad{hopefully this one is better...}
-The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation system to reference the description object, essentially referencing the   transformation semantic with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, thus allowing scopes to safely and efficiently pass data among themselves, using the representation type---a property we refer to as composability.
+The key to handling all concurrent scopes correctly is shifting focus from the scopes themselves to the values they define. Since we are using the underlying LDL mechanism, we can track the encoding of each value in its type, using annotations. To keep track of the different transformations introduced by different scopes, we extend the LDL annotation system to reference the description object, essentially referencing the   transformation semantics with each individual value. We then leverage the type system and the signature persistence facilities to correctly transform all values, thus allowing scopes to safely and efficiently pass data among themselves, using the representation type---a property we refer to as composability.
 
 We look at four instances of composability:
 
@@ -169,7 +169,7 @@ adrt(`FloatPairAsLong`) {
 }
 \end{lstlisting-nobreak}
 
-Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, this introducing unsoundness.
+Values of the high-level types in the inner scope are independently annotated and are transformed accordingly. Since both the integer and the float pairs are encoded as long integers, a natural question to ask is whether values can leak between the two high-level types, for example, by un-commenting the last two lines of the inner scope. This would open the door to incorrectly interpreting an encoded value as a different high-level type, thus introducing unsoundness.
 
 The answer is no: the code is first type-checked against the high-level types even before the \inject{} transformation has a chance to annotate it. This prohibits direct transfers between the high-level types and their representations. Thus, the unsound assignments will be rejected, informing the programmer that the types do not match. This is a non-obvious benefit of using the ADR transformation instead of manually refactoring the code and using implicit conversions, which, in some cases, would allow such unsound assignments.
 
@@ -261,7 +261,7 @@ def gcd(n1: `long`, n2: `long`): `long` = ...
 
 % An important question in DRTs: how to modify signatures
 %  -- keeping track of transformed methods (do I have a transformed version?)
-When compiling source code that refers to existing low-level code, such as object code or bytecode compiled in a previous run, compilers need to load the signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume it accepts two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts long integers and can not handle pairs of integers.
+When compiling source code that refers to existing low-level code, such as object code or bytecode compiled in a previous run, compilers need to load the signature of each symbol. For C and C++ this is done by parsing header files while for Java and Scala, it is done by reading the source-level signature from the bytecode metadata. However, not being aware of the ADR transformation of method |gcd|, a separate compilation could assume it accepts two pairs of integers as input. Yet, in the bytecode, the |gcd| method accepts long integers and cannot handle pairs of integers.
 
 The simplest solution is to create two versions for each transformed method: the transformed method itself and a bridge, which corresponds to the high-level signature. The bridge method would accept pairs of integers and encode them as longs before calling the transformed version of the |gcd| method. It would also decode the result of |gcd| back to a pair of integers. This approach allows calling |gcd| from separately compiled files without being aware of the transformation. Still, we can do better.
 
@@ -278,7 +278,7 @@ The simplest solution is to create two versions for each transformed method: the
 
 In this case, would it make sense to call the bridge method? The values |n1| and |n2| are already encoded, so they would have to be decoded before calling the bridge method, which would then encode them back. This is suboptimal.
 
-Instead, what we want is the |adrt| scopes compose across separate compilation, allowing the call to go through in the encoded format.  This is achieved by persisting the transformation information in the generated bytecode, but we have to do so without making ADR transformations a first-class concept. The approach we took is to persist the injected annotations, including the reference to the transformation description object. These become part of the signature of |gcd|: % (the description object is abbreviated as |.|):
+Instead, we want the |adrt| scopes to compose across separate compilation, allowing the call to go through in the encoded format.  This is achieved by persisting the transformation information in the generated bytecode, but we have to do so without making ADR transformations a first-class concept. The approach we took is to persist the injected annotations, including the reference to the transformation description object. These become part of the signature of |gcd|: % (the description object is abbreviated as |.|):
 
 \begin{lstlisting-nobreak}
 // loaded signature (description object abbreviated):
@@ -363,7 +363,7 @@ adrt(`IntPairComplexToLongComplex`) {
 }
 \end{lstlisting-nobreak}
 
-Type-checking the program makes the implicit conversion that introduces the |*| operator an explicit call:
+Type-checking the program makes into an explicit call the implicit conversion that introduces the |*| operator:
 
 \vspace{-0.5em}
 \begin{lstlisting}
@@ -378,7 +378,7 @@ val n1: Long = toRepr((0,1))
 val n2: Long = IntPair...Complex.`implicit_*(n1, n1)`
 \end{lstlisting-nobreak}
 
-This allows the call to the |*| operator to be transformed to a bypass call, avoiding heap object creation, and thus significantly improving the performance and heap footprint. %Bypass methods are worth a second, more detailed, look.
+This allows the call to the |*| operator to be transformed into a bypass call, avoiding heap object creation, and thus significantly improving the performance and heap footprint. %Bypass methods are worth a second, more detailed, look.
 %Yet, we glossed over some details in how bypass methods are implemented.
 
 \vspace{-0.4em}
@@ -600,7 +600,7 @@ println(a)
 \end{lstlisting-nobreak}
 
 \noindent
-To trigger the transformation, we replace the type of |n| to |Long| in the source code and wait for the implicit conversions to do their work:
+To trigger the transformation, we update the type of |n| to |Long| in the source code and wait for the implicit conversions to do their work:
 
 \begin{lstlisting-nobreak}
 val n: `Long` = (1, 0) // triggers implicit conversion
