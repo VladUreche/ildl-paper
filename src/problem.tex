@@ -5,7 +5,6 @@
 
 \vspace{-0.2em}
 
-% Executive summary + vision
 This section presents a motivating example featuring the complex numbers transformation, which we use throughout the paper. It then shows how the data representation transformation is triggered and introduces the main concepts. Finally, it shows a naive transformation, hinting at the difficulties lying ahead.
 
 \vspace{-0.6em}
@@ -14,41 +13,10 @@ This section presents a motivating example featuring the complex numbers transfo
 
 \vspace{-0.2em}
 
-In the introduction, we focused on adding complex number semantics to
-pairs of integers. Complex numbers with integers as both their real
-and imaginary parts are known as Gaussian integers
-\cite{gauss1828theoria,gaussian-integers-wikipedia}, and are a
-countable subset of all complex numbers. The operations defined on
-Gaussian integers are similar to complex number operations, with one
-exception: to satisfy the abelian closure property, division is not precise,
-but instead rounds the result to the nearest Gaussian integer, with both the real and imaginary
-axes containing integers. This is similar to integer division, which
-also rounds the result, so that, for example, |5/2| produces value
-|2|.
+In the introduction, we focused on adding complex number semantics to pairs of integers. Complex numbers with integers as both their real and imaginary parts are known as Gaussian integers \cite{gauss1828theoria,gaussian-integers-wikipedia}, and are a countable subset of all complex numbers. The operations defined on Gaussian integers are similar to complex number operations, with one
+exception: to satisfy the abelian closure property, division is not precise, but instead rounds the result to the nearest Gaussian integer, with both the real and imaginary axes containing integers. This is similar to integer division, which also rounds the result, so that, for example, |5/2| produces value |2|.
 
-% The following implicit class defines the Gaussian integer operators on pairs of integer numbers:
-% \vlad{should we include this or spare the reader?}
-% \begin{lstlisting-nobreak}
-% implicit class PairOfIntAsGaussianInteger(n1: (Int, Int)) {
-%   def c = (n1.re, -n1.im) // conjugate 1+2i => 1-2i
-%   def re = n1._1
-%   def im = n1._2
-%   def norm = n1.re * n1.re + n1.im * n1.im
-%   def +(n2: (Int, Int)): (Int, Int) = (n1.re + n2.re, n1.im + n2.im)
-%   def -(n2: (Int, Int)): (Int, Int) = (n1.re - n2.re, n1.im - n2.im)
-%   def *(n2: (Int, Int)): (Int, Int) = (n1.re * n2.re - n1.im * n2.im, n1.re * n2.im + n1.im * n2.re)
-%   def /(n2: (Int, Int)): (Int, Int) = {
-%     val denom = n2 * n2.c
-%     val numer = n1 * n2.c
-%     assert(denom.im == 0) // by multiplying with the conjugate, we reduce the imaginary part of the denominator
-%     (math.round(numer.re.toFloat / denom.re), math.round(numer.im.toFloat / denom.re))
-%   }
-% }
-% \end{lstlisting-nobreak}
-
-An interesting property of Gaussian integers is that we can define the
-``divides'' relation and the greatest common divisor (GCD) between any
-two Gaussian integers. Furthermore, computing the GCD is similar to
+An interesting property of Gaussian integers is that we can define the ``divides'' relation and the greatest common divisor (GCD) between any two Gaussian integers. Furthermore, computing the GCD is similar to
 Euclid's algorithm for integer numbers:
 
 \begin{lstlisting-nobreak}
@@ -92,13 +60,7 @@ The Benchmarks section (\S\ref{sec:benchmarks}) shows the contribution of each e
 
 \vspace{-0.2em}
 
-In order to reap the benefits of using the improved representation
-without manually transforming the code, we present the Ad hoc Data
-Representation (ADR) Transformation technique, which is triggered
-by the |adrt| marker. This marker method accepts two parameters: the
-first parameter is the \emph{transformation description object} and the
-second is a block of code that constitutes the \emph{transformation scope}, which
-can contain anything from expressions all the way to method or even class definitions:
+In order to reap the benefits of using the improved representation without manually transforming the code, we present the Ad hoc Data Representation (ADR) Transformation technique, which is triggered by the |adrt| marker. This marker method accepts two parameters: the first parameter is the \emph{transformation description object} and the second is a block of code that constitutes the \emph{transformation scope}, which can contain anything from expressions all the way to method or even class definitions:
 
 \begin{lstlisting-nobreak}
 `adrt(IntPairComplexToLongComplex)` {
@@ -108,19 +70,6 @@ can contain anything from expressions all the way to method or even class defini
   }
 }
 \end{lstlisting-nobreak}
-
-% To maintain a consistent naming throughout the paper, we will
-% use the name \emph{high-level type} to designate |(Int, Int)|, which
-% corresponds to the original type in the code. This high-level type can
-% be encoded as its \emph{representation type}, |Long|, in order to
-% provide a more compact representation and avoid
-% object allocations. % The high-level
-%type, its representation, and the procedures for encoding and decoding
-%are all stored in the transformation description object, in our case
-%|IntPairComplexToLongComplex|.
-% With this, we have the vocabulary
-%necessary to reason about our first (naive) approach to transforming
-%the code.
 
 The |gcdADRT| method has exactly the same code as |gcd|, but wrapped in the |adrt| scope. Therefore, during compilation, the method is transformed to use the long integer representation. Two elements trigger the transformation: the  description object and the transformation scope.
 
@@ -160,7 +109,7 @@ Description objects split the task of optimizing the data representation into:
 \end{compactitem}
 \vspace{0.35em}
 
-A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types speeds up monomorphic code, which handles primitives directly. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution. %Thus, when mixing monomorphic and generic code, it's best to keep primitives boxed.
+A natural question to ask is why not automate the process of finding a better data representation? Any change in the data representation speeds up certain patterns at the expense of slowing down others. For example, unboxing primitive types speeds up monomorphic code, which handles primitives directly. Yet, erased generics still require values to be boxed, so any interaction with them triggers boxing operations, which slow down execution.
 
 Furthermore, there are many aspects that can be optimized: eliminating pointer dereferencing, improving cache locality, reducing the memory footprint to avoid garbage collection pauses, reducing numeric value ranges, specializing or delaying operations, and many others. Thus, there are many choices to make, depending on the context, to the point where automation does not make sense. Instead, armed with application profiles and domain-specific information about how the data is used, a programmer can decide what is the best transformation to apply to each critical part of an application. And, interestingly, not all parts of an application have the same needs. This is where scopes come in.
 
@@ -191,15 +140,7 @@ Scoped transformations bring two advantages:
 
 The fact that different transformations can be applied to different components gives the ADR transformation its scoped nature, and sets it apart from classical optimizations such as unboxing primitive types, generic specialization and value class inlining, which occur globally. However, this scoped nature makes the transformation more complex, as the next paragraphs will show.
 
-%For example, the Spark in-memory map-reduce framework \cite{matei-rdds} could keep the data in serialized format when about to pass it to another machine while storing it in a very compact format when doing in-memory processing.
-
-% \vspace{-0.4em}
-
 \subsection{A Naive Transformation}
-
-% \vspace{-0.2em}
-
-% It's important that's not a trivial transformation -- users will transform their input ... we'll look at this aspect again when rev
 
 Despite its simple interface, the Ad hoc Data Representation Transformation mechanism is by no means simple. Let us try to make the transformation by hand and see the challenges that appear. The initial result, the |gcdNaive| method, would take and return values of type |Long| instead of |(Int, Int)|:
 

@@ -4,10 +4,6 @@
 
 This section evaluates the experimental benefits of ADR transformations in targeted micro-benchmarks and in
 the setting of a library and its clients.
-% and shows four different usage scenarios.
-%
-%\subsection{Setup}
-%
 
 
 \begin{table*}[t!]
@@ -24,7 +20,6 @@ the setting of a library and its clients.
   \vspace{-1.9mm}
   \caption{Greatest Common Divisor benchmark results.}
   \label{table:gcd}
-%   \vspace{-1em }
 \end{table*}
 
 We ran the benchmarks on an Intel |i7-4702HQ| quad-core processor machine with the frequency fixed at |2.2GHz|, and |2GB| of RAM, running the Oracle Java SE |1.7.0_80-b15| distribution on Ubuntu |14.04 LTS|. To avoid the noise caused by the just-in-time (JIT) compiler and garbage collection (GC) cycles, we measured the running times using the ScalaMeter benchmarking platform \cite{scalameter}, which warms up the Java Virtual Machine according to statistically rigorous performance evaluation guidelines \cite{rigorous-java-benchmarking}.
@@ -93,9 +88,6 @@ We chose representative micro-benchmarks in order to cover a wide range of trans
 All benchmarks are fully automated and use the |adrt| markers and transformation description objects. We will proceed to explain the transformation in each benchmark, but, due to space constraints, the full descriptions are only available on the website.
 
 \subsubsection{The Gaussian Greatest Common Divisor}
-% What is the benchmark about?
-% Why does it matter?
-% How we optimized it?
 is the running example described in \S\ref{sec:problem} and used throughout the paper. It is a numeric, CPU-bound benchmark, where the main slowdown is caused by heap allocations and GC cycles. We broke down the transformation into four steps, with the result shown in Table \ref{table:gcd}. None of the transformations triggered GC pauses during the measured runs, but they did produce different amounts of garbage objects:
 
 \vspace{0.5em}
@@ -139,7 +131,6 @@ The transformation description objects for the three transformations above range
   \vspace{-1.9mm}
   \caption{Least Squares Method benchmark results.}
   \label{table:lslr}
-%   \vspace{-1em }
 \end{table*}
 
 \subsubsection{The Least Squares Method} takes a list of points in two dimensions and computes the slope and offset of a straight line that best approximates the input data. The benchmark performs multiple traversals over the input data and thus can benefit from deforestation \cite{wadler-deforestation}, which avoids the creation of intermediate collections after each |map| operation:
@@ -190,7 +181,6 @@ What we can also notice is that, across all benchmarks, the input data occupies 
 The erased generic |LazyList| executed the code on par with the scalablitz optimizer but produced less garbage and the GC pause was much shorter (probably requiring a simple young-generation collection, not a full mark and sweep).
 
 The miniboxed |LazyList|, on the other hand, both executed faster and did not produce any in-benchmark garbage. If we count in-benchmark GC pauses, the speedup produced by combining ``adrt'' scopes for deforestation and miniboxing for specialization is 29.5x compared to the original code. If we only count execution time, subtracting in-benchmark GC pauses, the speedup is 2.56x.
-%40\%.
 
 \begin{table*}[t!]
   \centering
@@ -215,13 +205,9 @@ The miniboxed |LazyList|, on the other hand, both executed faster and did not pr
 
 \vspace{0.5em}
 \noindent
-\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a
-%30\%
-1.43x speedup compared to ``adrt miniboxed''.
+\textbf{Manual transformations} complete the picture: in the ``deforestation'' transformation we write C-like while loops by hand to traverse the input list. We use four separate loops, to simulate the best case scenario for an automated transformation. The result is a 1.43x speedup compared to ``adrt miniboxed''.
 
-The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by
-%70\%
-3.54x compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
+The ``fusion'' manual transformation unites the four separate input list traversals into a single traversal. While this transformation cannot be applied unless we assume a closed world, it is still interesting to compare our transformation to a best-case scenario. The manual fusion improves the performance by 3.54x compared to ``adrt miniboxed''. However, what we can notice is that both ``adrt miniboxed'' and the manual transformations produce the exact same amount of garbage: 700MB.
 
 In terms of programmer effort, the |LazyList| definition takes about 60 LOC and the transformation description object about 30 LOC. The difference between ``adrt erased'' and ``adrt miniboxed'' is the presence of |@miniboxed| annotations in the |LazyList| classes and in the description object.
 
@@ -284,31 +270,6 @@ adrt(BigIntToLong) {
 }
 \end{lstlisting-nobreak}
 
-% \begin{lstlisting-nobreak}
-% class Hamming extends Iterator[BigInt] {
-%   import scala.collection.mutable.Queue
-%   val q2 = new Queue[BigInt]
-%   val q3 = new Queue[BigInt]
-%   val q5 = new Queue[BigInt]
-%   def enqueue(n: BigInt) = {
-%     q2 enqueue n * 2
-%     q3 enqueue n * 3
-%     q5 enqueue n * 5
-%   }
-%   def next = {
-%     val n = q2.head min q3.head min q5.head
-%     if (q2.head == n) q2.dequeue
-%     if (q3.head == n) q3.dequeue
-%     if (q5.head == n) q5.dequeue
-%     enqueue(n); n
-%   }
-%   def hasNext = true
-%   q2 enqueue 1
-%   q3 enqueue 1
-%   q5 enqueue 1
-% }
-% \end{lstlisting-nobreak}
-
 An observation is that, for the first 10000 Hamming numbers, there is no need to use |BigInt|, since the numbers fit into a |Long| integer. Therefore, we used two nested |adrt| scopes to replace |BigInt| by |Long| and |Queue[BigIng]| by a fixed-size circular buffer built on an array. The result was an 4x speedup. The main point in the transformation is its optimistic nature, which makes the assumption that, for the Hamming numbers we plan to extract, the long integer and a fixed-size circular buffer are good enough. This is similar to what a dynamic language virtual machine would do: it would make assumptions based on the code and would automatically de-specialize the code if the assumption is invalidated. In our case, when the assumption is invalidated, the code will throw an exception.
 
 As with other benchmarks, we broke down the transformation is several steps:
@@ -323,31 +284,19 @@ As with other benchmarks, we broke down the transformation is several steps:
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings an extra 1.25x
-% 20\%
-speedup.
+\textbf{The ``step2'' code} uses |adrt| scopes to replace the |BigInt| object in both class |Hamming| and the circular buffer by boxed |java.lang.Long| objects. This additional range restriction brings an extra 1.25x speedup.
 
 \vspace{0.5em}
 \noindent
-\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional
-%25\%
-1.31x speedup, as fewer objects are created during the benchmark execution.
+\textbf{The ``step3'' code} replaces the |BigInt| objects by unboxed |scala.Long| values. This unboxing operation produces an additional 1.31x speedup, as fewer objects are created during the benchmark execution.
 
 The conclusion is that, although the ADR transformation can be viewed as a memory layout optimization, it can additionally trigger more optimizations that bring orthogonal speedups, such as
-%improving cache locality,
 specializing operations and collections.
-%, etc.
-%%% (YS) I didn't like the original wording. Memory optimizations are mostly about cache locality.
-%%%   So the whole ``orthogonal'' is not accurate.
 
 For this example, the two transformation objects are 100 LOC and the circular buffer is another 20 LOC.
 
 \subsection{ADRT in Realistic Libraries}
-% \subsection{Retrofitting Specialization to Functions}
 \label{sec:benchmarks:funcs}
-
-% subset of the adrt, missing frontend features -- value annotation and signature persistence are there.
-% motivation: miniboxing specialization + function encoding
 
 \begin{table}[t]
   \begin{tabularx}{0.48\textwidth}{|g *{3}{|Y}|} \hline
@@ -374,12 +323,8 @@ in order to replace standard library \emph{functions} and \emph{tuples}
 by custom, optimized versions adequate for miniboxed code \cite{miniboxing-pppj}.
 The scope of this data representation transformation is miniboxing-transformed code.
 
-%Before the |adrt| scope was developed, we worked on a plugin that used a similar scoped approach: an extension used by the miniboxing transformation \cite{miniboxing-www, miniboxing} to replace library functions and tuples by custom optimized versions. Although this plugin was a precursor of the |adrt| transformation, being scoped but not programmer-driven, we present it because in the meantime it became part of the miniboxing plugin and has been used to transform large pieces of code, proving our approach scales not only to toy examples, but to actual code used in the industry.
-
-% miniboxing transformation - show def apply(...) = ...
 The miniboxing transformation \cite{miniboxing} proposes an alternative to erasure, allowing generic methods and classes to work efficiently with unboxed primitive types. Unlike the current specialization transformation in the Scala compiler \cite{iuli-thesis}, which duplicates and adapts the generic code once for every primitive type, the miniboxing transformation only duplicates the code once and \emph{encodes all primitive types in long integers}. This allows miniboxing to scale much better than specialization \cite{miniboxing-linkedlist} in terms of bytecode size while providing comparable performance. Yet, one of the main drawbacks of using the miniboxing plugin is that all Scala library classes are either generic or specialized with the built-in Scala specialization scheme, which is not compatible with miniboxing. Therefore, interacting with functions and tuples from miniboxed code incurs significant overhead.
 
-% object oriented function representation
 Consider, for example, functions. (Tuples raise similar issues.) Scala offers functions as first-class citizens. However, since functions are not first-class citizens in the Java Virtual Machine bytecode, the Scala compiler desugars them to anonymous classes extending a functional interface. The following example shows the desugaring of function |(x: Int) => x + 1|:
 
 \begin{lstlisting-nobreak}
@@ -391,20 +336,7 @@ new $anon()
 
 This function desugaring does not expose a version of the |apply| method that encodes the primitive type as a long integer, as the miniboxing transformation expects. Therefore, when programmers write miniboxed code that uses functions, they have two choices: either accept the slowdown caused by converting the representation or define their own miniboxed |Function1| class, and perform the function desugaring by hand. Neither of these is a good solution.
 
-% retrofitting the function representation - after the fact, as parts of the
-%What we would like to have is a way to transform the references to |Function1| in miniboxed code: instead of extending |Function1|, anonymous functions should extend |MiniboxedFunction1|. But the problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. This is where the scope comes in: the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|.
-
-Our data representation transformation converts the references to
-|Function1| in miniboxed code to the optimized |MiniboxedFunction1|,
-which allows calls to use the miniboxed representation, thus being more efficient. The
-problem is that the miniboxed code needs to interoperate with
-library-defined code, or with other libraries that were not
-transformed. Thus, the miniboxed code acts
-as a scope for the \emph{function and tuple representation
-  transformation}, i.e., the ADR transformation of |Function| and
-|Tuple|.
-%We will now focus on two published benchmarks that exercise the function and tuple optimization. % done using our |adrt| precursor transformation.
-This transformation has a significant impact in library benchmarks.
+Our data representation transformation converts the references to |Function1| in miniboxed code to the optimized |MiniboxedFunction1|, which allows calls to use the miniboxed representation, thus being more efficient. The problem is that the miniboxed code needs to interoperate with library-defined code, or with other libraries that were not transformed. Thus, the miniboxed code acts as a scope for the \emph{function and tuple representation transformation}, i.e., the ADR transformation of |Function| and |Tuple|. This transformation has a significant impact in library benchmarks.
 
 \begin{table}[t]
   \begin{tabularx}{0.48\textwidth}{|g *{1}{|Y}|} \hline
@@ -421,46 +353,7 @@ This transformation has a significant impact in library benchmarks.
   \vspace{-1em}
 \end{table}
 
-% <<<<<<< HEAD
 \subsubsection{The Scala-Streams library} \cite{biboudis_clash_2014} imitates the design of the Java 8 stream library, to achieve high performance (relative to standard Scala libraries) for functional operations on data streams. The library is available as an open-source implementation \cite{biboudis-streams}. In its continuation-based design, each stream combinator provides a function that is stacked to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
-% =======
-
-% \subsubsection{The Scala-Streams library} \emph{scala-streams} is an open source library~\cite{biboudis-streams} that
-% imitates the design of Java 8 streams which is based on a CPS-encoded composition of operators on the contrary to other stream libraries~\cite{biboudis_clash_2014}. The goal is to achieve high performance (relative to standard Scala libraries) for functional operations on data
-% streams. In its continuation-based design, each stream combinator provides a function that is retrofitted to the iteration loop, created at the producer side, to form a transformation pipeline. As the consumer reads from the final stream, the transformation pipeline is executed, processing an element from the source into an output element. In other workds, \emph{scala-streams} implement push-based streams instead of pull (iterator-based). In the former case the traversal of the data source is guided by the producer of the source. In the latter case, the traversal is guided by the consumer.
-%
-% Streams are used via a fluent api, e.g.
-%
-% \begin{lstlisting-nobreak}
-% Stream(xs)
-%    .map(_*2)
-%    .fold(0)(_+_)
-% \end{lstlisting-nobreak}
-%
-% %However, the pipeline architecture is complex, since combinators such as |filter| may drop elements, stalling the pipeline.
-%
-% A stream type has a single constructor. This constructor takes as a parameter a function with type |(T=>Boolean)=>Unit|. A stream holds the entire iteration over the elements of an array. Every element is passed to the argument-supplied function. That function holds a transformation (e.g., |map|). The |Boolean| return value indicates whether we should pass the transformed element down to the next consumer, in the operator chain (e.g., |filter|). In the snippet below we present the implementation of the stream creation via the |apply| function:
-%
-% \begin{lstlisting-nobreak}
-% def apply[T: ClassTag](xs: Array[T]) = {
-%   val gen = (iterf: T => Boolean) => {
-%     var counter = 0
-%     var cont = true
-%     val size = xs.length
-%     while (counter < size && cont) {
-%       cont = iterf(xs(counter))
-%       counter += 1
-%     }
-%   }
-%   new Stream(gen)
-% }
-% \end{lstlisting-nobreak}
-%
-% The library contains the usual set of combinators such as: |map|, |filter|, |fold|, |take| and an |ofArray| combinator. The last one creates a stream with the initial looping function over an in memory array. Intermediate operators (e.g., |map|) alter the iteration functions of the |Stream| instance that they are applied upon.
-%
-% Finally, a terminal operator (e.g., |fold|) will evaluate the stream function, transforming again the iteration function if needed. |fold| holds the state in a separate accumulator, initializes it according to the passed state, and returns it. What really happens inside a |fold| operation is the evaluation of the stream function such as |gen| in the snippet above.
-%
-% The project uses heavily function types, where the type parameters can be generic or primitive types. The transformation of the layout of functions employed by the miniboxing plugin increases performance significantly.
 
 Table \ref{table:streams} shows the result of applying our data
 representation transformation to the Scala-Streams published
@@ -475,22 +368,6 @@ speedup---up to 11x for the SumOfSquares benchmark. In fact, the
 speedup relative to the miniboxed code without the function
 representation optimization is nearly 16x! \iv{Miniboxing -- it really whips the llama's ass!}
 
-%Without going into the details of the benchmarks, which are covered in \cite{biboudis_clash_2014}, Table \ref{table:streams} shows the results with and without our |adrt| precursor extension, showing up to 14.5x speedups when functions are optimized.
-
 
 \subsubsection{The Framian Vector implementation} is an exploration into deeply specializing the immutable |Vector| bulk storage without using reified types \cite{tixxit-respecialization15,tixxit-respecialization6}. This is a benchmark created by a third party (a commercial entity using Scala). Table \ref{table:framian} shows a 4.4x speed improvement when the function representation is optimized and shows that the ADR-transformed function code performs within 10\% of the fully specialized and manually optimized code. \iv{Erm, no, that was Winamp with the llama, not miniboxing...}
 \vspace{-1em}
-
-% normal exec:
-% [info] Benchmark                                       Mode  Samples        Score  Score error  Units
-% [info] r.VecMapBenchmark.squareDoubleArrayWithLoop    thrpt       20  1532951.740    10201.172  ops/s
-% [info] r.VecMapBenchmark.squareDoubleArrayWithMap     thrpt       20    74578.832      644.821  ops/s
-% [info] r.VecMapBenchmark.squareDoubleVec              thrpt       20  1418579.315    10376.822  ops/s
-% with -P:minibox:library-functions
-% [info] Benchmark                                       Mode  Samples        Score  Score error  Units
-% [info] r.VecMapBenchmark.squareDoubleArrayWithLoop    thrpt       20  1540313.539    18644.313  ops/s
-% [info] r.VecMapBenchmark.squareDoubleArrayWithMap     thrpt       20    89519.549      760.324  ops/s
-% [info] r.VecMapBenchmark.squareDoubleVec              thrpt       20   324700.925     3609.481  ops/s
-
-
-%We will close the section by concluding that the |adrt| scopes are capable of covering a broad range of custom and scoped transformations and the technique has been shown to scale to large programs, through the miniboxing plugin extension based on the |adrt| approach.
